@@ -1,0 +1,39 @@
+Domča:
+	Grilled roastbeef	164
+	Pařížská rychlovka	69
+	---------------------------
+	Celkem:				233
+	Po slevě:			139.8
+	S Poplatkem:		148.6
+Bary:
+	Sweet chili			129
+	Caesar				154
+	---------------------------
+	Celkem:				283
+	Po slevě:			169.8
+	S Poplatkem:		178.6
+Já:
+	Sweet chili			129
+	Pařížská			139
+	---------------------------
+	Celkem:				268
+	Po slevě:			160.8
+	S Poplatkem:		169.6
+Lukáš:
+	Caesar menu			292
+	---------------------------
+	Celkem:				292
+	Po slevě:			175.2
+	S Poplatkem:		184
+Jířa:
+	Caesar menu			292
+	---------------------------
+	Celkem:				292
+	Po slevě:			175.2
+	S Poplatkem:		184
+
+Sleva 40%
+Poplatky:
+	- Služby:		30
+	- Doručení:		39 - 25
+Poplatky celkem na jednoho: 8.8
