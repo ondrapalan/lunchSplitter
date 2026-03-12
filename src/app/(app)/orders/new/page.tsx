@@ -9,7 +9,7 @@ import { useCalculation } from '~/features/lunch/hooks/useCalculation'
 import { OrderSettings } from '~/features/lunch/components/OrderSettings'
 import { PeopleSection } from '~/features/lunch/components/PeopleSection'
 import { Summary } from '~/features/lunch/components/Summary'
-import { CopySummary } from '~/features/lunch/components/CopySummary'
+
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
@@ -117,8 +117,6 @@ export default function NewOrderPage() {
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />
-
-      <CopySummary session={session} summaries={summaries} />
 
       <SaveBar>
         <Button variant="primary" onClick={handleSave} disabled={saving}>

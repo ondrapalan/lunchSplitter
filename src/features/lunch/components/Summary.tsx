@@ -53,7 +53,7 @@ export function Summary({ summaries, grandTotal }: SummaryProps) {
   if (summaries.length === 0) return null
 
   return (
-    <Card>
+    <Card style={{ marginTop: '2rem' }}>
       <SectionTitle>Summary</SectionTitle>
       <Table>
         <thead>
