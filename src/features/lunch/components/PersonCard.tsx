@@ -43,6 +43,7 @@ interface PersonCardProps {
   summary: PersonSummary | undefined
   globalDiscountPercent: number
   itemSuggestions: ItemSuggestion[]
+  editable?: boolean
   onRemovePerson: () => void
   onUpdateName: (name: string) => void
   onAddItem: (name: string, price: number) => void
@@ -56,6 +57,7 @@ export function PersonCard({
   summary,
   globalDiscountPercent,
   itemSuggestions,
+  editable = true,
   onRemovePerson,
   onUpdateName,
   onAddItem,
@@ -96,7 +98,7 @@ export function PersonCard({
   return (
     <Card>
       <CardHeader>
-        {editingName ? (
+        {editingName && editable ? (
           <Input
             autoFocus
             defaultValue={person.name}
@@ -113,12 +115,17 @@ export function PersonCard({
             style={{ maxWidth: '200px' }}
           />
         ) : (
-          <CardTitle onClick={() => setEditingName(true)} style={{ cursor: 'pointer' }}>
+          <CardTitle
+            onClick={editable ? () => setEditingName(true) : undefined}
+            style={editable ? { cursor: 'pointer' } : undefined}
+          >
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
           </CardTitle>
         )}
-        <Button variant="danger" size="sm" onClick={onRemovePerson}>X</Button>
+        {editable && (
+          <Button variant="danger" size="sm" onClick={onRemovePerson}>X</Button>
+        )}
       </CardHeader>
 
       {person.items.map(item => (
@@ -128,6 +135,7 @@ export function PersonCard({
           globalDiscountPercent={globalDiscountPercent}
           allPeople={allPeople}
           ownerId={person.id}
+          editable={editable}
           onUpdate={updates => onUpdateItem(item.id, updates)}
           onRemove={() => onRemoveItem(item.id)}
         />
@@ -142,26 +150,28 @@ export function PersonCard({
         />
       ))}
 
-      <AddItemRow>
-        <ItemSuggest
-          value={newItemName}
-          onChange={setNewItemName}
-          onSelect={handleSuggestionSelect}
-          suggestions={itemSuggestions}
-          onKeyDown={handleKeyDown}
-          placeholder="Item name"
-        />
-        <NumberInput
-          value={newItemPrice}
-          onChange={e => setNewItemPrice(e.target.value)}
-          placeholder="Price"
-          onKeyDown={handleKeyDown}
-          min={0}
-        />
-        <Button variant="secondary" size="sm" onClick={handleAddItem}>
-          + Add
-        </Button>
-      </AddItemRow>
+      {editable && (
+        <AddItemRow>
+          <ItemSuggest
+            value={newItemName}
+            onChange={setNewItemName}
+            onSelect={handleSuggestionSelect}
+            suggestions={itemSuggestions}
+            onKeyDown={handleKeyDown}
+            placeholder="Item name"
+          />
+          <NumberInput
+            value={newItemPrice}
+            onChange={e => setNewItemPrice(e.target.value)}
+            placeholder="Price"
+            onKeyDown={handleKeyDown}
+            min={0}
+          />
+          <Button variant="secondary" size="sm" onClick={handleAddItem}>
+            + Add
+          </Button>
+        </AddItemRow>
+      )}
 
       {summary && (
         <PersonSubtotals>
