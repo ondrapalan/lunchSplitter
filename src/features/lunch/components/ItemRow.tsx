@@ -75,11 +75,12 @@ interface ItemRowProps {
   globalDiscountPercent: number
   allPeople: Person[]
   ownerId: string
+  editable?: boolean
   onUpdate: (updates: Partial<Omit<Item, 'id'>>) => void
   onRemove: () => void
 }
 
-export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, onUpdate, onRemove }: ItemRowProps) {
+export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, editable = true, onUpdate, onRemove }: ItemRowProps) {
   const [editingDiscount, setEditingDiscount] = useState(false)
   const [showShareSelector, setShowShareSelector] = useState(false)
 
@@ -128,7 +129,7 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, onUpd
           )}
         </ItemDetails>
         <ItemPrice>{item.price} CZK</ItemPrice>
-        {editingDiscount ? (
+        {editingDiscount && editable ? (
           <NumberInput
             autoFocus
             defaultValue={item.discountPercent ?? ''}
@@ -147,14 +148,23 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, onUpd
             max={100}
           />
         ) : (
-          <DiscountBadge $custom={isCustomDiscount} onClick={handleDiscountClick}>
+          <DiscountBadge
+            $custom={isCustomDiscount}
+            onClick={editable ? handleDiscountClick : undefined}
+            style={editable ? undefined : { cursor: 'default', pointerEvents: 'none' as const }}
+            as={editable ? 'button' : 'span'}
+          >
             {isCustomDiscount ? `${effectiveDiscount}%` : `global ${effectiveDiscount}%`}
           </DiscountBadge>
         )}
-        <Button variant="ghost" size="sm" onClick={() => setShowShareSelector(!showShareSelector)}>
-          {showShareSelector ? 'Hide' : 'Share'}
-        </Button>
-        <Button variant="danger" size="sm" onClick={onRemove}>X</Button>
+        {editable && (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setShowShareSelector(!showShareSelector)}>
+              {showShareSelector ? 'Hide' : 'Share'}
+            </Button>
+            <Button variant="danger" size="sm" onClick={onRemove}>X</Button>
+          </>
+        )}
       </Row>
       {showShareSelector && otherPeople.length > 0 && (
         <ShareSelector>
