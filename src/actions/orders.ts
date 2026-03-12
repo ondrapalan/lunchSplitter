@@ -85,6 +85,7 @@ export async function getOrder(orderId: string) {
     where: { id: orderId },
     include: {
       restaurant: true,
+      createdBy: { select: { displayName: true } },
       feeAdjustments: { orderBy: { sortOrder: 'asc' } },
       people: {
         orderBy: { sortOrder: 'asc' },
@@ -106,6 +107,10 @@ export async function getOrder(orderId: string) {
   return {
     restaurantName: order.restaurant.name,
     session: prismaOrderToLunchSession(order),
+    isCreator: order.createdById === session.user.id,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    creatorName: order.createdBy.displayName,
   }
 }
 
