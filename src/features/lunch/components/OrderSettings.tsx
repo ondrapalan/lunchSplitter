@@ -47,6 +47,7 @@ interface OrderSettingsProps {
   netFees: number
   feePerPerson: number
   peopleCount: number
+  editable?: boolean
   onSetGlobalDiscount: (percent: number) => void
   onAddFee: (name: string, amount: number) => void
   onUpdateFee: (id: string, updates: Partial<Omit<FeeAdjustment, 'id'>>) => void
@@ -59,6 +60,7 @@ export function OrderSettings({
   netFees,
   feePerPerson,
   peopleCount,
+  editable = true,
   onSetGlobalDiscount,
   onAddFee,
   onUpdateFee,
@@ -86,15 +88,21 @@ export function OrderSettings({
 
       <SettingsRow>
         <Label>Global Discount</Label>
-        <NumberInput
-          value={globalDiscountPercent || ''}
-          onChange={e => onSetGlobalDiscount(parseFloat(e.target.value) || 0)}
-          placeholder="0"
-          min={0}
-          max={100}
-          style={{ width: '60px' }}
-        />
-        <span>%</span>
+        {editable ? (
+          <>
+            <NumberInput
+              value={globalDiscountPercent || ''}
+              onChange={e => onSetGlobalDiscount(parseFloat(e.target.value) || 0)}
+              placeholder="0"
+              min={0}
+              max={100}
+              style={{ width: '60px' }}
+            />
+            <span>%</span>
+          </>
+        ) : (
+          <span>{globalDiscountPercent}%</span>
+        )}
       </SettingsRow>
 
       <SectionTitle style={{ fontSize: '1rem', marginTop: '16px' }}>
@@ -103,41 +111,54 @@ export function OrderSettings({
 
       {feeAdjustments.map(fee => (
         <FeeGrid key={fee.id}>
-          <Input
-            value={fee.name}
-            onChange={e => onUpdateFee(fee.id, { name: e.target.value })}
-          />
-          <NumberInput
-            value={fee.amount || ''}
-            onChange={e => onUpdateFee(fee.id, { amount: parseFloat(e.target.value) || 0 })}
-            style={{ width: '100%' }}
-          />
-          <CzkLabel>CZK</CzkLabel>
-          <Button variant="danger" size="sm" onClick={() => onRemoveFee(fee.id)}>
-            X
-          </Button>
+          {editable ? (
+            <>
+              <Input
+                value={fee.name}
+                onChange={e => onUpdateFee(fee.id, { name: e.target.value })}
+              />
+              <NumberInput
+                value={fee.amount || ''}
+                onChange={e => onUpdateFee(fee.id, { amount: parseFloat(e.target.value) || 0 })}
+                style={{ width: '100%' }}
+              />
+              <CzkLabel>CZK</CzkLabel>
+              <Button variant="danger" size="sm" onClick={() => onRemoveFee(fee.id)}>
+                X
+              </Button>
+            </>
+          ) : (
+            <>
+              <span>{fee.name}</span>
+              <span>{fee.amount} CZK</span>
+              <span />
+              <span />
+            </>
+          )}
         </FeeGrid>
       ))}
 
-      <FeeGrid>
-        <Input
-          value={newFeeName}
-          onChange={e => setNewFeeName(e.target.value)}
-          placeholder="Fee name"
-          onKeyDown={handleAddFeeKeyDown}
-        />
-        <NumberInput
-          value={newFeeAmount}
-          onChange={e => setNewFeeAmount(e.target.value)}
-          placeholder="amount"
-          onKeyDown={handleAddFeeKeyDown}
-          style={{ width: '100%' }}
-        />
-        <div />
-        <Button variant="secondary" size="sm" onClick={handleAddFee}>
-          +
-        </Button>
-      </FeeGrid>
+      {editable && (
+        <FeeGrid>
+          <Input
+            value={newFeeName}
+            onChange={e => setNewFeeName(e.target.value)}
+            placeholder="Fee name"
+            onKeyDown={handleAddFeeKeyDown}
+          />
+          <NumberInput
+            value={newFeeAmount}
+            onChange={e => setNewFeeAmount(e.target.value)}
+            placeholder="amount"
+            onKeyDown={handleAddFeeKeyDown}
+            style={{ width: '100%' }}
+          />
+          <div />
+          <Button variant="secondary" size="sm" onClick={handleAddFee}>
+            +
+          </Button>
+        </FeeGrid>
+      )}
 
       {feeAdjustments.some(f => f.amount !== 0) && (
         <NetFeesDisplay>
