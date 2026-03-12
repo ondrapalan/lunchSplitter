@@ -67,6 +67,31 @@ export async function createUser(data: {
   }
 }
 
+export async function updateDisplayName(displayName: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { displayName },
+  })
+
+  return { success: true }
+}
+
+export async function getDisplayName() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { displayName: true },
+  })
+  if (!user) throw new Error('User not found')
+
+  return user.displayName
+}
+
 export async function changePassword(currentPassword: string, newPassword: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')

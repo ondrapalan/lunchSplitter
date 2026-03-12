@@ -29,6 +29,10 @@ export const registerSchema = z.object({
   path: ['confirmPassword'],
 })
 
+export const updateDisplayNameSchema = z.object({
+  displayName: z.string().min(1, 'Display name is required'),
+})
+
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'Password must be at least 6 characters'),
@@ -46,5 +50,6 @@ export type LoginInput = z.infer<typeof loginSchema>
 export type SetupPasswordInput = z.infer<typeof setupPasswordSchema>
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
+export type UpdateDisplayNameInput = z.infer<typeof updateDisplayNameSchema>
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
 export type SaveOrderInput = z.infer<typeof saveOrderSchema>
