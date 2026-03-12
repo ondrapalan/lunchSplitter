@@ -119,9 +119,15 @@ export async function listOrders() {
   if (!session?.user) throw new Error('Unauthorized')
 
   const orders = await prisma.order.findMany({
-    where: { createdById: session.user.id },
+    where: {
+      OR: [
+        { createdById: session.user.id },
+        { people: { some: { userId: session.user.id } } },
+      ],
+    },
     include: {
       restaurant: true,
+      createdBy: { select: { displayName: true } },
       _count: { select: { people: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -131,6 +137,9 @@ export async function listOrders() {
     id: order.id,
     restaurantName: order.restaurant.name,
     createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    isCreator: order.createdById === session.user.id,
+    creatorName: order.createdBy.displayName,
     peopleCount: order._count.people,
   }))
 }
