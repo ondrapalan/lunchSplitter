@@ -7,11 +7,15 @@ import { toast } from 'react-toastify'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { listOrders, deleteOrder } from '~/actions/orders'
+import { wasEdited } from '~/features/lunch/utils/formatters'
 
 interface OrderListItem {
   id: string
   restaurantName: string
   createdAt: string
+  updatedAt: string
+  isCreator: boolean
+  creatorName: string
   peopleCount: number
 }
 
@@ -57,6 +61,12 @@ const EmptyState = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `
 
+const CreatorBadge = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-weight: 400;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+`
+
 export default function OrdersPage() {
   const router = useRouter()
   const [orders, setOrders] = useState<OrderListItem[]>([])
@@ -96,14 +106,24 @@ export default function OrdersPage() {
           {orders.map(order => (
             <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
               <OrderInfo>
-                <RestaurantName>{order.restaurantName}</RestaurantName>
+                <RestaurantName>
+                  {order.restaurantName}
+                  {!order.isCreator && (
+                    <CreatorBadge> by {order.creatorName}</CreatorBadge>
+                  )}
+                </RestaurantName>
                 <OrderMeta>
                   {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
+                  {wasEdited(order.createdAt, order.updatedAt) && (
+                    <> &middot; Last edited: {new Date(order.updatedAt).toLocaleDateString()}</>
+                  )}
                 </OrderMeta>
               </OrderInfo>
-              <Button variant="danger" size="sm" onClick={e => handleDelete(e, order.id)}>
-                Delete
-              </Button>
+              {order.isCreator && (
+                <Button variant="danger" size="sm" onClick={e => handleDelete(e, order.id)}>
+                  Delete
+                </Button>
+              )}
             </OrderRow>
           ))}
         </OrderList>

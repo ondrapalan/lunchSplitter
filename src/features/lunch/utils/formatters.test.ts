@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrency, formatFeeAmount, generateCopySummary } from './formatters'
+import { formatCurrency, formatFeeAmount, generateCopySummary, wasEdited } from './formatters'
 import type { LunchSession, PersonSummary } from '../types'
 
 describe('formatCurrency', () => {
@@ -17,6 +17,20 @@ describe('formatFeeAmount', () => {
 
   it('formats negative as -X', () => {
     expect(formatFeeAmount(-25)).toBe('-25')
+  })
+})
+
+describe('wasEdited', () => {
+  it('returns false when timestamps are within 10 seconds', () => {
+    expect(wasEdited('2026-01-01T00:00:00Z', '2026-01-01T00:00:05Z')).toBe(false)
+  })
+
+  it('returns true when timestamps differ by more than 10 seconds', () => {
+    expect(wasEdited('2026-01-01T00:00:00Z', '2026-01-01T00:01:00Z')).toBe(true)
+  })
+
+  it('returns false when timestamps are identical', () => {
+    expect(wasEdited('2026-01-01T12:00:00Z', '2026-01-01T12:00:00Z')).toBe(false)
   })
 })
 

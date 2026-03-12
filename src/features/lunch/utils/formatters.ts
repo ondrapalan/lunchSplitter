@@ -1,6 +1,10 @@
 import type { LunchSession, PersonSummary } from '../types'
 import { calculateNetFees, calculateFeePerPerson } from './calculations'
 
+export function wasEdited(createdAt: string, updatedAt: string): boolean {
+  return Math.abs(new Date(updatedAt).getTime() - new Date(createdAt).getTime()) > 10_000
+}
+
 export function formatCurrency(value: number): string {
   return value.toFixed(2)
 }
