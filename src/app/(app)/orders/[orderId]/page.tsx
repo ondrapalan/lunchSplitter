@@ -60,23 +60,27 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
   const [creatorName, setCreatorName] = useState('')
 
   const load = useCallback(async () => {
-    const [result, users] = await Promise.all([getOrder(orderId), getRegisteredUsers()])
-    setRegisteredUsers(users)
-    if (!result) {
-      toast.error('Order not found')
-      router.push('/orders')
-      return
-    }
-    setRestaurantName(result.restaurantName)
-    setLoadedSession(result.session)
-    setIsCreator(result.isCreator)
-    setCreatedAt(result.createdAt)
-    setUpdatedAt(result.updatedAt)
-    setCreatorName(result.creatorName)
-    setLoaded(true)
-    // Auto-enter edit mode for empty orders
-    if (result.session.people.length === 0 && result.isCreator) {
-      setIsEditing(true)
+    try {
+      const [result, users] = await Promise.all([getOrder(orderId), getRegisteredUsers()])
+      setRegisteredUsers(users)
+      if (!result) {
+        toast.error('Order not found')
+        router.push('/orders')
+        return
+      }
+      setRestaurantName(result.restaurantName)
+      setLoadedSession(result.session)
+      setIsCreator(result.isCreator)
+      setCreatedAt(result.createdAt)
+      setUpdatedAt(result.updatedAt)
+      setCreatorName(result.creatorName)
+      setLoaded(true)
+      // Auto-enter edit mode for empty orders
+      if (result.session.people.length === 0 && result.isCreator) {
+        setIsEditing(true)
+      }
+    } catch {
+      toast.error('Failed to load order')
     }
   }, [orderId, router])
 
@@ -124,7 +128,7 @@ function EditOrderContent({
   isEditing,
   createdAt,
   updatedAt,
-  // creatorName reserved for future use (e.g. "Created by" label)
+  creatorName,
   onEdit,
   onCancel,
   onSaved,
@@ -180,6 +184,9 @@ function EditOrderContent({
       <Header>
         <div>
           <SectionTitle style={{ marginBottom: 0 }}>{restaurantName}</SectionTitle>
+          {!isCreator && (
+            <LastEdited>Created by {creatorName}</LastEdited>
+          )}
           {wasEditedAfterCreation && (
             <LastEdited>Last edited: {new Date(updatedAt).toLocaleDateString()}</LastEdited>
           )}

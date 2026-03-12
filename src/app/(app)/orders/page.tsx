@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
@@ -72,15 +72,15 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderListItem[]>([])
   const [loading, setLoading] = useState(true)
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     const result = await listOrders()
     setOrders(result)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
     loadOrders()
-  }, [])
+  }, [loadOrders])
 
   const handleDelete = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()

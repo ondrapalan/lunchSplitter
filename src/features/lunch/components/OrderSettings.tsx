@@ -130,7 +130,7 @@ export function OrderSettings({
           ) : (
             <>
               <span>{fee.name}</span>
-              <span>{fee.amount} CZK</span>
+              <span style={{ textAlign: 'right' }}>{fee.amount} CZK</span>
               <span />
               <span />
             </>
