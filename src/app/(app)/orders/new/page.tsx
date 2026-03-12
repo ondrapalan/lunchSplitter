@@ -10,10 +10,10 @@ import { OrderSettings } from '~/features/lunch/components/OrderSettings'
 import { PeopleSection } from '~/features/lunch/components/PeopleSection'
 import { Summary } from '~/features/lunch/components/Summary'
 
-import { Input } from '~/features/ui/components/Input'
+import { RestaurantSuggest } from '~/features/lunch/components/RestaurantSuggest'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
-import { createOrder, saveOrder } from '~/actions/orders'
+import { createOrder, saveOrder, getRestaurantNames } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 
@@ -38,9 +38,11 @@ export default function NewOrderPage() {
   const [restaurantName, setRestaurantName] = useState('')
   const [saving, setSaving] = useState(false)
   const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
+  const [restaurantSuggestions, setRestaurantSuggestions] = useState<string[]>([])
 
   useEffect(() => {
     getRegisteredUsers().then(setRegisteredUsers)
+    getRestaurantNames().then(setRestaurantSuggestions)
   }, [])
 
   const {
@@ -84,9 +86,10 @@ export default function NewOrderPage() {
       </Header>
 
       <div style={{ marginBottom: '16px' }}>
-        <Input
+        <RestaurantSuggest
           value={restaurantName}
-          onChange={e => setRestaurantName(e.target.value)}
+          onChange={setRestaurantName}
+          suggestions={restaurantSuggestions}
           placeholder="Restaurant name"
         />
       </div>

@@ -5,6 +5,18 @@ import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
 import type { LunchSession } from '~/features/lunch/types'
 
+export async function getRestaurantNames() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const restaurants = await prisma.restaurant.findMany({
+    select: { name: true },
+    orderBy: { name: 'asc' },
+  })
+
+  return restaurants.map(r => r.name)
+}
+
 export async function createOrder(restaurantName: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
