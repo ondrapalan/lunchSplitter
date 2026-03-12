@@ -5,18 +5,20 @@ function generateId(): string {
   return crypto.randomUUID()
 }
 
-const initialSession: LunchSession = {
-  globalDiscountPercent: 0,
-  feeAdjustments: [
-    { id: crypto.randomUUID(), name: 'Delivery', amount: 0 },
-    { id: crypto.randomUUID(), name: 'Delivery coupon', amount: 0 },
-    { id: crypto.randomUUID(), name: 'Service', amount: 0 },
-  ],
-  people: [],
+function createInitialSession(): LunchSession {
+  return {
+    globalDiscountPercent: 0,
+    feeAdjustments: [
+      { id: generateId(), name: 'Delivery', amount: 0 },
+      { id: generateId(), name: 'Delivery coupon', amount: 0 },
+      { id: generateId(), name: 'Service', amount: 0 },
+    ],
+    people: [],
+  }
 }
 
-export function useLunchSession() {
-  const [session, setSession] = useState<LunchSession>(initialSession)
+export function useLunchSession(initialSession?: LunchSession) {
+  const [session, setSession] = useState<LunchSession>(() => initialSession ?? createInitialSession())
 
   const setGlobalDiscount = useCallback((percent: number) => {
     setSession(prev => ({ ...prev, globalDiscountPercent: percent }))
@@ -46,8 +48,8 @@ export function useLunchSession() {
     }))
   }, [])
 
-  const addPerson = useCallback((name: string) => {
-    const person: Person = { id: generateId(), name, items: [] }
+  const addPerson = useCallback((name: string, userId?: string) => {
+    const person: Person = { id: generateId(), name, userId: userId ?? null, items: [] }
     setSession(prev => ({
       ...prev,
       people: [...prev.people, person],

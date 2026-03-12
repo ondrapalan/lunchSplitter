@@ -1,23 +1,19 @@
-import { useState, useMemo } from 'react'
-import styled from 'styled-components'
-import { Input } from '~/features/ui/components/Input'
-import { Button } from '~/features/ui/components/Button'
+'use client'
+
+import { useMemo } from 'react'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { PersonCard } from './PersonCard'
+import { PersonSuggest } from './PersonSuggest'
+import type { UserSuggestion } from './PersonSuggest'
 import type { Person, Item, PersonSummary } from '../types'
 import type { ItemSuggestion } from './ItemSuggest'
-
-const AddPersonRow = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.md};
-`
 
 interface PeopleSectionProps {
   people: Person[]
   summaries: PersonSummary[]
   globalDiscountPercent: number
-  onAddPerson: (name: string) => void
+  registeredUsers?: UserSuggestion[]
+  onAddPerson: (name: string, userId?: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
   onAddItem: (personId: string, name: string, price: number) => void
@@ -29,6 +25,7 @@ export function PeopleSection({
   people,
   summaries,
   globalDiscountPercent,
+  registeredUsers = [],
   onAddPerson,
   onRemovePerson,
   onUpdatePersonName,
@@ -36,15 +33,6 @@ export function PeopleSection({
   onUpdateItem,
   onRemoveItem,
 }: PeopleSectionProps) {
-  const [newPersonName, setNewPersonName] = useState('')
-
-  const handleAddPerson = () => {
-    if (newPersonName.trim()) {
-      onAddPerson(newPersonName.trim())
-      setNewPersonName('')
-    }
-  }
-
   // Collect all item names+prices across all people for suggestions
   const itemSuggestions: ItemSuggestion[] = useMemo(() => {
     const all: ItemSuggestion[] = []
@@ -55,6 +43,11 @@ export function PeopleSection({
     }
     return all
   }, [people])
+
+  const excludeUserIds = useMemo(
+    () => people.filter(p => p.userId).map(p => p.userId!),
+    [people],
+  )
 
   return (
     <div>
@@ -76,20 +69,11 @@ export function PeopleSection({
         />
       ))}
 
-      <AddPersonRow>
-        <Input
-          value={newPersonName}
-          onChange={e => setNewPersonName(e.target.value)}
-          placeholder="Person name"
-          onKeyDown={e => {
-            if (e.key === 'Enter') handleAddPerson()
-          }}
-          style={{ flex: 1, maxWidth: '300px' }}
-        />
-        <Button variant="primary" onClick={handleAddPerson}>
-          + Add Person
-        </Button>
-      </AddPersonRow>
+      <PersonSuggest
+        onAddPerson={onAddPerson}
+        users={registeredUsers}
+        excludeUserIds={excludeUserIds}
+      />
     </div>
   )
 }

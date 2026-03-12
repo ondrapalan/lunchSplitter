@@ -1,3 +1,5 @@
+'use client'
+
 import { useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardHeader, CardTitle } from '~/features/ui/components/Card'
@@ -21,6 +23,12 @@ const PersonSubtotals = styled.div`
 
 const SubtotalItem = styled.span<{ $highlight?: boolean }>`
   color: ${({ $highlight, theme }) => $highlight ? theme.colors.warning : theme.colors.textDim};
+`
+
+const RegisteredBadge = styled.span`
+  color: ${({ theme }) => theme.colors.accent};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 400;
 `
 
 const AddItemRow = styled.div`
@@ -107,6 +115,7 @@ export function PersonCard({
         ) : (
           <CardTitle onClick={() => setEditingName(true)} style={{ cursor: 'pointer' }}>
             {person.name}
+            {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
           </CardTitle>
         )}
         <Button variant="danger" size="sm" onClick={onRemovePerson}>X</Button>

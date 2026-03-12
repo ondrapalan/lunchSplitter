@@ -1,3 +1,5 @@
+'use client'
+
 import styled from 'styled-components'
 import { Card } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'

@@ -16,6 +16,7 @@ export interface Item {
 export interface Person {
   id: string
   name: string
+  userId?: string | null
   items: Item[]
 }
 

@@ -1,3 +1,5 @@
+'use client'
+
 import styled, { css } from 'styled-components'
 
 interface ButtonProps {
@@ -5,7 +7,9 @@ interface ButtonProps {
   size?: 'sm' | 'md'
 }
 
-export const Button = styled.button<ButtonProps>`
+export const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => prop !== 'variant' && prop !== 'size',
+})<ButtonProps>`
   display: inline-flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
