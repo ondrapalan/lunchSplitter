@@ -13,6 +13,7 @@ interface PeopleSectionProps {
   summaries: PersonSummary[]
   globalDiscountPercent: number
   registeredUsers?: UserSuggestion[]
+  editable?: boolean
   onAddPerson: (name: string, userId?: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
@@ -26,6 +27,7 @@ export function PeopleSection({
   summaries,
   globalDiscountPercent,
   registeredUsers = [],
+  editable = true,
   onAddPerson,
   onRemovePerson,
   onUpdatePersonName,
@@ -61,6 +63,7 @@ export function PeopleSection({
           summary={summaries.find(s => s.personId === person.id)}
           globalDiscountPercent={globalDiscountPercent}
           itemSuggestions={itemSuggestions}
+          editable={editable}
           onRemovePerson={() => onRemovePerson(person.id)}
           onUpdateName={name => onUpdatePersonName(person.id, name)}
           onAddItem={(name, price) => onAddItem(person.id, name, price)}
@@ -69,11 +72,13 @@ export function PeopleSection({
         />
       ))}
 
-      <PersonSuggest
-        onAddPerson={onAddPerson}
-        users={registeredUsers}
-        excludeUserIds={excludeUserIds}
-      />
+      {editable && (
+        <PersonSuggest
+          onAddPerson={onAddPerson}
+          users={registeredUsers}
+          excludeUserIds={excludeUserIds}
+        />
+      )}
     </div>
   )
 }
