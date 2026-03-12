@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState, use, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
@@ -14,6 +14,7 @@ import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { getOrder, saveOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
+import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { LunchSession } from '~/features/lunch/types'
 
@@ -38,30 +39,50 @@ const SaveStatus = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.sm};
 `
 
+const LastEdited = styled.div`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`
+
 export default function EditOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const router = useRouter()
   const [loaded, setLoaded] = useState(false)
   const [loadedSession, setLoadedSession] = useState<LunchSession | null>(null)
   const [restaurantName, setRestaurantName] = useState('')
-  const [saving, setSaving] = useState(false)
   const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [contentKey, setContentKey] = useState(0)
+  const [isCreator, setIsCreator] = useState(false)
+  const [createdAt, setCreatedAt] = useState('')
+  const [updatedAt, setUpdatedAt] = useState('')
+  const [creatorName, setCreatorName] = useState('')
+
+  const load = useCallback(async () => {
+    const [result, users] = await Promise.all([getOrder(orderId), getRegisteredUsers()])
+    setRegisteredUsers(users)
+    if (!result) {
+      toast.error('Order not found')
+      router.push('/orders')
+      return
+    }
+    setRestaurantName(result.restaurantName)
+    setLoadedSession(result.session)
+    setIsCreator(result.isCreator)
+    setCreatedAt(result.createdAt)
+    setUpdatedAt(result.updatedAt)
+    setCreatorName(result.creatorName)
+    setLoaded(true)
+    // Auto-enter edit mode for empty orders
+    if (result.session.people.length === 0 && result.isCreator) {
+      setIsEditing(true)
+    }
+  }, [orderId, router])
 
   useEffect(() => {
-    async function load() {
-      const [result, users] = await Promise.all([getOrder(orderId), getRegisteredUsers()])
-      setRegisteredUsers(users)
-      if (!result) {
-        toast.error('Order not found')
-        router.push('/orders')
-        return
-      }
-      setRestaurantName(result.restaurantName)
-      setLoadedSession(result.session)
-      setLoaded(true)
-    }
     load()
-  }, [orderId, router])
+  }, [load])
 
   if (!loaded || !loadedSession) {
     return <SectionTitle>Loading order...</SectionTitle>
@@ -69,12 +90,27 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
 
   return (
     <EditOrderContent
+      key={contentKey}
       orderId={orderId}
       restaurantName={restaurantName}
       initialSession={loadedSession}
       registeredUsers={registeredUsers}
-      saving={saving}
-      setSaving={setSaving}
+      isCreator={isCreator}
+      isEditing={isEditing}
+      createdAt={createdAt}
+      updatedAt={updatedAt}
+      creatorName={creatorName}
+      onEdit={() => setIsEditing(true)}
+      onCancel={async () => {
+        setIsEditing(false)
+        await load()
+        setContentKey(k => k + 1)
+      }}
+      onSaved={async () => {
+        setIsEditing(false)
+        await load()
+        setContentKey(k => k + 1)
+      }}
     />
   )
 }
@@ -84,16 +120,30 @@ function EditOrderContent({
   restaurantName,
   initialSession,
   registeredUsers,
-  saving,
-  setSaving,
+  isCreator,
+  isEditing,
+  createdAt,
+  updatedAt,
+  // creatorName reserved for future use (e.g. "Created by" label)
+  onEdit,
+  onCancel,
+  onSaved,
 }: {
   orderId: string
   restaurantName: string
   initialSession: LunchSession
   registeredUsers: UserSuggestion[]
-  saving: boolean
-  setSaving: (v: boolean) => void
+  isCreator: boolean
+  isEditing: boolean
+  createdAt: string
+  updatedAt: string
+  creatorName: string
+  onEdit: () => void
+  onCancel: () => Promise<void>
+  onSaved: () => Promise<void>
 }) {
+  const [saving, setSaving] = useState(false)
+
   const {
     session,
     setGlobalDiscount,
@@ -115,6 +165,7 @@ function EditOrderContent({
     try {
       await saveOrder(orderId, session)
       toast.success('Order saved!')
+      await onSaved()
     } catch {
       toast.error('Failed to save order')
     } finally {
@@ -122,11 +173,25 @@ function EditOrderContent({
     }
   }
 
+  const wasEditedAfterCreation = wasEdited(createdAt, updatedAt)
+
   return (
     <div>
       <Header>
-        <SectionTitle style={{ marginBottom: 0 }}>{restaurantName}</SectionTitle>
-        <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
+        <div>
+          <SectionTitle style={{ marginBottom: 0 }}>{restaurantName}</SectionTitle>
+          {wasEditedAfterCreation && (
+            <LastEdited>Last edited: {new Date(updatedAt).toLocaleDateString()}</LastEdited>
+          )}
+        </div>
+        {isCreator && !isEditing && (
+          <Button variant="primary" onClick={onEdit}>
+            Edit order details
+          </Button>
+        )}
+        {isEditing && (
+          <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
+        )}
       </Header>
 
       <OrderSettings
@@ -135,6 +200,7 @@ function EditOrderContent({
         netFees={netFees}
         feePerPerson={feePerPerson}
         peopleCount={session.people.length}
+        editable={isEditing}
         onSetGlobalDiscount={setGlobalDiscount}
         onAddFee={addFeeAdjustment}
         onUpdateFee={updateFeeAdjustment}
@@ -146,6 +212,7 @@ function EditOrderContent({
         summaries={summaries}
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
+        editable={isEditing}
         onAddPerson={addPerson}
         onRemovePerson={removePerson}
         onUpdatePersonName={updatePersonName}
@@ -158,11 +225,16 @@ function EditOrderContent({
 
       <CopySummary session={session} summaries={summaries} />
 
-      <SaveBar>
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </SaveBar>
+      {isEditing && (
+        <SaveBar>
+          <Button variant="secondary" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </SaveBar>
+      )}
     </div>
   )
 }
