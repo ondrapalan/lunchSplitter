@@ -64,16 +64,22 @@ export async function createOrder(restaurantName: string) {
   return { id: order.id }
 }
 
-export async function saveOrder(orderId: string, lunchSession: LunchSession) {
+export async function saveOrder(orderId: string, lunchSession: LunchSession, expectedUpdatedAt?: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { createdById: true },
+    select: { createdById: true, status: true, updatedAt: true },
   })
   if (!order || order.createdById !== session.user.id) {
     throw new Error('Unauthorized')
+  }
+  if (order.status === 'CLOSED') {
+    throw new Error('Cannot modify a closed order')
+  }
+  if (expectedUpdatedAt && order.updatedAt.toISOString() !== expectedUpdatedAt) {
+    throw new Error('Order was modified by someone else. Please refresh and try again.')
   }
 
   const input = lunchSessionToPrismaInput(lunchSession)
@@ -143,13 +149,25 @@ export async function getOrder(orderId: string) {
 
   if (!order) return null
 
+  const isCreator = order.createdById === session.user.id
+  const currentUserPerson = order.people.find(p => p.userId === session.user.id)
+  const isParticipant = !!currentUserPerson
+
+  // Non-creator, non-participant cannot view closed orders
+  if (order.status === 'CLOSED' && !isCreator && !isParticipant) {
+    return null
+  }
+
   return {
     restaurantName: order.restaurant.name,
     session: prismaOrderToLunchSession(order),
-    isCreator: order.createdById === session.user.id,
+    isCreator,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     creatorName: order.createdBy.displayName,
+    status: order.status as 'OPEN' | 'CLOSED',
+    isParticipant,
+    currentUserPersonId: currentUserPerson?.id ?? null,
   }
 }
 
@@ -159,6 +177,7 @@ export async function listOrders() {
 
   const orders = await prisma.order.findMany({
     where: {
+      status: 'CLOSED',
       OR: [
         { createdById: session.user.id },
         { people: { some: { userId: session.user.id } } },
@@ -169,7 +188,7 @@ export async function listOrders() {
       createdBy: { select: { displayName: true } },
       _count: { select: { people: true } },
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { updatedAt: 'desc' },
   })
 
   return orders.map(order => ({
