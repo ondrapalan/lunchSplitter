@@ -39,3 +39,5 @@ Thumbs.db
 
 # Superpowers
 .superpowers/
+
+tsconfig.tsbuildinfo
