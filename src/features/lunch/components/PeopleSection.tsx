@@ -14,7 +14,14 @@ interface PeopleSectionProps {
   globalDiscountPercent: number
   registeredUsers?: UserSuggestion[]
   historicalItemSuggestions?: ItemSuggestion[]
-  editable?: boolean
+  canAddPerson?: boolean
+  canEditItems?: boolean
+  canEditNames?: boolean
+  canRemovePeople?: boolean
+  hideShareControls?: boolean
+  editablePersonId?: string | null
+  showEditMyItemsForPersonId?: string | null
+  onEditMyItems?: () => void
   onAddPerson: (name: string, userId?: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
@@ -29,7 +36,14 @@ export function PeopleSection({
   globalDiscountPercent,
   registeredUsers = [],
   historicalItemSuggestions,
-  editable = true,
+  canAddPerson = false,
+  canEditItems = false,
+  canEditNames = false,
+  canRemovePeople = false,
+  hideShareControls = false,
+  editablePersonId = null,
+  showEditMyItemsForPersonId = null,
+  onEditMyItems,
   onAddPerson,
   onRemovePerson,
   onUpdatePersonName,
@@ -58,24 +72,35 @@ export function PeopleSection({
     <div>
       <SectionTitle>People & Orders</SectionTitle>
 
-      {people.map(person => (
-        <PersonCard
-          key={person.id}
-          person={person}
-          allPeople={people}
-          summary={summaries.find(s => s.personId === person.id)}
-          globalDiscountPercent={globalDiscountPercent}
-          itemSuggestions={itemSuggestions}
-          editable={editable}
-          onRemovePerson={() => onRemovePerson(person.id)}
-          onUpdateName={name => onUpdatePersonName(person.id, name)}
-          onAddItem={(name, price) => onAddItem(person.id, name, price)}
-          onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
-          onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
-        />
-      ))}
+      {people.map(person => {
+        const isEditablePerson = editablePersonId
+          ? person.id === editablePersonId
+          : canEditItems
 
-      {editable && (
+        return (
+          <PersonCard
+            key={person.id}
+            person={person}
+            allPeople={people}
+            summary={summaries.find(s => s.personId === person.id)}
+            globalDiscountPercent={globalDiscountPercent}
+            itemSuggestions={itemSuggestions}
+            canEditItems={isEditablePerson}
+            canEditName={editablePersonId ? false : canEditNames}
+            canRemove={editablePersonId ? false : canRemovePeople}
+            hideShareControls={hideShareControls || !!editablePersonId}
+            showEditMyItemsButton={showEditMyItemsForPersonId === person.id}
+            onEditMyItems={onEditMyItems}
+            onRemovePerson={() => onRemovePerson(person.id)}
+            onUpdateName={name => onUpdatePersonName(person.id, name)}
+            onAddItem={(name, price) => onAddItem(person.id, name, price)}
+            onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
+            onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
+          />
+        )
+      })}
+
+      {canAddPerson && (
         <PersonSuggest
           onAddPerson={onAddPerson}
           users={registeredUsers}

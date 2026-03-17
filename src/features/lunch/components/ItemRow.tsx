@@ -76,11 +76,12 @@ interface ItemRowProps {
   allPeople: Person[]
   ownerId: string
   editable?: boolean
+  hideShareControls?: boolean
   onUpdate: (updates: Partial<Omit<Item, 'id'>>) => void
   onRemove: () => void
 }
 
-export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, editable = true, onUpdate, onRemove }: ItemRowProps) {
+export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, editable = true, hideShareControls = false, onUpdate, onRemove }: ItemRowProps) {
   const [editingDiscount, setEditingDiscount] = useState(false)
   const [showShareSelector, setShowShareSelector] = useState(false)
 
@@ -159,9 +160,11 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, edita
         )}
         {editable && (
           <>
-            <Button variant="ghost" size="sm" onClick={() => setShowShareSelector(!showShareSelector)}>
-              {showShareSelector ? 'Hide' : 'Share'}
-            </Button>
+            {!hideShareControls && (
+              <Button variant="ghost" size="sm" onClick={() => setShowShareSelector(!showShareSelector)}>
+                {showShareSelector ? 'Hide' : 'Share'}
+              </Button>
+            )}
             <Button variant="danger" size="sm" onClick={onRemove}>X</Button>
           </>
         )}

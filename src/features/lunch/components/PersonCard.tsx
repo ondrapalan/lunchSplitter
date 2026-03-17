@@ -43,7 +43,12 @@ interface PersonCardProps {
   summary: PersonSummary | undefined
   globalDiscountPercent: number
   itemSuggestions: ItemSuggestion[]
-  editable?: boolean
+  canEditItems?: boolean
+  canEditName?: boolean
+  canRemove?: boolean
+  hideShareControls?: boolean
+  showEditMyItemsButton?: boolean
+  onEditMyItems?: () => void
   onRemovePerson: () => void
   onUpdateName: (name: string) => void
   onAddItem: (name: string, price: number) => void
@@ -57,7 +62,12 @@ export function PersonCard({
   summary,
   globalDiscountPercent,
   itemSuggestions,
-  editable = true,
+  canEditItems = false,
+  canEditName = false,
+  canRemove = false,
+  hideShareControls = false,
+  showEditMyItemsButton = false,
+  onEditMyItems,
   onRemovePerson,
   onUpdateName,
   onAddItem,
@@ -98,7 +108,7 @@ export function PersonCard({
   return (
     <Card>
       <CardHeader>
-        {editingName && editable ? (
+        {editingName && canEditName ? (
           <Input
             autoFocus
             defaultValue={person.name}
@@ -116,14 +126,19 @@ export function PersonCard({
           />
         ) : (
           <CardTitle
-            onClick={editable ? () => setEditingName(true) : undefined}
-            style={editable ? { cursor: 'pointer' } : undefined}
+            onClick={canEditName ? () => setEditingName(true) : undefined}
+            style={canEditName ? { cursor: 'pointer' } : undefined}
           >
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
           </CardTitle>
         )}
-        {editable && (
+        {showEditMyItemsButton && onEditMyItems && (
+          <Button variant="primary" size="sm" onClick={onEditMyItems}>
+            Edit My Items
+          </Button>
+        )}
+        {canRemove && (
           <Button variant="danger" size="sm" onClick={onRemovePerson}>X</Button>
         )}
       </CardHeader>
@@ -135,7 +150,8 @@ export function PersonCard({
           globalDiscountPercent={globalDiscountPercent}
           allPeople={allPeople}
           ownerId={person.id}
-          editable={editable}
+          editable={canEditItems}
+          hideShareControls={hideShareControls}
           onUpdate={updates => onUpdateItem(item.id, updates)}
           onRemove={() => onRemoveItem(item.id)}
         />
@@ -150,7 +166,7 @@ export function PersonCard({
         />
       ))}
 
-      {editable && (
+      {canEditItems && (
         <AddItemRow>
           <ItemSuggest
             value={newItemName}
