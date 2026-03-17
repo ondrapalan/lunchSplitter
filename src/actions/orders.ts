@@ -19,6 +19,7 @@ export async function getItemsByRestaurant(restaurantName: string): Promise<{ na
     },
     select: { name: true, price: true },
     orderBy: { person: { order: { createdAt: 'desc' } } },
+    take: 500,
   })
 
   const seen = new Map<string, { name: string; price: number }>()
@@ -96,13 +97,17 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
   const input = lunchSessionToPrismaInput(lunchSession)
 
   // Delete all children, then recreate from current client state
-  await prisma.$transaction([
-    prisma.customShare.deleteMany({ where: { item: { person: { orderId } } } }),
-    prisma.sharedItemLink.deleteMany({ where: { item: { person: { orderId } } } }),
-    prisma.orderItem.deleteMany({ where: { person: { orderId } } }),
-    prisma.orderPerson.deleteMany({ where: { orderId } }),
-    prisma.feeAdjustment.deleteMany({ where: { orderId } }),
-    prisma.order.update({
+  await prisma.$transaction(async (tx) => {
+    // Re-check status inside transaction to prevent race with closeOrder
+    const fresh = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
+    if (fresh?.status === 'CLOSED') throw new Error('Cannot modify a closed order')
+
+    await tx.customShare.deleteMany({ where: { item: { person: { orderId } } } })
+    await tx.sharedItemLink.deleteMany({ where: { item: { person: { orderId } } } })
+    await tx.orderItem.deleteMany({ where: { person: { orderId } } })
+    await tx.orderPerson.deleteMany({ where: { orderId } })
+    await tx.feeAdjustment.deleteMany({ where: { orderId } })
+    await tx.order.update({
       where: { id: orderId },
       data: {
         globalDiscountPercent: input.globalDiscountPercent,
@@ -110,8 +115,8 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
         people: input.people,
         ...(bankAccountNumber !== undefined ? { bankAccountNumber } : {}),
       },
-    }),
-  ])
+    })
+  })
 
   return { success: true }
 }
@@ -165,8 +170,8 @@ export async function getOrder(orderId: string) {
   const currentUserPerson = order.people.find(p => p.userId === session.user.id)
   const isParticipant = !!currentUserPerson
 
-  // Non-creator, non-participant cannot view closed orders
-  if (order.status === 'CLOSED' && !isCreator && !isParticipant) {
+  // Only creator and participants can view orders
+  if (!isCreator && !isParticipant) {
     return null
   }
 

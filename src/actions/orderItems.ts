@@ -115,7 +115,7 @@ export async function updateItemInOrder(
     customShares?: Record<string, number> | null
   },
 ) {
-  const { isCreator } = await getOrderAndAuthorize(orderId, personId)
+  const { isCreator, order } = await getOrderAndAuthorize(orderId, personId)
 
   if (!isCreator && (changes.sharedWith !== undefined || changes.customShares !== undefined)) {
     throw new Error('Participants cannot modify sharing')
@@ -138,6 +138,12 @@ export async function updateItemInOrder(
     }
 
     if (changes.sharedWith !== undefined) {
+      // Validate all personIds belong to this order
+      const validPersonIds = new Set(order.people.map(p => p.id))
+      for (const pid of changes.sharedWith) {
+        if (!validPersonIds.has(pid)) throw new Error('Invalid personId in sharedWith')
+      }
+
       await tx.sharedItemLink.deleteMany({ where: { itemId } })
       if (changes.sharedWith.length > 0) {
         await tx.sharedItemLink.createMany({
@@ -147,6 +153,14 @@ export async function updateItemInOrder(
     }
 
     if (changes.customShares !== undefined) {
+      // Validate all personIds belong to this order
+      const validPersonIds = new Set(order.people.map(p => p.id))
+      if (changes.customShares) {
+        for (const pid of Object.keys(changes.customShares)) {
+          if (!validPersonIds.has(pid)) throw new Error('Invalid personId in customShares')
+        }
+      }
+
       await tx.customShare.deleteMany({ where: { itemId } })
       if (changes.customShares) {
         await tx.customShare.createMany({
@@ -226,7 +240,11 @@ export async function updatePersonInOrder(
   personId: string,
   name: string,
 ) {
-  await getCreatorOnly(orderId)
+  const { order } = await getCreatorOnly(orderId)
+
+  if (!order.people.some(p => p.id === personId)) {
+    throw new Error('Person not found in order')
+  }
 
   await prisma.$transaction([
     prisma.orderPerson.update({
