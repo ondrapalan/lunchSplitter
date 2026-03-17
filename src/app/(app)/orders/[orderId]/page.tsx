@@ -14,7 +14,7 @@ import { Summary } from '~/features/lunch/components/Summary'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { getOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
+import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
@@ -357,7 +357,15 @@ function OrderContent({
       {(isEditing || isEditingMyItems) && (
         <SaveBar>
           <Button variant="primary" onClick={async () => {
-            autoSave.flushAll()
+            await autoSave.flushAll()
+            if (isEditing) {
+              try {
+                await saveOrder(orderId, session, updatedAt)
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : 'Failed to save order settings')
+                return
+              }
+            }
             await onSaved()
           }}>
             Done

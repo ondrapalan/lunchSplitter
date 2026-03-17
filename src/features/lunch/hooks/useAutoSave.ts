@@ -65,7 +65,7 @@ export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
     }
   }, [])
 
-  const execSave = useCallback(async (fn: () => Promise<unknown>) => {
+  const execSave = useCallback(async (fn: () => Promise<unknown>): Promise<void> => {
     if (!enabled) return
     activeSaves.current++
     setSaveStatus('saving')
@@ -98,13 +98,13 @@ export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
     execSave(() => removeItemFromOrder(orderId, personId, itemId))
   }, [orderId, execSave])
 
-  const executePendingUpdate = useCallback((key: string) => {
+  const executePendingUpdate = useCallback((key: string): Promise<void> => {
     const pending = pendingChanges.current.get(key)
-    if (!pending) return
+    if (!pending) return Promise.resolve()
     const { personId, itemId, changes } = pending
     pendingChanges.current.delete(key)
     debounceTimers.current.delete(key)
-    execSave(() => updateItemInOrder(orderId, personId, itemId, changes))
+    return execSave(() => updateItemInOrder(orderId, personId, itemId, changes))
   }, [orderId, execSave])
 
   const debouncedUpdateItem = useCallback((
@@ -144,13 +144,15 @@ export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
     }
   }, [executePendingUpdate])
 
-  const flushAll = useCallback(() => {
-    // Execute all pending debounced saves immediately
+  const flushAll = useCallback(async (): Promise<void> => {
+    // Execute all pending debounced saves immediately and await them
+    const promises: Promise<void>[] = []
     debounceTimers.current.forEach((timer, key) => {
       clearTimeout(timer)
-      executePendingUpdate(key)
+      promises.push(executePendingUpdate(key))
     })
     debounceTimers.current.clear()
+    await Promise.all(promises)
   }, [executePendingUpdate])
 
   const saveAddPerson = useCallback((personId: string, name: string, userId?: string) => {
