@@ -12,10 +12,11 @@ import { Summary } from '~/features/lunch/components/Summary'
 
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
-import { getOrder, saveOrder } from '~/actions/orders'
+import { getOrder, saveOrder, getItemsByRestaurant } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
+import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
 import type { LunchSession } from '~/features/lunch/types'
 
 const Header = styled.div`
@@ -58,6 +59,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
   const [createdAt, setCreatedAt] = useState('')
   const [updatedAt, setUpdatedAt] = useState('')
   const [creatorName, setCreatorName] = useState('')
+  const [historicalItems, setHistoricalItems] = useState<ItemSuggestion[]>([])
 
   const load = useCallback(async () => {
     try {
@@ -69,6 +71,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
         return
       }
       setRestaurantName(result.restaurantName)
+      getItemsByRestaurant(result.restaurantName).then(setHistoricalItems)
       setLoadedSession(result.session)
       setIsCreator(result.isCreator)
       setCreatedAt(result.createdAt)
@@ -99,6 +102,7 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
       restaurantName={restaurantName}
       initialSession={loadedSession}
       registeredUsers={registeredUsers}
+      historicalItemSuggestions={historicalItems}
       isCreator={isCreator}
       isEditing={isEditing}
       createdAt={createdAt}
@@ -124,6 +128,7 @@ function EditOrderContent({
   restaurantName,
   initialSession,
   registeredUsers,
+  historicalItemSuggestions,
   isCreator,
   isEditing,
   createdAt,
@@ -137,6 +142,7 @@ function EditOrderContent({
   restaurantName: string
   initialSession: LunchSession
   registeredUsers: UserSuggestion[]
+  historicalItemSuggestions: ItemSuggestion[]
   isCreator: boolean
   isEditing: boolean
   createdAt: string
@@ -219,6 +225,7 @@ function EditOrderContent({
         summaries={summaries}
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
+        historicalItemSuggestions={historicalItemSuggestions}
         editable={isEditing}
         onAddPerson={addPerson}
         onRemovePerson={removePerson}

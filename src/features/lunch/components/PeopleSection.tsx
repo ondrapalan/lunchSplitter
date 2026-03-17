@@ -13,6 +13,7 @@ interface PeopleSectionProps {
   summaries: PersonSummary[]
   globalDiscountPercent: number
   registeredUsers?: UserSuggestion[]
+  historicalItemSuggestions?: ItemSuggestion[]
   editable?: boolean
   onAddPerson: (name: string, userId?: string) => void
   onRemovePerson: (personId: string) => void
@@ -27,6 +28,7 @@ export function PeopleSection({
   summaries,
   globalDiscountPercent,
   registeredUsers = [],
+  historicalItemSuggestions,
   editable = true,
   onAddPerson,
   onRemovePerson,
@@ -36,15 +38,16 @@ export function PeopleSection({
   onRemoveItem,
 }: PeopleSectionProps) {
   // Collect all item names+prices across all people for suggestions
+  // Historical items go first so current-session items override their prices during dedup
   const itemSuggestions: ItemSuggestion[] = useMemo(() => {
-    const all: ItemSuggestion[] = []
+    const all: ItemSuggestion[] = [...(historicalItemSuggestions ?? [])]
     for (const person of people) {
       for (const item of person.items) {
         all.push({ name: item.name, price: item.price })
       }
     }
     return all
-  }, [people])
+  }, [people, historicalItemSuggestions])
 
   const excludeUserIds = useMemo(
     () => people.filter(p => p.userId).map(p => p.userId!),

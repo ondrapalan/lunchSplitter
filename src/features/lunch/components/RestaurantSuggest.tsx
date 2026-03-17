@@ -38,11 +38,12 @@ const Option = styled.li<{ $active: boolean }>`
 interface RestaurantSuggestProps {
   value: string
   onChange: (value: string) => void
+  onSelect?: (name: string) => void
   suggestions: string[]
   placeholder?: string
 }
 
-export function RestaurantSuggest({ value, onChange, suggestions, placeholder }: RestaurantSuggestProps) {
+export function RestaurantSuggest({ value, onChange, onSelect, suggestions, placeholder }: RestaurantSuggestProps) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -67,6 +68,7 @@ export function RestaurantSuggest({ value, onChange, suggestions, placeholder }:
 
   const handleSelect = (name: string) => {
     onChange(name)
+    onSelect?.(name)
     setOpen(false)
   }
 

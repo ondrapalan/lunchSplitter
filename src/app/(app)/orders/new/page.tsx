@@ -13,9 +13,10 @@ import { Summary } from '~/features/lunch/components/Summary'
 import { RestaurantSuggest } from '~/features/lunch/components/RestaurantSuggest'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
-import { createOrder, saveOrder, getRestaurantNames } from '~/actions/orders'
+import { createOrder, saveOrder, getRestaurantNames, getItemsByRestaurant } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
+import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
 
 const Header = styled.div`
   display: flex;
@@ -39,6 +40,12 @@ export default function NewOrderPage() {
   const [saving, setSaving] = useState(false)
   const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<string[]>([])
+  const [historicalItems, setHistoricalItems] = useState<ItemSuggestion[]>([])
+
+  const handleRestaurantSelect = async (name: string) => {
+    const items = await getItemsByRestaurant(name)
+    setHistoricalItems(items)
+  }
 
   useEffect(() => {
     getRegisteredUsers().then(setRegisteredUsers)
@@ -89,6 +96,7 @@ export default function NewOrderPage() {
         <RestaurantSuggest
           value={restaurantName}
           onChange={setRestaurantName}
+          onSelect={handleRestaurantSelect}
           suggestions={restaurantSuggestions}
           placeholder="Restaurant name"
         />
@@ -111,6 +119,7 @@ export default function NewOrderPage() {
         summaries={summaries}
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
+        historicalItemSuggestions={historicalItems}
         onAddPerson={addPerson}
         onRemovePerson={removePerson}
         onUpdatePersonName={updatePersonName}
