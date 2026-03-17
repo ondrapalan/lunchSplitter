@@ -120,6 +120,10 @@ export default function NewOrderPage() {
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
         historicalItemSuggestions={historicalItems}
+        canAddPerson
+        canEditItems
+        canEditNames
+        canRemovePeople
         onAddPerson={addPerson}
         onRemovePerson={removePerson}
         onUpdatePersonName={updatePersonName}
