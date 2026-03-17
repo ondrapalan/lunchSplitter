@@ -68,6 +68,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             History
           </NavLink>
+          <NavLink
+            $active={pathname === '/invite'}
+            onClick={() => router.push('/invite')}
+          >
+            Invite
+          </NavLink>
           {session?.user?.role === 'ADMIN' && (
             <NavLink
               $active={pathname.startsWith('/admin')}
