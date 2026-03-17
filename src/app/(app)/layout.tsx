@@ -87,7 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           $active={pathname === '/settings'}
           onClick={() => router.push('/settings')}
         >
-          {session?.user?.name}
+          {session?.user?.name || 'Settings'}
         </NavLink>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
           Logout

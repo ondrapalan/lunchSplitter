@@ -30,14 +30,20 @@ export function CopySummary({ session, summaries }: CopySummaryProps) {
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Fallback for non-HTTPS contexts
-      const textarea = document.createElement('textarea')
-      textarea.value = text
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textarea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = text
+        document.body.appendChild(textarea)
+        textarea.select()
+        const ok = document.execCommand('copy')
+        document.body.removeChild(textarea)
+        if (!ok) throw new Error('execCommand failed')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        // Import toast dynamically to avoid adding import if not needed
+        void import('react-toastify').then(({ toast }) => toast.error('Failed to copy to clipboard'))
+      }
     }
   }
 

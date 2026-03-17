@@ -95,6 +95,10 @@ export default function InvitePage() {
 
   const loadInvitations = async () => {
     const result = await getMyInvitations()
+    if ('error' in result) {
+      toast.error(result.error)
+      return
+    }
     if ('invitations' in result && result.invitations) {
       setInvitations(result.invitations)
     }

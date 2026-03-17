@@ -89,10 +89,15 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
 
   const loadOrders = useCallback(async () => {
-    const [open, closed] = await Promise.all([listOpenOrders(), listOrders()])
-    setOpenOrders(open)
-    setClosedOrders(closed)
-    setLoading(false)
+    try {
+      const [open, closed] = await Promise.all([listOpenOrders(), listOrders()])
+      setOpenOrders(open)
+      setClosedOrders(closed)
+    } catch {
+      toast.error('Failed to load orders')
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => {

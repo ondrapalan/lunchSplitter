@@ -23,8 +23,14 @@ export function generateCopySummary(session: LunchSession, summaries: PersonSumm
     lines.push(`${person.name}:`)
     for (const item of person.items) {
       const sharerCount = item.sharedWith.length > 0 ? item.sharedWith.length + 1 : 1
-      const shareNote = sharerCount > 1 ? ` (1/${sharerCount})` : ''
-      lines.push(`  ${item.name}${shareNote}    ${item.price}`)
+      const hasCustomShare = item.customShares?.[person.id] !== undefined
+      if (hasCustomShare) {
+        const customAmount = item.customShares![person.id]
+        lines.push(`  ${item.name} (custom)    ${formatCurrency(customAmount)}`)
+      } else {
+        const shareNote = sharerCount > 1 ? ` (1/${sharerCount})` : ''
+        lines.push(`  ${item.name}${shareNote}    ${item.price}`)
+      }
     }
     // Items shared from other people
     for (const otherPerson of session.people) {
