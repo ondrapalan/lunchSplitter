@@ -163,7 +163,7 @@ export default function OrdersPage() {
     <div>
       {openOrders.length > 0 && (
         <>
-          <SectionTitle>Open Orders</SectionTitle>
+          <SectionTitle>Active Orders</SectionTitle>
           <OrderList>
             {openOrders.map(order => (
               <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>

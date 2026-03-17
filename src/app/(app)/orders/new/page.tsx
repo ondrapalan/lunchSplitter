@@ -4,19 +4,11 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
-import { useLunchSession } from '~/features/lunch/hooks/useLunchSession'
-import { useCalculation } from '~/features/lunch/hooks/useCalculation'
-import { OrderSettings } from '~/features/lunch/components/OrderSettings'
-import { PeopleSection } from '~/features/lunch/components/PeopleSection'
-import { Summary } from '~/features/lunch/components/Summary'
 
 import { RestaurantSuggest } from '~/features/lunch/components/RestaurantSuggest'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
-import { createOrder, saveOrder, getRestaurantNames, getItemsByRestaurant } from '~/actions/orders'
-import { getRegisteredUsers } from '~/actions/users'
-import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
-import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
+import { createOrder, getRestaurantNames } from '~/actions/orders'
 
 const Header = styled.div`
   display: flex;
@@ -25,64 +17,36 @@ const Header = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.lg};
 `
 
-const SaveBar = styled.div`
+const Form = styled.div`
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
-  margin-top: ${({ theme }) => theme.spacing.lg};
-  padding: ${({ theme }) => theme.spacing.md};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
 `
 
 export default function NewOrderPage() {
   const router = useRouter()
   const [restaurantName, setRestaurantName] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
+  const [creating, setCreating] = useState(false)
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<string[]>([])
-  const [historicalItems, setHistoricalItems] = useState<ItemSuggestion[]>([])
-
-  const handleRestaurantSelect = async (name: string) => {
-    const items = await getItemsByRestaurant(name)
-    setHistoricalItems(items)
-  }
 
   useEffect(() => {
-    getRegisteredUsers().then(setRegisteredUsers)
     getRestaurantNames().then(setRestaurantSuggestions)
   }, [])
 
-  const {
-    session,
-    setGlobalDiscount,
-    addFeeAdjustment,
-    updateFeeAdjustment,
-    removeFeeAdjustment,
-    addPerson,
-    removePerson,
-    updatePersonName,
-    addItem,
-    updateItem,
-    removeItem,
-  } = useLunchSession()
-
-  const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
-
-  const handleSave = async () => {
+  const handleOpen = async () => {
     if (!restaurantName.trim()) {
       toast.error('Please enter a restaurant name')
       return
     }
-    setSaving(true)
+    setCreating(true)
     try {
       const order = await createOrder(restaurantName.trim())
-      await saveOrder(order.id, session)
-      toast.success('Order saved!')
+      toast.success('Order opened!')
       router.push(`/orders/${order.id}`)
     } catch {
-      toast.error('Failed to save order')
+      toast.error('Failed to create order')
     } finally {
-      setSaving(false)
+      setCreating(false)
     }
   }
 
@@ -92,53 +56,20 @@ export default function NewOrderPage() {
         <SectionTitle style={{ marginBottom: 0 }}>New Order</SectionTitle>
       </Header>
 
-      <div style={{ marginBottom: '16px' }}>
+      <Form>
         <RestaurantSuggest
           value={restaurantName}
           onChange={setRestaurantName}
-          onSelect={handleRestaurantSelect}
+          onSelect={setRestaurantName}
           suggestions={restaurantSuggestions}
           placeholder="Restaurant name"
         />
-      </div>
-
-      <OrderSettings
-        globalDiscountPercent={session.globalDiscountPercent}
-        feeAdjustments={session.feeAdjustments}
-        netFees={netFees}
-        feePerPerson={feePerPerson}
-        peopleCount={session.people.length}
-        onSetGlobalDiscount={setGlobalDiscount}
-        onAddFee={addFeeAdjustment}
-        onUpdateFee={updateFeeAdjustment}
-        onRemoveFee={removeFeeAdjustment}
-      />
-
-      <PeopleSection
-        people={session.people}
-        summaries={summaries}
-        globalDiscountPercent={session.globalDiscountPercent}
-        registeredUsers={registeredUsers}
-        historicalItemSuggestions={historicalItems}
-        canAddPerson
-        canEditItems
-        canEditNames
-        canRemovePeople
-        onAddPerson={addPerson}
-        onRemovePerson={removePerson}
-        onUpdatePersonName={updatePersonName}
-        onAddItem={addItem}
-        onUpdateItem={updateItem}
-        onRemoveItem={removeItem}
-      />
-
-      <Summary summaries={summaries} grandTotal={grandTotal} />
-
-      <SaveBar>
-        <Button variant="primary" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Order'}
-        </Button>
-      </SaveBar>
+        <div>
+          <Button variant="primary" onClick={handleOpen} disabled={creating}>
+            {creating ? 'Opening...' : 'Open Order'}
+          </Button>
+        </div>
+      </Form>
     </div>
   )
 }

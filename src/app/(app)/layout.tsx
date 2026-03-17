@@ -66,7 +66,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             $active={pathname === '/orders'}
             onClick={() => router.push('/orders')}
           >
-            History
+            All Orders
           </NavLink>
           <NavLink
             $active={pathname === '/invite'}
