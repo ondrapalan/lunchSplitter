@@ -19,6 +19,7 @@ const LinkRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
+  margin-top: ${({ theme }) => theme.spacing.sm};
 `
 
 const ReadOnlyInput = styled(Input).attrs({ readOnly: true })`
@@ -140,7 +141,7 @@ export default function InvitePage() {
           {isGenerating ? 'Generating...' : 'Generate Invite Link'}
         </Button>
         {generatedLink && (
-          <LinkRow style={{ marginTop: '12px' }}>
+          <LinkRow>
             <ReadOnlyInput value={generatedLink} />
             <Button variant="secondary" size="sm" onClick={handleCopy}>
               Copy

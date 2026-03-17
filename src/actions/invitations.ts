@@ -135,7 +135,7 @@ export async function registerWithInvite(
       })
     })
   } catch {
-    return { error: 'Username already exists' }
+    return { error: 'Registration failed. Please try again.' }
   }
 
   return { success: true }
