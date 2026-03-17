@@ -29,6 +29,13 @@ interface PeopleSectionProps {
   onUpdateItem: (personId: string, itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (personId: string, itemId: string) => void
   onFlushItem?: (personId: string, itemId: string) => void
+  // QR Platba props
+  bankAccountNumber?: string | null
+  creatorName?: string
+  creatorPersonId?: string | null
+  orderStatus?: 'OPEN' | 'CLOSED'
+  orderId?: string
+  isCreator?: boolean
 }
 
 export function PeopleSection({
@@ -52,6 +59,12 @@ export function PeopleSection({
   onUpdateItem,
   onRemoveItem,
   onFlushItem,
+  bankAccountNumber,
+  creatorName: qrCreatorName,
+  creatorPersonId,
+  orderStatus,
+  orderId,
+  isCreator,
 }: PeopleSectionProps) {
   // Collect all item names+prices across all people for suggestions
   // Historical items go first so current-session items override their prices during dedup
@@ -99,6 +112,12 @@ export function PeopleSection({
             onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
             onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
             onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}
+            bankAccountNumber={bankAccountNumber}
+            creatorName={qrCreatorName}
+            creatorPersonId={creatorPersonId}
+            orderStatus={orderStatus}
+            orderId={orderId}
+            showCopyQr={isCreator}
           />
         )
       })}

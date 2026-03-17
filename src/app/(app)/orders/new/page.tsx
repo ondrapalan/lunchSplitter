@@ -6,9 +6,11 @@ import styled from 'styled-components'
 import { toast } from 'react-toastify'
 
 import { RestaurantSuggest } from '~/features/lunch/components/RestaurantSuggest'
+import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { createOrder, getRestaurantNames } from '~/actions/orders'
+import { getBankAccount } from '~/actions/auth'
 
 const Header = styled.div`
   display: flex;
@@ -26,11 +28,15 @@ const Form = styled.div`
 export default function NewOrderPage() {
   const router = useRouter()
   const [restaurantName, setRestaurantName] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [creating, setCreating] = useState(false)
   const [restaurantSuggestions, setRestaurantSuggestions] = useState<string[]>([])
 
   useEffect(() => {
     getRestaurantNames().then(setRestaurantSuggestions)
+    getBankAccount().then(value => {
+      if (value) setBankAccountNumber(value)
+    })
   }, [])
 
   const handleOpen = async () => {
@@ -40,7 +46,7 @@ export default function NewOrderPage() {
     }
     setCreating(true)
     try {
-      const order = await createOrder(restaurantName.trim())
+      const order = await createOrder(restaurantName.trim(), bankAccountNumber.trim() || undefined)
       toast.success('Order opened!')
       router.push(`/orders/${order.id}`)
     } catch {
@@ -63,6 +69,11 @@ export default function NewOrderPage() {
           onSelect={setRestaurantName}
           suggestions={restaurantSuggestions}
           placeholder="Restaurant name"
+        />
+        <Input
+          value={bankAccountNumber}
+          onChange={e => setBankAccountNumber(e.target.value)}
+          placeholder="Bank account (e.g. 123456789/0800)"
         />
         <div>
           <Button variant="primary" onClick={handleOpen} disabled={creating}>

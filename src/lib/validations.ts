@@ -52,4 +52,21 @@ export type CreateUserInput = z.infer<typeof createUserSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type UpdateDisplayNameInput = z.infer<typeof updateDisplayNameSchema>
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>
+export const updateBankAccountSchema = z.object({
+  bankAccountNumber: z
+    .string()
+    .min(1, 'Bank account number is required')
+    .refine(
+      (val) => {
+        // Czech format: optional prefix-accountNumber/bankCode
+        const czechFormat = /^\d{1,6}?-?\d{2,10}\/\d{4}$/
+        // IBAN format: CZ + 22 digits
+        const ibanFormat = /^CZ\d{22}$/
+        return czechFormat.test(val) || ibanFormat.test(val)
+      },
+      { message: 'Enter Czech format (e.g. 123456789/0800) or IBAN (CZ + 22 digits)' },
+    ),
+})
+
 export type SaveOrderInput = z.infer<typeof saveOrderSchema>
+export type UpdateBankAccountInput = z.infer<typeof updateBankAccountSchema>

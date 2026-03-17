@@ -41,6 +41,11 @@ const NetFeesDisplay = styled.div`
   font-weight: 500;
 `
 
+const WarningText = styled.span`
+  color: ${({ theme }) => theme.colors.warning};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+`
+
 interface OrderSettingsProps {
   globalDiscountPercent: number
   feeAdjustments: FeeAdjustment[]
@@ -48,6 +53,8 @@ interface OrderSettingsProps {
   feePerPerson: number
   peopleCount: number
   editable?: boolean
+  bankAccountNumber?: string | null
+  onBankAccountChange?: (value: string) => void
   onSetGlobalDiscount: (percent: number) => void
   onAddFee: (name: string, amount: number) => void
   onUpdateFee: (id: string, updates: Partial<Omit<FeeAdjustment, 'id'>>) => void
@@ -61,6 +68,8 @@ export function OrderSettings({
   feePerPerson,
   peopleCount,
   editable = true,
+  bankAccountNumber,
+  onBankAccountChange,
   onSetGlobalDiscount,
   onAddFee,
   onUpdateFee,
@@ -85,6 +94,22 @@ export function OrderSettings({
   return (
     <Card>
       <SectionTitle>Order Settings</SectionTitle>
+
+      <SettingsRow>
+        <Label>Bank Account</Label>
+        {editable ? (
+          <div>
+            <Input
+              value={bankAccountNumber ?? ''}
+              onChange={e => onBankAccountChange?.(e.target.value)}
+              placeholder="e.g. 123456789/0800"
+            />
+            {!bankAccountNumber && <WarningText>QR codes won&apos;t be generated</WarningText>}
+          </div>
+        ) : (
+          <span>{bankAccountNumber || <WarningText>Not set</WarningText>}</span>
+        )}
+      </SettingsRow>
 
       <SettingsRow>
         <Label>Global Discount</Label>

@@ -9,8 +9,10 @@ import { ItemRow } from './ItemRow'
 import { SharedItemRef } from './SharedItemRef'
 import { ItemSuggest } from './ItemSuggest'
 import type { ItemSuggestion } from './ItemSuggest'
+import { QrPlatba } from './QrPlatba'
 import type { Item, Person, PersonSummary } from '../types'
 import { formatCurrency } from '../utils/formatters'
+import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '../utils/qrPlatba'
 
 const PersonSubtotals = styled.div`
   display: flex;
@@ -37,6 +39,16 @@ const AddItemRow = styled.div`
   margin-top: ${({ theme }) => theme.spacing.sm};
 `
 
+const CardContentRow = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.md};
+`
+
+const CardMainContent = styled.div`
+  flex: 1;
+  min-width: 0;
+`
+
 interface PersonCardProps {
   person: Person
   allPeople: Person[]
@@ -55,6 +67,13 @@ interface PersonCardProps {
   onUpdateItem: (itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (itemId: string) => void
   onFlushItem?: (itemId: string) => void
+  // QR Platba props
+  bankAccountNumber?: string | null
+  creatorName?: string
+  creatorPersonId?: string | null
+  orderStatus?: 'OPEN' | 'CLOSED'
+  orderId?: string
+  showCopyQr?: boolean
 }
 
 export function PersonCard({
@@ -75,6 +94,12 @@ export function PersonCard({
   onUpdateItem,
   onRemoveItem,
   onFlushItem,
+  bankAccountNumber,
+  creatorName: qrRecipientName,
+  creatorPersonId,
+  orderStatus,
+  orderId,
+  showCopyQr,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
@@ -106,6 +131,31 @@ export function PersonCard({
         .filter(item => item.sharedWith.includes(person.id))
         .map(item => ({ item, owner: p }))
     )
+
+  // QR Platba: show when order is closed, bank account is set, not creator, amount > 0
+  const showQr = orderStatus === 'CLOSED'
+    && !!bankAccountNumber
+    && person.id !== creatorPersonId
+    && !!summary
+    && summary.withFees > 0
+    && !!orderId
+
+  let spdString: string | null = null
+  if (showQr && bankAccountNumber && qrRecipientName && orderId) {
+    try {
+      const iban = czechAccountToIban(bankAccountNumber)
+      const variableSymbol = generateVariableSymbol(orderId, person.id)
+      spdString = buildSpdString({
+        iban,
+        recipientName: qrRecipientName,
+        amount: summary!.withFees,
+        variableSymbol,
+        message: '',
+      })
+    } catch {
+      // Invalid bank account format — skip QR
+    }
+  }
 
   return (
     <Card>
@@ -145,60 +195,72 @@ export function PersonCard({
         )}
       </CardHeader>
 
-      {person.items.map(item => (
-        <ItemRow
-          key={item.id}
-          item={item}
-          globalDiscountPercent={globalDiscountPercent}
-          allPeople={allPeople}
-          ownerId={person.id}
-          editable={canEditItems}
-          hideShareControls={hideShareControls}
-          onUpdate={updates => onUpdateItem(item.id, updates)}
-          onRemove={() => onRemoveItem(item.id)}
-          onBlurSave={onFlushItem ? () => onFlushItem(item.id) : undefined}
-        />
-      ))}
+      <CardContentRow>
+        <CardMainContent>
+          {person.items.map(item => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              globalDiscountPercent={globalDiscountPercent}
+              allPeople={allPeople}
+              ownerId={person.id}
+              editable={canEditItems}
+              hideShareControls={hideShareControls}
+              onUpdate={updates => onUpdateItem(item.id, updates)}
+              onRemove={() => onRemoveItem(item.id)}
+              onBlurSave={onFlushItem ? () => onFlushItem(item.id) : undefined}
+            />
+          ))}
 
-      {sharedFromOthers.map(({ item, owner }) => (
-        <SharedItemRef
-          key={`shared-${item.id}`}
-          item={item}
-          owner={owner}
-          personId={person.id}
-        />
-      ))}
+          {sharedFromOthers.map(({ item, owner }) => (
+            <SharedItemRef
+              key={`shared-${item.id}`}
+              item={item}
+              owner={owner}
+              personId={person.id}
+            />
+          ))}
 
-      {canEditItems && (
-        <AddItemRow>
-          <ItemSuggest
-            value={newItemName}
-            onChange={setNewItemName}
-            onSelect={handleSuggestionSelect}
-            suggestions={itemSuggestions}
-            onKeyDown={handleKeyDown}
-            placeholder="Item name"
+          {canEditItems && (
+            <AddItemRow>
+              <ItemSuggest
+                value={newItemName}
+                onChange={setNewItemName}
+                onSelect={handleSuggestionSelect}
+                suggestions={itemSuggestions}
+                onKeyDown={handleKeyDown}
+                placeholder="Item name"
+              />
+              <NumberInput
+                value={newItemPrice}
+                onChange={e => setNewItemPrice(e.target.value)}
+                placeholder="Price"
+                onKeyDown={handleKeyDown}
+                min={0}
+              />
+              <Button variant="primary" size="sm" onClick={handleAddItem}>
+                + Add
+              </Button>
+            </AddItemRow>
+          )}
+
+          {summary && (
+            <PersonSubtotals>
+              <SubtotalItem>Subtotal: {formatCurrency(summary.subtotal)}</SubtotalItem>
+              <SubtotalItem>After discount: {formatCurrency(summary.afterDiscount)}</SubtotalItem>
+              <SubtotalItem $highlight>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
+            </PersonSubtotals>
+          )}
+        </CardMainContent>
+
+        {spdString && (
+          <QrPlatba
+            spdString={spdString}
+            amount={summary!.withFees}
+            showCopyButton={showCopyQr}
           />
-          <NumberInput
-            value={newItemPrice}
-            onChange={e => setNewItemPrice(e.target.value)}
-            placeholder="Price"
-            onKeyDown={handleKeyDown}
-            min={0}
-          />
-          <Button variant="primary" size="sm" onClick={handleAddItem}>
-            + Add
-          </Button>
-        </AddItemRow>
-      )}
-
-      {summary && (
-        <PersonSubtotals>
-          <SubtotalItem>Subtotal: {formatCurrency(summary.subtotal)}</SubtotalItem>
-          <SubtotalItem>After discount: {formatCurrency(summary.afterDiscount)}</SubtotalItem>
-          <SubtotalItem $highlight>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
-        </PersonSubtotals>
-      )}
+        )}
+      </CardContentRow>
     </Card>
   )
 }

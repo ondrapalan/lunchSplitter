@@ -92,6 +92,31 @@ export async function getDisplayName() {
   return user.displayName
 }
 
+export async function updateBankAccount(bankAccountNumber: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { bankAccountNumber },
+  })
+
+  return { success: true }
+}
+
+export async function getBankAccount() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { bankAccountNumber: true },
+  })
+  if (!user) throw new Error('User not found')
+
+  return user.bankAccountNumber
+}
+
 export async function changePassword(currentPassword: string, newPassword: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')

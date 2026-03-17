@@ -65,6 +65,9 @@ interface OrderData {
   status: 'OPEN' | 'CLOSED'
   isParticipant: boolean
   currentUserPersonId: string | null
+  bankAccountNumber: string | null
+  creatorBankAccount: string | null
+  createdById: string
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
@@ -161,8 +164,12 @@ function OrderContent({
   onStatusChange: () => Promise<void>
   onJoined: () => Promise<void>
 }) {
-  const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId } = orderData
+  const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId, bankAccountNumber: initialBankAccount, createdById } = orderData
   const router = useRouter()
+  const [bankAccountNumber, setBankAccountNumber] = useState(initialBankAccount ?? '')
+
+  // Find the creator's person entry to skip QR on their card
+  const creatorPersonId = orderData.session.people.find(p => p.userId === createdById)?.id ?? null
 
   const {
     session,
@@ -320,6 +327,8 @@ function OrderContent({
         feePerPerson={feePerPerson}
         peopleCount={session.people.length}
         editable={isEditing}
+        bankAccountNumber={bankAccountNumber}
+        onBankAccountChange={setBankAccountNumber}
         onSetGlobalDiscount={setGlobalDiscount}
         onAddFee={addFeeAdjustment}
         onUpdateFee={updateFeeAdjustment}
@@ -350,6 +359,12 @@ function OrderContent({
           ? (_personId: string, itemId: string) => autoSave.flushUpdateItem(itemId)
           : undefined
         }
+        bankAccountNumber={bankAccountNumber || null}
+        creatorName={creatorName}
+        creatorPersonId={creatorPersonId}
+        orderStatus={status}
+        orderId={orderId}
+        isCreator={isCreator}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />
@@ -360,7 +375,7 @@ function OrderContent({
             await autoSave.flushAll()
             if (isEditing) {
               try {
-                await saveOrder(orderId, session, updatedAt)
+                await saveOrder(orderId, session, updatedAt, bankAccountNumber || null)
               } catch (err) {
                 toast.error(err instanceof Error ? err.message : 'Failed to save order settings')
                 return

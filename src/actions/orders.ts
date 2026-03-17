@@ -44,9 +44,19 @@ export async function getRestaurantNames() {
   return restaurants.map(r => r.name)
 }
 
-export async function createOrder(restaurantName: string) {
+export async function createOrder(restaurantName: string, bankAccountNumber?: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  // Use provided bankAccountNumber, fallback to user's saved one
+  let bankAccount = bankAccountNumber
+  if (!bankAccount) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { bankAccountNumber: true },
+    })
+    bankAccount = user?.bankAccountNumber ?? undefined
+  }
 
   const restaurant = await prisma.restaurant.upsert({
     where: { name: restaurantName },
@@ -58,13 +68,14 @@ export async function createOrder(restaurantName: string) {
     data: {
       restaurantId: restaurant.id,
       createdById: session.user.id,
+      bankAccountNumber: bankAccount ?? null,
     },
   })
 
   return { id: order.id }
 }
 
-export async function saveOrder(orderId: string, lunchSession: LunchSession, expectedUpdatedAt?: string) {
+export async function saveOrder(orderId: string, lunchSession: LunchSession, expectedUpdatedAt?: string, bankAccountNumber?: string | null) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -97,6 +108,7 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
         globalDiscountPercent: input.globalDiscountPercent,
         feeAdjustments: input.feeAdjustments,
         people: input.people,
+        ...(bankAccountNumber !== undefined ? { bankAccountNumber } : {}),
       },
     }),
   ])
@@ -130,7 +142,7 @@ export async function getOrder(orderId: string) {
     where: { id: orderId },
     include: {
       restaurant: true,
-      createdBy: { select: { displayName: true } },
+      createdBy: { select: { displayName: true, bankAccountNumber: true } },
       feeAdjustments: { orderBy: { sortOrder: 'asc' } },
       people: {
         orderBy: { sortOrder: 'asc' },
@@ -168,6 +180,9 @@ export async function getOrder(orderId: string) {
     status: order.status as 'OPEN' | 'CLOSED',
     isParticipant,
     currentUserPersonId: currentUserPerson?.id ?? null,
+    bankAccountNumber: order.bankAccountNumber,
+    creatorBankAccount: order.createdBy.bankAccountNumber,
+    createdById: order.createdById,
   }
 }
 

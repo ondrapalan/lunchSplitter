@@ -8,10 +8,12 @@ import { toast } from 'react-toastify'
 import {
   changePasswordSchema,
   updateDisplayNameSchema,
+  updateBankAccountSchema,
   type ChangePasswordInput,
   type UpdateDisplayNameInput,
+  type UpdateBankAccountInput,
 } from '~/lib/validations'
-import { changePassword, updateDisplayName, getDisplayName } from '~/actions/auth'
+import { changePassword, updateDisplayName, getDisplayName, updateBankAccount, getBankAccount } from '~/actions/auth'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
@@ -27,6 +29,12 @@ const ErrorText = styled.p`
   color: ${({ theme }) => theme.colors.negative};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   margin-top: -${({ theme }) => theme.spacing.xs};
+`
+
+const HelperText = styled.p`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  margin-top: ${({ theme }) => theme.spacing.xs};
 `
 
 const SectionGap = styled.div`
@@ -62,6 +70,47 @@ function DisplayNameSection() {
             placeholder="Display name"
           />
           {errors.displayName && <ErrorText>{errors.displayName.message}</ErrorText>}
+        </div>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Save'}
+        </Button>
+      </Form>
+    </Card>
+  )
+}
+
+function BankAccountSection() {
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<UpdateBankAccountInput>({
+    resolver: zodResolver(updateBankAccountSchema),
+  })
+
+  useEffect(() => {
+    getBankAccount().then(value => {
+      if (value) setValue('bankAccountNumber', value)
+    })
+  }, [setValue])
+
+  const onSubmit = async (data: UpdateBankAccountInput) => {
+    await updateBankAccount(data.bankAccountNumber)
+    toast.success('Bank account updated')
+  }
+
+  return (
+    <Card>
+      <CardTitle>Bank Account Number</CardTitle>
+      <Form onSubmit={handleSubmit(onSubmit)}>
+        <div>
+          <Input
+            {...register('bankAccountNumber')}
+            placeholder="e.g. 123456789/0800 or CZ1830300000002206952014"
+          />
+          {errors.bankAccountNumber && <ErrorText>{errors.bankAccountNumber.message}</ErrorText>}
+          <HelperText>Used for QR payment codes on your orders</HelperText>
         </div>
         <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save'}
@@ -135,6 +184,8 @@ export default function SettingsPage() {
     <div>
       <SectionTitle>Settings</SectionTitle>
       <DisplayNameSection />
+      <SectionGap />
+      <BankAccountSection />
       <SectionGap />
       <ChangePasswordSection />
     </div>
