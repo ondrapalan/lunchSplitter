@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { useLunchSession } from '~/features/lunch/hooks/useLunchSession'
+import { useAutoSave } from '~/features/lunch/hooks/useAutoSave'
 import { useCalculation } from '~/features/lunch/hooks/useCalculation'
 import { OrderSettings } from '~/features/lunch/components/OrderSettings'
 import { PeopleSection } from '~/features/lunch/components/PeopleSection'
@@ -13,12 +14,12 @@ import { Summary } from '~/features/lunch/components/Summary'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, saveMyItems } from '~/actions/orders'
+import { getOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
-import type { LunchSession } from '~/features/lunch/types'
+import type { LunchSession, Item } from '~/features/lunch/types'
 
 const Header = styled.div`
   display: flex;
@@ -116,12 +117,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
       isEditingMyItems={isEditingMyItems}
       onEdit={() => setIsEditing(true)}
       onEditMyItems={() => setIsEditingMyItems(true)}
-      onCancel={async () => {
-        setIsEditing(false)
-        setIsEditingMyItems(false)
-        await load()
-        setContentKey(k => k + 1)
-      }}
       onSaved={async () => {
         setIsEditing(false)
         setIsEditingMyItems(false)
@@ -150,7 +145,6 @@ function OrderContent({
   isEditingMyItems,
   onEdit,
   onEditMyItems,
-  onCancel,
   onSaved,
   onStatusChange,
   onJoined,
@@ -163,14 +157,12 @@ function OrderContent({
   isEditingMyItems: boolean
   onEdit: () => void
   onEditMyItems: () => void
-  onCancel: () => Promise<void>
   onSaved: () => Promise<void>
   onStatusChange: () => Promise<void>
   onJoined: () => Promise<void>
 }) {
   const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId } = orderData
   const router = useRouter()
-  const [saving, setSaving] = useState(false)
 
   const {
     session,
@@ -186,36 +178,44 @@ function OrderContent({
     removeItem,
   } = useLunchSession(initialSession)
 
+  const autoSave = useAutoSave({
+    orderId,
+    enabled: isEditing || isEditingMyItems,
+  })
+
+  const handleAutoSaveAddItem = useCallback((personId: string, name: string, price: number) => {
+    const itemId = crypto.randomUUID()
+    addItem(personId, name, price, itemId)
+    autoSave.saveAddItem(personId, { id: itemId, name, price, discountPercent: null })
+  }, [addItem, autoSave])
+
+  const handleAutoSaveRemoveItem = useCallback((personId: string, itemId: string) => {
+    removeItem(personId, itemId)
+    autoSave.saveRemoveItem(personId, itemId)
+  }, [removeItem, autoSave])
+
+  const handleAutoSaveUpdateItem = useCallback((personId: string, itemId: string, updates: Partial<Omit<Item, 'id'>>) => {
+    updateItem(personId, itemId, updates)
+    autoSave.debouncedUpdateItem(personId, itemId, updates)
+  }, [updateItem, autoSave])
+
+  const handleAutoSaveAddPerson = useCallback((name: string, userId?: string) => {
+    const personId = crypto.randomUUID()
+    addPerson(name, userId, personId)
+    autoSave.saveAddPerson(personId, name, userId)
+  }, [addPerson, autoSave])
+
+  const handleAutoSaveRemovePerson = useCallback((personId: string) => {
+    removePerson(personId)
+    autoSave.saveRemovePerson(personId)
+  }, [removePerson, autoSave])
+
+  const handleAutoSaveUpdatePersonName = useCallback((personId: string, name: string) => {
+    updatePersonName(personId, name)
+    autoSave.saveUpdatePersonName(personId, name)
+  }, [updatePersonName, autoSave])
+
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await saveOrder(orderId, session, updatedAt)
-      toast.success('Order saved!')
-      await onSaved()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save order')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleSaveMyItems = async () => {
-    if (!currentUserPersonId) return
-    setSaving(true)
-    try {
-      const myPerson = session.people.find(p => p.id === currentUserPersonId)
-      if (!myPerson) throw new Error('Could not find your items')
-      await saveMyItems(orderId, currentUserPersonId, myPerson.items, updatedAt)
-      toast.success('Items saved!')
-      await onSaved()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to save items')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const handleClose = async () => {
     try {
@@ -303,8 +303,12 @@ function OrderContent({
           {showDeleteButton && (
             <Button variant="danger" onClick={handleDelete}>Delete Order</Button>
           )}
-          {(isEditing || isEditingMyItems) && (
-            <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
+          {(isEditing || isEditingMyItems) && autoSave.saveStatus !== 'idle' && (
+            <SaveStatus>
+              {autoSave.saveStatus === 'saving' && 'Saving...'}
+              {autoSave.saveStatus === 'saved' && 'All changes saved'}
+              {autoSave.saveStatus === 'error' && 'Save failed'}
+            </SaveStatus>
           )}
         </HeaderActions>
       </Header>
@@ -336,34 +340,23 @@ function OrderContent({
         editablePersonId={isEditingMyItems ? currentUserPersonId : null}
         showEditMyItemsForPersonId={showEditMyItemsForPersonId}
         onEditMyItems={onEditMyItems}
-        onAddPerson={addPerson}
-        onRemovePerson={removePerson}
-        onUpdatePersonName={updatePersonName}
-        onAddItem={addItem}
-        onUpdateItem={updateItem}
-        onRemoveItem={removeItem}
+        onAddPerson={isEditing ? handleAutoSaveAddPerson : addPerson}
+        onRemovePerson={isEditing ? handleAutoSaveRemovePerson : removePerson}
+        onUpdatePersonName={isEditing ? handleAutoSaveUpdatePersonName : updatePersonName}
+        onAddItem={isEditing || isEditingMyItems ? handleAutoSaveAddItem : addItem}
+        onUpdateItem={isEditing || isEditingMyItems ? handleAutoSaveUpdateItem : updateItem}
+        onRemoveItem={isEditing || isEditingMyItems ? handleAutoSaveRemoveItem : removeItem}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />
 
-      {isEditing && (
+      {(isEditing || isEditingMyItems) && (
         <SaveBar>
-          <Button variant="secondary" onClick={onCancel} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </SaveBar>
-      )}
-
-      {isEditingMyItems && (
-        <SaveBar>
-          <Button variant="secondary" onClick={onCancel} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSaveMyItems} disabled={saving}>
-            {saving ? 'Saving...' : 'Save My Items'}
+          <Button variant="primary" onClick={async () => {
+            autoSave.flushAll()
+            await onSaved()
+          }}>
+            Done
           </Button>
         </SaveBar>
       )}
