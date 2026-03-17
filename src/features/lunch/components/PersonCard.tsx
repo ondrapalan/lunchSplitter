@@ -186,7 +186,7 @@ export function PersonCard({
             onKeyDown={handleKeyDown}
             min={0}
           />
-          <Button variant="secondary" size="sm" onClick={handleAddItem}>
+          <Button variant="primary" size="sm" onClick={handleAddItem}>
             + Add
           </Button>
         </AddItemRow>
