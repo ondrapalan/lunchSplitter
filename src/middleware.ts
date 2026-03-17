@@ -16,6 +16,11 @@ export default auth((req) => {
     return undefined
   }
 
+  // Public: invite registration pages (but not /invite management page)
+  if (nextUrl.pathname.startsWith('/invite/') && nextUrl.pathname !== '/invite') {
+    return undefined
+  }
+
   // Require auth for everything else
   if (!isLoggedIn) {
     return Response.redirect(new URL('/login', nextUrl))
