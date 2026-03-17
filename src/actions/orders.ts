@@ -3,7 +3,7 @@
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
-import type { LunchSession } from '~/features/lunch/types'
+import type { LunchSession, Item } from '~/features/lunch/types'
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number }[]> {
   const session = await auth()
@@ -181,4 +181,188 @@ export async function listOrders() {
     creatorName: order.createdBy.displayName,
     peopleCount: order._count.people,
   }))
+}
+
+export async function closeOrder(orderId: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { createdById: true },
+  })
+  if (!order || order.createdById !== session.user.id) {
+    throw new Error('Unauthorized')
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'CLOSED' },
+  })
+
+  return { success: true }
+}
+
+export async function reopenOrder(orderId: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { createdById: true },
+  })
+  if (!order || order.createdById !== session.user.id) {
+    throw new Error('Unauthorized')
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'OPEN' },
+  })
+
+  return { success: true }
+}
+
+export async function joinOrder(orderId: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      people: { select: { userId: true, sortOrder: true } },
+    },
+  })
+
+  if (!order) throw new Error('Order not found')
+  if (order.status !== 'OPEN') throw new Error('Order is closed')
+  if (order.createdById === session.user.id) throw new Error('Creator cannot join as participant')
+  if (order.people.some(p => p.userId === session.user.id)) {
+    throw new Error('Already a participant')
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { displayName: true },
+  })
+  if (!user) throw new Error('User not found')
+
+  const maxSortOrder = order.people.reduce((max, p) => Math.max(max, p.sortOrder), -1)
+
+  const result = await prisma.$transaction(async (tx) => {
+    const person = await tx.orderPerson.create({
+      data: {
+        name: user.displayName,
+        userId: session.user.id,
+        orderId,
+        sortOrder: maxSortOrder + 1,
+      },
+    })
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { updatedAt: new Date() },
+    })
+
+    return { personId: person.id }
+  })
+
+  return result
+}
+
+export async function listOpenOrders() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const orders = await prisma.order.findMany({
+    where: { status: 'OPEN' },
+    include: {
+      restaurant: true,
+      createdBy: { select: { displayName: true } },
+      people: { select: { userId: true } },
+      _count: { select: { people: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  return orders.map(order => ({
+    id: order.id,
+    restaurantName: order.restaurant.name,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    isCreator: order.createdById === session.user.id,
+    creatorName: order.createdBy.displayName,
+    peopleCount: order._count.people,
+    isParticipant: order.people.some(p => p.userId === session.user.id),
+  }))
+}
+
+export async function saveMyItems(
+  orderId: string,
+  personId: string,
+  items: Item[],
+  expectedUpdatedAt: string,
+) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      people: { select: { id: true, userId: true } },
+    },
+  })
+
+  if (!order) throw new Error('Order not found')
+  if (order.status !== 'OPEN') throw new Error('Order is closed')
+  if (order.createdById === session.user.id) {
+    throw new Error('Creator should use saveOrder instead')
+  }
+
+  const person = order.people.find(p => p.id === personId)
+  if (!person || person.userId !== session.user.id) {
+    throw new Error('Person does not belong to current user')
+  }
+
+  // Optimistic lock: reject if order was modified since client last fetched
+  if (order.updatedAt.toISOString() !== expectedUpdatedAt) {
+    throw new Error('Order was modified by someone else. Please refresh and try again.')
+  }
+
+  // Validate: participant items must not have sharedWith or customShares
+  for (const item of items) {
+    if (item.sharedWith.length > 0) {
+      throw new Error('Participant items cannot have sharedWith')
+    }
+    if (item.customShares !== null) {
+      throw new Error('Participant items cannot have customShares')
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Delete existing items for this person
+    await tx.orderItem.deleteMany({ where: { personId } })
+
+    // Create new items
+    if (items.length > 0) {
+      await tx.orderItem.createMany({
+        data: items.map((item, index) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          discountPercent: item.discountPercent,
+          sortOrder: index,
+          personId,
+        })),
+      })
+    }
+
+    // Bump order.updatedAt
+    await tx.order.update({
+      where: { id: orderId },
+      data: { updatedAt: new Date() },
+    })
+  })
+
+  return { success: true }
 }

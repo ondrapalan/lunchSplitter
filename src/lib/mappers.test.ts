@@ -9,6 +9,7 @@ describe('prismaOrderToLunchSession', () => {
       restaurantId: 'rest-1',
       globalDiscountPercent: 10,
       createdById: 'user-1',
+      status: 'OPEN' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
       feeAdjustments: [
@@ -32,6 +33,7 @@ describe('prismaOrderToLunchSession', () => {
       restaurantId: 'rest-1',
       globalDiscountPercent: 0,
       createdById: 'user-1',
+      status: 'OPEN' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
       feeAdjustments: [],
@@ -88,6 +90,7 @@ describe('prismaOrderToLunchSession', () => {
       restaurantId: 'rest-1',
       globalDiscountPercent: 0,
       createdById: 'user-1',
+      status: 'OPEN' as const,
       createdAt: new Date(),
       updatedAt: new Date(),
       feeAdjustments: [],
