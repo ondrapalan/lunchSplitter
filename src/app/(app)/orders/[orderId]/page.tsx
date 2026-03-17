@@ -12,12 +12,12 @@ import { Summary } from '~/features/lunch/components/Summary'
 
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
-import { getOrder, saveOrder, getItemsByRestaurant } from '~/actions/orders'
+import { getOrder, saveOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, saveMyItems } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
-import type { LunchSession } from '~/features/lunch/types'
+import type { LunchSession, Item } from '~/features/lunch/types'
 
 const Header = styled.div`
   display: flex;
@@ -46,19 +46,46 @@ const LastEdited = styled.div`
   margin-top: ${({ theme }) => theme.spacing.xs};
 `
 
-export default function EditOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
+const StatusBadge = styled.span<{ $status: 'OPEN' | 'CLOSED' }>`
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 500;
+  margin-left: ${({ theme }) => theme.spacing.sm};
+  background: ${({ $status }) =>
+    $status === 'OPEN' ? 'rgba(129, 199, 132, 0.15)' : 'rgba(144, 164, 174, 0.15)'};
+  color: ${({ $status, theme }) =>
+    $status === 'OPEN' ? theme.colors.positive : theme.colors.secondary};
+`
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.sm};
+  align-items: center;
+`
+
+interface OrderData {
+  restaurantName: string
+  session: LunchSession
+  isCreator: boolean
+  createdAt: string
+  updatedAt: string
+  creatorName: string
+  status: 'OPEN' | 'CLOSED'
+  isParticipant: boolean
+  currentUserPersonId: string | null
+}
+
+export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const router = useRouter()
   const [loaded, setLoaded] = useState(false)
-  const [loadedSession, setLoadedSession] = useState<LunchSession | null>(null)
-  const [restaurantName, setRestaurantName] = useState('')
+  const [orderData, setOrderData] = useState<OrderData | null>(null)
   const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [isEditingMyItems, setIsEditingMyItems] = useState(false)
   const [contentKey, setContentKey] = useState(0)
-  const [isCreator, setIsCreator] = useState(false)
-  const [createdAt, setCreatedAt] = useState('')
-  const [updatedAt, setUpdatedAt] = useState('')
-  const [creatorName, setCreatorName] = useState('')
   const [historicalItems, setHistoricalItems] = useState<ItemSuggestion[]>([])
 
   const load = useCallback(async () => {
@@ -70,15 +97,9 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
         router.push('/orders')
         return
       }
-      setRestaurantName(result.restaurantName)
+      setOrderData(result)
       getItemsByRestaurant(result.restaurantName).then(setHistoricalItems)
-      setLoadedSession(result.session)
-      setIsCreator(result.isCreator)
-      setCreatedAt(result.createdAt)
-      setUpdatedAt(result.updatedAt)
-      setCreatorName(result.creatorName)
       setLoaded(true)
-      // Auto-enter edit mode for empty orders
       if (result.session.people.length === 0 && result.isCreator) {
         setIsEditing(true)
       }
@@ -91,67 +112,74 @@ export default function EditOrderPage({ params }: { params: Promise<{ orderId: s
     load()
   }, [load])
 
-  if (!loaded || !loadedSession) {
+  if (!loaded || !orderData) {
     return <SectionTitle>Loading order...</SectionTitle>
   }
 
   return (
-    <EditOrderContent
+    <OrderContent
       key={contentKey}
       orderId={orderId}
-      restaurantName={restaurantName}
-      initialSession={loadedSession}
+      orderData={orderData}
       registeredUsers={registeredUsers}
       historicalItemSuggestions={historicalItems}
-      isCreator={isCreator}
       isEditing={isEditing}
-      createdAt={createdAt}
-      updatedAt={updatedAt}
-      creatorName={creatorName}
+      isEditingMyItems={isEditingMyItems}
       onEdit={() => setIsEditing(true)}
+      onEditMyItems={() => setIsEditingMyItems(true)}
       onCancel={async () => {
         setIsEditing(false)
+        setIsEditingMyItems(false)
         await load()
         setContentKey(k => k + 1)
       }}
       onSaved={async () => {
         setIsEditing(false)
+        setIsEditingMyItems(false)
         await load()
+        setContentKey(k => k + 1)
+      }}
+      onStatusChange={async () => {
+        await load()
+        setContentKey(k => k + 1)
+      }}
+      onJoined={async () => {
+        await load()
+        setIsEditingMyItems(true)
         setContentKey(k => k + 1)
       }}
     />
   )
 }
 
-function EditOrderContent({
+function OrderContent({
   orderId,
-  restaurantName,
-  initialSession,
+  orderData,
   registeredUsers,
   historicalItemSuggestions,
-  isCreator,
   isEditing,
-  createdAt,
-  updatedAt,
-  creatorName,
+  isEditingMyItems,
   onEdit,
+  onEditMyItems,
   onCancel,
   onSaved,
+  onStatusChange,
+  onJoined,
 }: {
   orderId: string
-  restaurantName: string
-  initialSession: LunchSession
+  orderData: OrderData
   registeredUsers: UserSuggestion[]
   historicalItemSuggestions: ItemSuggestion[]
-  isCreator: boolean
   isEditing: boolean
-  createdAt: string
-  updatedAt: string
-  creatorName: string
+  isEditingMyItems: boolean
   onEdit: () => void
+  onEditMyItems: () => void
   onCancel: () => Promise<void>
   onSaved: () => Promise<void>
+  onStatusChange: () => Promise<void>
+  onJoined: () => Promise<void>
 }) {
+  const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId } = orderData
   const [saving, setSaving] = useState(false)
 
   const {
@@ -173,23 +201,82 @@ function EditOrderContent({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await saveOrder(orderId, session)
+      await saveOrder(orderId, session, updatedAt)
       toast.success('Order saved!')
       await onSaved()
-    } catch {
-      toast.error('Failed to save order')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save order')
     } finally {
       setSaving(false)
     }
   }
 
+  const handleSaveMyItems = async () => {
+    if (!currentUserPersonId) return
+    setSaving(true)
+    try {
+      const myPerson = session.people.find(p => p.id === currentUserPersonId)
+      if (!myPerson) throw new Error('Could not find your items')
+      await saveMyItems(orderId, currentUserPersonId, myPerson.items, updatedAt)
+      toast.success('Items saved!')
+      await onSaved()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save items')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleClose = async () => {
+    try {
+      await closeOrder(orderId)
+      toast.success('Order closed')
+      await onStatusChange()
+    } catch {
+      toast.error('Failed to close order')
+    }
+  }
+
+  const handleReopen = async () => {
+    try {
+      await reopenOrder(orderId)
+      toast.success('Order reopened')
+      await onStatusChange()
+    } catch {
+      toast.error('Failed to reopen order')
+    }
+  }
+
+  const handleJoin = async () => {
+    try {
+      await joinOrder(orderId)
+      toast.success('Joined order!')
+      await onJoined()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to join order')
+    }
+  }
+
   const wasEditedAfterCreation = wasEdited(createdAt, updatedAt)
+  const isClosed = status === 'CLOSED'
+  const isOpen = status === 'OPEN'
+
+  const showCreatorEditButton = isCreator && isOpen && !isEditing
+  const showJoinButton = !isCreator && !isParticipant && isOpen
+  const showCloseButton = isCreator && isOpen && !isEditing
+  const showReopenButton = isCreator && isClosed
+  const showEditMyItemsForPersonId = (!isCreator && isParticipant && isOpen && !isEditingMyItems)
+    ? currentUserPersonId
+    : null
 
   return (
     <div>
       <Header>
         <div>
-          <SectionTitle style={{ marginBottom: 0 }}>{restaurantName}</SectionTitle>
+          <SectionTitle style={{ marginBottom: 0 }}>
+            {restaurantName}
+            <StatusBadge $status={status}>{status === 'OPEN' ? 'Open' : 'Closed'}</StatusBadge>
+          </SectionTitle>
           {!isCreator && (
             <LastEdited>Created by {creatorName}</LastEdited>
           )}
@@ -197,14 +284,23 @@ function EditOrderContent({
             <LastEdited>Last edited: {new Date(updatedAt).toLocaleDateString()}</LastEdited>
           )}
         </div>
-        {isCreator && !isEditing && (
-          <Button variant="primary" onClick={onEdit}>
-            Edit order details
-          </Button>
-        )}
-        {isEditing && (
-          <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
-        )}
+        <HeaderActions>
+          {showCloseButton && (
+            <Button variant="secondary" onClick={handleClose}>Close Order</Button>
+          )}
+          {showReopenButton && (
+            <Button variant="secondary" onClick={handleReopen}>Reopen Order</Button>
+          )}
+          {showCreatorEditButton && (
+            <Button variant="primary" onClick={onEdit}>Edit order details</Button>
+          )}
+          {showJoinButton && (
+            <Button variant="primary" onClick={handleJoin}>Join This Order</Button>
+          )}
+          {(isEditing || isEditingMyItems) && (
+            <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
+          )}
+        </HeaderActions>
       </Header>
 
       <OrderSettings
@@ -226,7 +322,14 @@ function EditOrderContent({
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
         historicalItemSuggestions={historicalItemSuggestions}
-        editable={isEditing}
+        canAddPerson={isEditing}
+        canEditItems={isEditing}
+        canEditNames={isEditing}
+        canRemovePeople={isEditing}
+        hideShareControls={isEditingMyItems}
+        editablePersonId={isEditingMyItems ? currentUserPersonId : null}
+        showEditMyItemsForPersonId={showEditMyItemsForPersonId}
+        onEditMyItems={onEditMyItems}
         onAddPerson={addPerson}
         onRemovePerson={removePerson}
         onUpdatePersonName={updatePersonName}
@@ -244,6 +347,17 @@ function EditOrderContent({
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </SaveBar>
+      )}
+
+      {isEditingMyItems && (
+        <SaveBar>
+          <Button variant="secondary" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSaveMyItems} disabled={saving}>
+            {saving ? 'Saving...' : 'Save My Items'}
           </Button>
         </SaveBar>
       )}
