@@ -45,6 +45,8 @@ export async function getRestaurantNames() {
 }
 
 export async function createOrder(restaurantName: string) {
+  console.error('[createOrder] called with:', restaurantName)
+  try {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -61,10 +63,17 @@ export async function createOrder(restaurantName: string) {
     },
   })
 
+  console.error('[createOrder] success, orderId:', order.id)
   return { id: order.id }
+  } catch (err) {
+    console.error('[createOrder] ERROR:', err)
+    throw err
+  }
 }
 
 export async function saveOrder(orderId: string, lunchSession: LunchSession, expectedUpdatedAt?: string) {
+  console.error('[saveOrder] called with orderId:', orderId, 'session:', JSON.stringify(lunchSession).slice(0, 200))
+  try {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -101,7 +110,12 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
     }),
   ])
 
+  console.error('[saveOrder] success')
   return { success: true }
+  } catch (err) {
+    console.error('[saveOrder] ERROR:', err)
+    throw err
+  }
 }
 
 export async function deleteOrder(orderId: string) {
