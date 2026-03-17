@@ -48,8 +48,8 @@ export function useLunchSession(initialSession?: LunchSession) {
     }))
   }, [])
 
-  const addPerson = useCallback((name: string, userId?: string) => {
-    const person: Person = { id: generateId(), name, userId: userId ?? null, items: [] }
+  const addPerson = useCallback((name: string, userId?: string, id?: string) => {
+    const person: Person = { id: id ?? generateId(), name, userId: userId ?? null, items: [] }
     setSession(prev => ({
       ...prev,
       people: [...prev.people, person],
@@ -86,9 +86,9 @@ export function useLunchSession(initialSession?: LunchSession) {
     }))
   }, [])
 
-  const addItem = useCallback((personId: string, name: string, price: number) => {
+  const addItem = useCallback((personId: string, name: string, price: number, id?: string) => {
     const item: Item = {
-      id: generateId(),
+      id: id ?? generateId(),
       name,
       price,
       discountPercent: null,
