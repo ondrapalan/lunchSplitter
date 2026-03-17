@@ -6,6 +6,7 @@ import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 
@@ -74,17 +75,6 @@ const CreatorBadge = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.sm};
 `
 
-const StatusBadge = styled.span<{ $status: 'OPEN' | 'CLOSED' }>`
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: ${({ theme }) => theme.borderRadius.sm};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 500;
-  background: ${({ $status }) =>
-    $status === 'OPEN' ? 'rgba(129, 199, 132, 0.15)' : 'rgba(144, 164, 174, 0.15)'};
-  color: ${({ $status, theme }) =>
-    $status === 'OPEN' ? theme.colors.positive : theme.colors.secondary};
-`
 
 const Actions = styled.div`
   display: flex;

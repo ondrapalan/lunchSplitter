@@ -301,7 +301,7 @@ export async function listOpenOrders() {
       people: { select: { userId: true } },
       _count: { select: { people: true } },
     },
-    orderBy: { updatedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
   })
 
   return orders.map(order => ({

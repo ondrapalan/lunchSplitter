@@ -12,6 +12,7 @@ import { Summary } from '~/features/lunch/components/Summary'
 
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { getOrder, saveOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, saveMyItems } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
@@ -46,18 +47,6 @@ const LastEdited = styled.div`
   margin-top: ${({ theme }) => theme.spacing.xs};
 `
 
-const StatusBadge = styled.span<{ $status: 'OPEN' | 'CLOSED' }>`
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: ${({ theme }) => theme.borderRadius.sm};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 500;
-  margin-left: ${({ theme }) => theme.spacing.sm};
-  background: ${({ $status }) =>
-    $status === 'OPEN' ? 'rgba(129, 199, 132, 0.15)' : 'rgba(144, 164, 174, 0.15)'};
-  color: ${({ $status, theme }) =>
-    $status === 'OPEN' ? theme.colors.positive : theme.colors.secondary};
-`
 
 const HeaderActions = styled.div`
   display: flex;
@@ -275,7 +264,7 @@ function OrderContent({
         <div>
           <SectionTitle style={{ marginBottom: 0 }}>
             {restaurantName}
-            <StatusBadge $status={status}>{status === 'OPEN' ? 'Open' : 'Closed'}</StatusBadge>
+            <StatusBadge $status={status} style={{ marginLeft: '8px' }}>{status === 'OPEN' ? 'Open' : 'Closed'}</StatusBadge>
           </SectionTitle>
           {!isCreator && (
             <LastEdited>Created by {creatorName}</LastEdited>
