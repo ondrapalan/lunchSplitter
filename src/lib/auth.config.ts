@@ -14,9 +14,9 @@ export const authConfig = {
       return token
     },
     session({ session, token }) {
-      session.user.id = token.id as string
-      session.user.role = token.role as 'ADMIN' | 'USER'
-      session.user.isFirstLogin = token.isFirstLogin as boolean
+      session.user.id = typeof token.id === 'string' ? token.id : ''
+      session.user.role = (token.role === 'ADMIN' || token.role === 'USER') ? token.role : 'USER'
+      session.user.isFirstLogin = typeof token.isFirstLogin === 'boolean' ? token.isFirstLogin : false
       return session
     },
   },

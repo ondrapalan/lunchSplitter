@@ -6,7 +6,7 @@ export const loginSchema = z.object({
 })
 
 export const setupPasswordSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password too long'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -22,7 +22,7 @@ export const createUserSchema = z.object({
 export const registerSchema = z.object({
   username: z.string().min(1, 'Username is required').regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores'),
   displayName: z.string().min(1, 'Display name is required'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password too long'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -35,7 +35,7 @@ export const updateDisplayNameSchema = z.object({
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  newPassword: z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password too long'),
   confirmPassword: z.string().min(1, 'Please confirm your password'),
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: 'Passwords do not match',
@@ -59,7 +59,7 @@ export const updateBankAccountSchema = z.object({
     .refine(
       (val) => {
         // Czech format: optional prefix-accountNumber/bankCode
-        const czechFormat = /^\d{1,6}?-?\d{2,10}\/\d{4}$/
+        const czechFormat = /^(?:\d{1,6}-)?(\d{2,10})\/(\d{4})$/
         // IBAN format: CZ + 22 digits
         const ibanFormat = /^CZ\d{22}$/
         return czechFormat.test(val) || ibanFormat.test(val)

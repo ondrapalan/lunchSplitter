@@ -2,8 +2,12 @@
 
 import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import { z } from 'zod'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { registerSchema, updateDisplayNameSchema, updateBankAccountSchema } from '~/lib/validations'
+
+const BCRYPT_ROUNDS = 12
 
 export async function hasAnyUsers() {
   const count = await prisma.user.count()
@@ -15,25 +19,37 @@ export async function registerFirstAdmin(data: {
   displayName: string
   password: string
 }) {
-  const count = await prisma.user.count()
-  if (count > 0) {
-    return { error: 'Admin already exists. Use login instead.' }
+  const parsed = registerSchema.safeParse({ ...data, confirmPassword: data.password })
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
   }
 
-  const passwordHash = await bcrypt.hash(data.password, 10)
+  const passwordHash = await bcrypt.hash(data.password, BCRYPT_ROUNDS)
 
   try {
-    await prisma.user.create({
-      data: {
-        username: data.username,
-        displayName: data.displayName,
-        role: 'ADMIN',
-        passwordHash,
-        isFirstLogin: false,
-      },
-    })
+    // Use transaction to prevent TOCTOU race condition
+    await prisma.$transaction(async (tx) => {
+      const count = await tx.user.count()
+      if (count > 0) {
+        throw new Error('Admin already exists')
+      }
+
+      await tx.user.create({
+        data: {
+          username: data.username,
+          displayName: data.displayName,
+          role: 'ADMIN',
+          passwordHash,
+          isFirstLogin: false,
+        },
+      })
+    }, { isolationLevel: 'Serializable' })
     return { success: true }
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : ''
+    if (message === 'Admin already exists') {
+      return { error: 'Admin already exists. Use login instead.' }
+    }
     return { error: 'Username already exists' }
   }
 }
@@ -49,7 +65,7 @@ export async function createUser(data: {
   }
 
   const tempPassword = randomBytes(8).toString('hex')
-  const passwordHash = await bcrypt.hash(tempPassword, 10)
+  const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
   try {
     await prisma.user.create({
@@ -71,9 +87,12 @@ export async function updateDisplayName(displayName: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const parsed = updateDisplayNameSchema.safeParse({ displayName })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { displayName },
+    data: { displayName: parsed.data.displayName },
   })
 
   return { success: true }
@@ -96,9 +115,12 @@ export async function updateBankAccount(bankAccountNumber: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const parsed = updateBankAccountSchema.safeParse({ bankAccountNumber })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
   await prisma.user.update({
     where: { id: session.user.id },
-    data: { bankAccountNumber },
+    data: { bankAccountNumber: parsed.data.bankAccountNumber },
   })
 
   return { success: true }
@@ -121,6 +143,10 @@ export async function changePassword(currentPassword: string, newPassword: strin
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password too long')
+  const parsed = passwordSchema.safeParse(newPassword)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   })
@@ -129,7 +155,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
   const valid = await bcrypt.compare(currentPassword, user.passwordHash)
   if (!valid) return { error: 'Current password is incorrect' }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10)
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash },
@@ -144,8 +170,11 @@ export async function resetUserPassword(userId: string) {
     return { error: 'Unauthorized' }
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+  if (!user) return { error: 'User not found' }
+
   const tempPassword = randomBytes(8).toString('hex')
-  const passwordHash = await bcrypt.hash(tempPassword, 10)
+  const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
   await prisma.user.update({
     where: { id: userId },
@@ -159,12 +188,16 @@ export async function setupPassword(password: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
+  const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(72, 'Password too long')
+  const parsed = passwordSchema.safeParse(password)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   })
   if (!user || !user.isFirstLogin) throw new Error('Invalid state')
 
-  const passwordHash = await bcrypt.hash(password, 10)
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS)
   await prisma.user.update({
     where: { id: user.id },
     data: { passwordHash, isFirstLogin: false },

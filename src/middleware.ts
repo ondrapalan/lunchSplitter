@@ -27,12 +27,12 @@ export default auth((req) => {
   }
 
   // First-login users must set password
-  if (user?.isFirstLogin && nextUrl.pathname !== '/setup-password') {
+  if (user?.isFirstLogin === true && nextUrl.pathname !== '/setup-password') {
     return Response.redirect(new URL('/setup-password', nextUrl))
   }
 
   // Non-first-login users shouldn't access setup-password
-  if (!user?.isFirstLogin && nextUrl.pathname === '/setup-password') {
+  if (user?.isFirstLogin !== true && nextUrl.pathname === '/setup-password') {
     return Response.redirect(new URL('/orders', nextUrl))
   }
 

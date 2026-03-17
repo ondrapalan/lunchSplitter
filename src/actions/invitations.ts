@@ -78,9 +78,9 @@ export async function validateInviteToken(token: string) {
     where: { token },
   })
 
-  if (!invitation) return { valid: false, reason: 'Invalid invitation link' } as const
-  if (invitation.usedAt) return { valid: false, reason: 'This invitation has already been used' } as const
-  if (invitation.expiresAt < new Date()) return { valid: false, reason: 'This invitation has expired' } as const
+  if (!invitation || invitation.usedAt || invitation.expiresAt < new Date()) {
+    return { valid: false, reason: 'This invitation link is not valid' } as const
+  }
 
   return { valid: true } as const
 }
@@ -112,10 +112,17 @@ export async function registerWithInvite(
     return { error: 'Username already exists' }
   }
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10)
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12)
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Atomically claim the invitation to prevent race condition
+      const claimed = await tx.invitation.updateMany({
+        where: { id: invitation.id, usedAt: null },
+        data: { usedAt: new Date() },
+      })
+      if (claimed.count === 0) throw new Error('Invitation already used')
+
       const newUser = await tx.user.create({
         data: {
           username: parsed.data.username,
@@ -128,10 +135,7 @@ export async function registerWithInvite(
 
       await tx.invitation.update({
         where: { id: invitation.id },
-        data: {
-          usedAt: new Date(),
-          usedById: newUser.id,
-        },
+        data: { usedById: newUser.id },
       })
     })
   } catch {
