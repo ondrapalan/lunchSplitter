@@ -29,8 +29,10 @@ model User {
   isFirstLogin      Boolean       @default(true)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
-  orders            Order[]
-  orderPersons      OrderPerson[]
+  orders              Order[]
+  orderPersons        OrderPerson[]
+  invitationsSent     Invitation[] @relation("InvitedByUser")
+  invitationUsed      Invitation?  @relation("UsedByUser")
 }
 
 model Order {
@@ -99,4 +101,16 @@ model CustomShare {
   amount   Float
 
   @@unique([itemId, personId])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  invitedBy   User      @relation("InvitedByUser", fields: [invitedById], references: [id])
+  invitedById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedBy      User?     @relation("UsedByUser", fields: [usedById], references: [id])
+  usedById    String?   @unique
 }
