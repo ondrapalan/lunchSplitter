@@ -28,6 +28,7 @@ interface PeopleSectionProps {
   onAddItem: (personId: string, name: string, price: number) => void
   onUpdateItem: (personId: string, itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (personId: string, itemId: string) => void
+  onFlushItem?: (personId: string, itemId: string) => void
 }
 
 export function PeopleSection({
@@ -50,6 +51,7 @@ export function PeopleSection({
   onAddItem,
   onUpdateItem,
   onRemoveItem,
+  onFlushItem,
 }: PeopleSectionProps) {
   // Collect all item names+prices across all people for suggestions
   // Historical items go first so current-session items override their prices during dedup
@@ -96,6 +98,7 @@ export function PeopleSection({
             onAddItem={(name, price) => onAddItem(person.id, name, price)}
             onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
             onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
+            onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}
           />
         )
       })}

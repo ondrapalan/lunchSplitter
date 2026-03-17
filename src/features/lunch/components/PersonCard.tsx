@@ -54,6 +54,7 @@ interface PersonCardProps {
   onAddItem: (name: string, price: number) => void
   onUpdateItem: (itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (itemId: string) => void
+  onFlushItem?: (itemId: string) => void
 }
 
 export function PersonCard({
@@ -73,6 +74,7 @@ export function PersonCard({
   onAddItem,
   onUpdateItem,
   onRemoveItem,
+  onFlushItem,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
@@ -154,6 +156,7 @@ export function PersonCard({
           hideShareControls={hideShareControls}
           onUpdate={updates => onUpdateItem(item.id, updates)}
           onRemove={() => onRemoveItem(item.id)}
+          onBlurSave={onFlushItem ? () => onFlushItem(item.id) : undefined}
         />
       ))}
 
@@ -183,7 +186,7 @@ export function PersonCard({
             onKeyDown={handleKeyDown}
             min={0}
           />
-          <Button variant="secondary" size="sm" onClick={handleAddItem}>
+          <Button variant="primary" size="sm" onClick={handleAddItem}>
             + Add
           </Button>
         </AddItemRow>
