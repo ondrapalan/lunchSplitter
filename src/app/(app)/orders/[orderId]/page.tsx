@@ -13,7 +13,7 @@ import { Summary } from '~/features/lunch/components/Summary'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { getOrder, saveOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, saveMyItems } from '~/actions/orders'
+import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, saveMyItems } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
@@ -169,6 +169,7 @@ function OrderContent({
   onJoined: () => Promise<void>
 }) {
   const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId } = orderData
+  const router = useRouter()
   const [saving, setSaving] = useState(false)
 
   const {
@@ -246,9 +247,22 @@ function OrderContent({
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm('Delete this order?')) return
+    try {
+      await deleteOrder(orderId)
+      toast.success('Order deleted')
+      router.push('/orders')
+    } catch {
+      toast.error('Failed to delete order')
+    }
+  }
+
   const wasEditedAfterCreation = wasEdited(createdAt, updatedAt)
   const isClosed = status === 'CLOSED'
   const isOpen = status === 'OPEN'
+  const isEmpty = session.people.length === 0
+  const showDeleteButton = isCreator && isEmpty
 
   const showCreatorEditButton = isCreator && isOpen && !isEditing
   const showJoinButton = !isCreator && !isParticipant && isOpen
@@ -285,6 +299,9 @@ function OrderContent({
           )}
           {showJoinButton && (
             <Button variant="primary" onClick={handleJoin}>Join This Order</Button>
+          )}
+          {showDeleteButton && (
+            <Button variant="danger" onClick={handleDelete}>Delete Order</Button>
           )}
           {(isEditing || isEditingMyItems) && (
             <SaveStatus>{saving ? 'Saving...' : ''}</SaveStatus>
