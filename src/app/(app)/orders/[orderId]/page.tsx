@@ -346,6 +346,10 @@ function OrderContent({
         onAddItem={isEditing || isEditingMyItems ? handleAutoSaveAddItem : addItem}
         onUpdateItem={isEditing || isEditingMyItems ? handleAutoSaveUpdateItem : updateItem}
         onRemoveItem={isEditing || isEditingMyItems ? handleAutoSaveRemoveItem : removeItem}
+        onFlushItem={(isEditing || isEditingMyItems)
+          ? (_personId: string, itemId: string) => autoSave.flushUpdateItem(itemId)
+          : undefined
+        }
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />

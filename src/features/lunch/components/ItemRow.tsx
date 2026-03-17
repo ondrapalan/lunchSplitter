@@ -79,9 +79,10 @@ interface ItemRowProps {
   hideShareControls?: boolean
   onUpdate: (updates: Partial<Omit<Item, 'id'>>) => void
   onRemove: () => void
+  onBlurSave?: () => void
 }
 
-export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, editable = true, hideShareControls = false, onUpdate, onRemove }: ItemRowProps) {
+export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, editable = true, hideShareControls = false, onUpdate, onRemove, onBlurSave }: ItemRowProps) {
   const [editingDiscount, setEditingDiscount] = useState(false)
   const [showShareSelector, setShowShareSelector] = useState(false)
 
@@ -108,6 +109,7 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, edita
 
   const handleDiscountBlur = () => {
     setEditingDiscount(false)
+    onBlurSave?.()
   }
 
   const toggleShare = (personId: string) => {
