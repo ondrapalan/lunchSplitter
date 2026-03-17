@@ -79,7 +79,7 @@ function RegisterForm({ token }: { token: string }) {
     setServerError('')
     const result = await registerWithInvite(token, data)
 
-    if ('error' in result) {
+    if ('error' in result && result.error) {
       setServerError(result.error)
       return
     }

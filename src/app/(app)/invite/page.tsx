@@ -94,7 +94,7 @@ export default function InvitePage() {
 
   const loadInvitations = async () => {
     const result = await getMyInvitations()
-    if ('invitations' in result) {
+    if ('invitations' in result && result.invitations) {
       setInvitations(result.invitations)
     }
   }

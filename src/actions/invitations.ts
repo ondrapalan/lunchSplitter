@@ -92,7 +92,7 @@ export async function registerWithInvite(
   // Validate form data
   const parsed = registerSchema.safeParse(data)
   if (!parsed.success) {
-    return { error: parsed.error.errors[0].message }
+    return { error: parsed.error.issues[0].message }
   }
 
   // Re-validate token
