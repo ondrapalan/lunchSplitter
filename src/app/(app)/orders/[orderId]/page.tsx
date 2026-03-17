@@ -17,7 +17,7 @@ import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
-import type { LunchSession, Item } from '~/features/lunch/types'
+import type { LunchSession } from '~/features/lunch/types'
 
 const Header = styled.div`
   display: flex;
