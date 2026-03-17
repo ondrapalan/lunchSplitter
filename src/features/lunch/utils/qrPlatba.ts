@@ -11,16 +11,21 @@ interface SpdStringParams {
   message: string
 }
 
+/** Sanitize a value for SPD field — strip field separators to prevent injection. */
+function sanitizeSpdField(value: string): string {
+  return value.replace(/[*+]/g, ' ').trim()
+}
+
 /** Build a QR Platba SPD string. */
 export function buildSpdString({ iban, recipientName, amount, variableSymbol, message }: SpdStringParams): string {
   const parts = [
     'SPD*1.0',
     `ACC:${iban}`,
-    `RN:${recipientName}`,
+    `RN:${sanitizeSpdField(recipientName)}`,
     `AM:${amount.toFixed(2)}`,
     'CC:CZK',
     `X-VS:${variableSymbol}`,
-    `MSG:${message}`,
+    `MSG:${sanitizeSpdField(message)}`,
   ]
   return parts.join('*')
 }
