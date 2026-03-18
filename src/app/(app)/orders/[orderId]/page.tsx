@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use, useCallback } from 'react'
+import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
@@ -167,6 +167,14 @@ function OrderContent({
   const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId, bankAccountNumber: initialBankAccount, createdById } = orderData
   const router = useRouter()
   const [bankAccountNumber, setBankAccountNumber] = useState(initialBankAccount ?? '')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const [isReopening, setIsReopening] = useState(false)
+  const [isJoining, setIsJoining] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Track latest updatedAt from auto-saves to avoid optimistic lock conflicts
+  const latestUpdatedAt = useRef(updatedAt)
 
   // Find the creator's person entry to skip QR on their card
   const creatorPersonId = orderData.session.people.find(p => p.userId === createdById)?.id ?? null
@@ -188,6 +196,7 @@ function OrderContent({
   const autoSave = useAutoSave({
     orderId,
     enabled: isEditing || isEditingMyItems,
+    onUpdatedAt: (val) => { latestUpdatedAt.current = val },
   })
 
   const handleAutoSaveAddItem = useCallback((personId: string, name: string, price: number) => {
@@ -225,43 +234,55 @@ function OrderContent({
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
 
   const handleClose = async () => {
+    setIsClosing(true)
     try {
       await closeOrder(orderId)
       toast.success('Order closed')
       await onStatusChange()
     } catch {
       toast.error('Failed to close order')
+    } finally {
+      setIsClosing(false)
     }
   }
 
   const handleReopen = async () => {
+    setIsReopening(true)
     try {
       await reopenOrder(orderId)
       toast.success('Order reopened')
       await onStatusChange()
     } catch {
       toast.error('Failed to reopen order')
+    } finally {
+      setIsReopening(false)
     }
   }
 
   const handleJoin = async () => {
+    setIsJoining(true)
     try {
       await joinOrder(orderId)
       toast.success('Joined order!')
       await onJoined()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to join order')
+    } finally {
+      setIsJoining(false)
     }
   }
 
   const handleDelete = async () => {
     if (!confirm('Delete this order?')) return
+    setIsDeleting(true)
     try {
       await deleteOrder(orderId)
       toast.success('Order deleted')
       router.push('/orders')
     } catch {
       toast.error('Failed to delete order')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -296,19 +317,19 @@ function OrderContent({
         </div>
         <HeaderActions>
           {showCloseButton && (
-            <Button variant="secondary" onClick={handleClose}>Close Order</Button>
+            <Button variant="secondary" loading={isClosing} onClick={handleClose}>Close Order</Button>
           )}
           {showReopenButton && (
-            <Button variant="secondary" onClick={handleReopen}>Reopen Order</Button>
+            <Button variant="secondary" loading={isReopening} onClick={handleReopen}>Reopen Order</Button>
           )}
           {showCreatorEditButton && (
             <Button variant="primary" onClick={onEdit}>Edit order details</Button>
           )}
           {showJoinButton && (
-            <Button variant="primary" onClick={handleJoin}>Join This Order</Button>
+            <Button variant="primary" loading={isJoining} onClick={handleJoin}>Join This Order</Button>
           )}
           {showDeleteButton && (
-            <Button variant="danger" onClick={handleDelete}>Delete Order</Button>
+            <Button variant="danger" loading={isDeleting} onClick={handleDelete}>Delete Order</Button>
           )}
           {(isEditing || isEditingMyItems) && autoSave.saveStatus !== 'idle' && (
             <SaveStatus>
@@ -371,17 +392,19 @@ function OrderContent({
 
       {(isEditing || isEditingMyItems) && (
         <SaveBar>
-          <Button variant="primary" onClick={async () => {
-            await autoSave.flushAll()
-            if (isEditing) {
-              try {
-                await saveOrder(orderId, session, updatedAt, bankAccountNumber || null)
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : 'Failed to save order settings')
-                return
+          <Button variant="primary" loading={isSaving} onClick={async () => {
+            setIsSaving(true)
+            try {
+              await autoSave.flushAll()
+              if (isEditing) {
+                await saveOrder(orderId, session, latestUpdatedAt.current, bankAccountNumber || null)
               }
+              await onSaved()
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Failed to save order settings')
+            } finally {
+              setIsSaving(false)
             }
-            await onSaved()
           }}>
             Done
           </Button>

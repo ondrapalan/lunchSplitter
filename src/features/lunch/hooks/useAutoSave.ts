@@ -28,9 +28,10 @@ interface PendingItemUpdate {
 interface UseAutoSaveOptions {
   orderId: string
   enabled: boolean
+  onUpdatedAt?: (updatedAt: string) => void
 }
 
-export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
+export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOptions) {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const pendingChanges = useRef<Map<string, PendingItemUpdate>>(new Map())
@@ -70,7 +71,10 @@ export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
     activeSaves.current++
     setSaveStatus('saving')
     try {
-      await fn()
+      const result = await fn()
+      if (onUpdatedAt && result && typeof result === 'object' && 'updatedAt' in result) {
+        onUpdatedAt((result as { updatedAt: string }).updatedAt)
+      }
       activeSaves.current--
       if (activeSaves.current === 0 && pendingChanges.current.size === 0) {
         setSaveStatus('saved')
@@ -80,7 +84,7 @@ export function useAutoSave({ orderId, enabled }: UseAutoSaveOptions) {
       setSaveStatus('error')
       toast.error(err instanceof Error ? err.message : 'Failed to save')
     }
-  }, [enabled])
+  }, [enabled, onUpdatedAt])
 
   const saveAddItem = useCallback((personId: string, item: { id: string; name: string; price: number; discountPercent: number | null }) => {
     execSave(() => addItemToOrder(orderId, personId, item))

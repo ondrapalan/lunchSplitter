@@ -1,15 +1,20 @@
 'use client'
 
-import styled, { css } from 'styled-components'
+import styled, { css, keyframes } from 'styled-components'
 import { withAlpha } from '~/features/ui/theme'
+
+const spin = keyframes`
+  to { transform: rotate(360deg); }
+`
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
   size?: 'sm' | 'md'
+  loading?: boolean
 }
 
 export const Button = styled.button.withConfig({
-  shouldForwardProp: (prop) => prop !== 'variant' && prop !== 'size',
+  shouldForwardProp: (prop) => prop !== 'variant' && prop !== 'size' && prop !== 'loading',
 })<ButtonProps>`
   display: inline-flex;
   align-items: center;
@@ -60,4 +65,22 @@ export const Button = styled.button.withConfig({
         `
     }
   }}
+
+  ${({ loading }) =>
+    loading &&
+    css`
+      opacity: 0.7;
+      pointer-events: none;
+
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: ${spin} 0.6s linear infinite;
+      }
+    `}
 `

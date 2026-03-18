@@ -59,7 +59,7 @@ export async function addItemToOrder(
 
   const sortOrder = person._count.items
 
-  await prisma.$transaction([
+  const [, orderResult] = await prisma.$transaction([
     prisma.orderItem.create({
       data: {
         id: item.id,
@@ -73,10 +73,11 @@ export async function addItemToOrder(
     prisma.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     }),
   ])
 
-  return { success: true, itemId: item.id }
+  return { success: true, itemId: item.id, updatedAt: orderResult.updatedAt.toISOString() }
 }
 
 export async function removeItemFromOrder(
@@ -92,15 +93,16 @@ export async function removeItemFromOrder(
   })
   if (!item || item.personId !== personId) throw new Error('Item not found')
 
-  await prisma.$transaction([
+  const [, orderResult] = await prisma.$transaction([
     prisma.orderItem.delete({ where: { id: itemId } }),
     prisma.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     }),
   ])
 
-  return { success: true }
+  return { success: true, updatedAt: orderResult.updatedAt.toISOString() }
 }
 
 export async function updateItemInOrder(
@@ -127,7 +129,7 @@ export async function updateItemInOrder(
   })
   if (!existingItem || existingItem.personId !== personId) throw new Error('Item not found')
 
-  await prisma.$transaction(async (tx) => {
+  const updatedOrder = await prisma.$transaction(async (tx) => {
     const itemUpdate: { name?: string; price?: number; discountPercent?: number | null } = {}
     if (changes.name !== undefined) itemUpdate.name = changes.name
     if (changes.price !== undefined) itemUpdate.price = changes.price
@@ -173,13 +175,14 @@ export async function updateItemInOrder(
       }
     }
 
-    await tx.order.update({
+    return tx.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     })
   })
 
-  return { success: true }
+  return { success: true, updatedAt: updatedOrder.updatedAt.toISOString() }
 }
 
 export async function addPersonToOrder(
@@ -192,7 +195,7 @@ export async function addPersonToOrder(
 
   const maxSortOrder = order.people.reduce((max, p) => Math.max(max, p.sortOrder), -1)
 
-  await prisma.$transaction([
+  const [, orderResult] = await prisma.$transaction([
     prisma.orderPerson.create({
       data: {
         id: personId,
@@ -205,10 +208,11 @@ export async function addPersonToOrder(
     prisma.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     }),
   ])
 
-  return { success: true, personId }
+  return { success: true, personId, updatedAt: orderResult.updatedAt.toISOString() }
 }
 
 export async function removePersonFromOrder(
@@ -221,18 +225,19 @@ export async function removePersonFromOrder(
     throw new Error('Person not found in order')
   }
 
-  await prisma.$transaction(async (tx) => {
+  const updatedOrder = await prisma.$transaction(async (tx) => {
     await tx.sharedItemLink.deleteMany({ where: { personId } })
     await tx.customShare.deleteMany({ where: { personId } })
     await tx.orderPerson.delete({ where: { id: personId } })
 
-    await tx.order.update({
+    return tx.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     })
   })
 
-  return { success: true }
+  return { success: true, updatedAt: updatedOrder.updatedAt.toISOString() }
 }
 
 export async function updatePersonInOrder(
@@ -246,7 +251,7 @@ export async function updatePersonInOrder(
     throw new Error('Person not found in order')
   }
 
-  await prisma.$transaction([
+  const [, orderResult] = await prisma.$transaction([
     prisma.orderPerson.update({
       where: { id: personId },
       data: { name },
@@ -254,8 +259,9 @@ export async function updatePersonInOrder(
     prisma.order.update({
       where: { id: orderId },
       data: { updatedAt: new Date() },
+      select: { updatedAt: true },
     }),
   ])
 
-  return { success: true }
+  return { success: true, updatedAt: orderResult.updatedAt.toISOString() }
 }
