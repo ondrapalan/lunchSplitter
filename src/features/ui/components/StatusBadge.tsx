@@ -7,6 +7,8 @@ export const StatusBadge = styled.span<{ $status: 'OPEN' | 'CLOSED' }>`
   border-radius: ${({ theme }) => theme.borderRadius.sm};
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
   background: ${({ $status, theme }) =>
     $status === 'OPEN' ? withAlpha(theme.colors.positive, 0.15) : withAlpha(theme.colors.secondary, 0.15)};
   color: ${({ $status, theme }) =>

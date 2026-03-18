@@ -34,7 +34,7 @@ const OrderList = styled.div`
 const OrderRow = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
   padding: ${({ theme }) => theme.spacing.md};
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -49,6 +49,7 @@ const OrderRow = styled.div`
 
 const OrderInfo = styled.div`
   flex: 1;
+  min-width: 0;
 `
 
 const RestaurantName = styled.div`
@@ -70,17 +71,15 @@ const EmptyState = styled.div`
   padding: ${({ theme }) => theme.spacing.xl};
 `
 
-const CreatorBadge = styled.span`
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-weight: 400;
-  font-size: ${({ theme }) => theme.fontSizes.sm};
+const NameText = styled.span`
+  min-width: 0;
 `
-
 
 const Actions = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
+  flex-shrink: 0;
 `
 
 export default function OrdersPage() {
@@ -185,13 +184,11 @@ export default function OrdersPage() {
               <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
                 <OrderInfo>
                   <RestaurantName>
-                    {order.restaurantName}
+                    <NameText>{order.restaurantName}</NameText>
                     <StatusBadge $status="OPEN">Open</StatusBadge>
-                    {!order.isCreator && (
-                      <CreatorBadge>by {order.creatorName}</CreatorBadge>
-                    )}
                   </RestaurantName>
                   <OrderMeta>
+                    {!order.isCreator && <>by {order.creatorName} &middot; </>}
                     {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
                   </OrderMeta>
                 </OrderInfo>
@@ -221,13 +218,11 @@ export default function OrdersPage() {
               <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
                 <OrderInfo>
                   <RestaurantName>
-                    {order.restaurantName}
+                    <NameText>{order.restaurantName}</NameText>
                     <StatusBadge $status="CLOSED">Closed</StatusBadge>
-                    {!order.isCreator && (
-                      <CreatorBadge>by {order.creatorName}</CreatorBadge>
-                    )}
                   </RestaurantName>
                   <OrderMeta>
+                    {!order.isCreator && <>by {order.creatorName} &middot; </>}
                     {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
                     {wasEdited(order.createdAt, order.updatedAt) && (
                       <> &middot; Last edited: {new Date(order.updatedAt).toLocaleDateString()}</>
@@ -262,12 +257,11 @@ export default function OrdersPage() {
               <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
                 <OrderInfo>
                   <RestaurantName>
-                    {order.restaurantName}
+                    <NameText>{order.restaurantName}</NameText>
                     <StatusBadge $status="CLOSED">Closed</StatusBadge>
-                    <CreatorBadge>by {order.creatorName}</CreatorBadge>
                   </RestaurantName>
                   <OrderMeta>
-                    {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
+                    by {order.creatorName} &middot; {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
                     {wasEdited(order.createdAt, order.updatedAt) && (
                       <> &middot; Last edited: {new Date(order.updatedAt).toLocaleDateString()}</>
                     )}
