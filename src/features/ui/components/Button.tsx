@@ -1,6 +1,7 @@
 'use client'
 
 import styled, { css } from 'styled-components'
+import { withAlpha } from '~/features/ui/theme'
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost'
@@ -49,7 +50,7 @@ export const Button = styled.button.withConfig({
         return css`
           background: transparent;
           color: ${theme.colors.negative};
-          &:hover { background: rgba(255, 83, 112, 0.1); }
+          &:hover { background: ${withAlpha(theme.colors.negative, 0.1)}; }
         `
       case 'ghost':
         return css`

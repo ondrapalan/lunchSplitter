@@ -18,6 +18,13 @@ const QrCanvas = styled.canvas`
   border-radius: ${({ theme }) => theme.borderRadius.sm};
 `
 
+const QrBackground = styled.div`
+  background: #ffffff;
+  padding: 4px;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  line-height: 0;
+`
+
 const Amount = styled.span`
   color: ${({ theme }) => theme.colors.warning};
   font-size: ${({ theme }) => theme.fontSizes.sm};
@@ -69,7 +76,9 @@ export function QrPlatba({ spdString, amount, showCopyButton = false }: QrPlatba
 
   return (
     <QrWrapper>
-      <QrCanvas ref={canvasRef} />
+      <QrBackground>
+        <QrCanvas ref={canvasRef} />
+      </QrBackground>
       <Amount>{formatCurrency(amount)} CZK</Amount>
       {showCopyButton && (
         <Button variant="secondary" size="sm" onClick={handleCopy}>
