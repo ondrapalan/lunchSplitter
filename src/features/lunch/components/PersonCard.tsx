@@ -73,6 +73,7 @@ interface PersonCardProps {
   creatorPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
+  restaurantName?: string
   showCopyQr?: boolean
 }
 
@@ -99,6 +100,7 @@ export function PersonCard({
   creatorPersonId,
   orderStatus,
   orderId,
+  restaurantName,
   showCopyQr,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
@@ -150,7 +152,7 @@ export function PersonCard({
         recipientName: qrRecipientName,
         amount: summary!.withFees,
         variableSymbol,
-        message: '',
+        message: restaurantName ?? '',
       })
     } catch {
       // Invalid bank account format — skip QR

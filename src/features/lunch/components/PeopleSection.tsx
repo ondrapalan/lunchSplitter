@@ -35,6 +35,7 @@ interface PeopleSectionProps {
   creatorPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
+  restaurantName?: string
   isCreator?: boolean
 }
 
@@ -64,6 +65,7 @@ export function PeopleSection({
   creatorPersonId,
   orderStatus,
   orderId,
+  restaurantName,
   isCreator,
 }: PeopleSectionProps) {
   // Collect all item names+prices across all people for suggestions
@@ -117,6 +119,7 @@ export function PeopleSection({
             creatorPersonId={creatorPersonId}
             orderStatus={orderStatus}
             orderId={orderId}
+            restaurantName={restaurantName}
             showCopyQr={isCreator}
           />
         )

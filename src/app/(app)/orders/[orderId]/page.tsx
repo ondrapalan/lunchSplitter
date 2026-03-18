@@ -364,6 +364,7 @@ function OrderContent({
         creatorPersonId={creatorPersonId}
         orderStatus={status}
         orderId={orderId}
+        restaurantName={restaurantName}
         isCreator={isCreator}
       />
 
