@@ -3,6 +3,7 @@
 import { useEffect, useState, use, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
+import { media } from '~/features/ui/theme'
 import { toast } from 'react-toastify'
 import { useLunchSession } from '~/features/lunch/hooks/useLunchSession'
 import { useAutoSave } from '~/features/lunch/hooks/useAutoSave'
@@ -27,6 +28,12 @@ const Header = styled.div`
   align-items: center;
   justify-content: space-between;
   margin-bottom: ${({ theme }) => theme.spacing.lg};
+
+  ${media.mobile} {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.sm};
+  }
 `
 
 const SaveBar = styled.div`
@@ -54,6 +61,11 @@ const HeaderActions = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
+
+  ${media.mobile} {
+    flex-wrap: wrap;
+    width: 100%;
+  }
 `
 
 interface OrderAccess {
@@ -424,6 +436,7 @@ function OrderContent({
         }
         bankAccountNumber={bankAccountNumber || null}
         creatorPersonId={creatorPersonId}
+        currentUserPersonId={access.currentUserPersonId}
         orderStatus={status}
         orderId={orderId}
         restaurantName={restaurantName}

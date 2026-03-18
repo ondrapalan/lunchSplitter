@@ -32,6 +32,7 @@ interface PeopleSectionProps {
   // QR Platba props
   bankAccountNumber?: string | null
   creatorPersonId?: string | null
+  currentUserPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
   restaurantName?: string
@@ -61,6 +62,7 @@ export function PeopleSection({
   onFlushItem,
   bankAccountNumber,
   creatorPersonId,
+  currentUserPersonId,
   orderStatus,
   orderId,
   restaurantName,
@@ -114,9 +116,11 @@ export function PeopleSection({
             onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}
             bankAccountNumber={bankAccountNumber}
             creatorPersonId={creatorPersonId}
+            currentUserPersonId={currentUserPersonId}
             orderStatus={orderStatus}
             orderId={orderId}
             restaurantName={restaurantName}
+            isCreator={isCreator}
             showCopyQr={isCreator}
           />
         )
