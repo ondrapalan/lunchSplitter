@@ -162,6 +162,7 @@ export async function getOrder(orderId: string) {
       people: {
         orderBy: { sortOrder: 'asc' },
         include: {
+          user: { select: { displayName: true } },
           items: {
             orderBy: { sortOrder: 'asc' },
             include: {

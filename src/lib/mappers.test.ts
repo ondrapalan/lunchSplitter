@@ -46,6 +46,7 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 0,
           orderId: 'order-1',
           userId: 'user-alice',
+          user: { displayName: 'Alice Updated' },
           items: [
             {
               id: 'item-1',
@@ -69,6 +70,7 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 1,
           orderId: 'order-1',
           userId: null,
+          user: null,
           items: [],
         },
       ],
@@ -77,7 +79,7 @@ describe('prismaOrderToLunchSession', () => {
     const session = prismaOrderToLunchSession(order)
 
     expect(session.people).toHaveLength(2)
-    expect(session.people[0].name).toBe('Alice')
+    expect(session.people[0].name).toBe('Alice Updated')
     expect(session.people[0].userId).toBe('user-alice')
     expect(session.people[0].items[0].sharedWith).toEqual(['person-2'])
     expect(session.people[0].items[0].customShares).toEqual({ 'person-2': 80 })
@@ -104,6 +106,7 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 0,
           orderId: 'order-1',
           userId: null,
+          user: null,
           items: [
             {
               id: 'item-1',

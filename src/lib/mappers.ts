@@ -10,6 +10,7 @@ type PrismaOrderWithRelations = Prisma.OrderGetPayload<{
     people: {
       orderBy: { sortOrder: 'asc' }
       include: {
+        user: { select: { displayName: true } }
         items: {
           orderBy: { sortOrder: 'asc' }
           include: {
@@ -34,7 +35,7 @@ export function prismaOrderToLunchSession(order: PrismaOrderWithRelations): Lunc
 
   const people: Person[] = order.people.map(p => ({
     id: p.id,
-    name: p.name,
+    name: p.user?.displayName ?? p.name,
     userId: p.userId ?? null,
     items: p.items.map(i => {
       const sharedWith = i.sharedWith.map(link => link.personId)
