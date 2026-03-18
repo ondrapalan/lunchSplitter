@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import styled from 'styled-components'
-import { withAlpha } from '~/features/ui/theme'
+import { withAlpha, media } from '~/features/ui/theme'
 import { NumberInput } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import type { Item, Person } from '../types'
@@ -17,6 +17,10 @@ const Row = styled.div`
   &:last-of-type {
     border-bottom: none;
   }
+
+  ${media.mobile} {
+    flex-wrap: wrap;
+  }
 `
 
 const ItemName = styled.span`
@@ -25,9 +29,11 @@ const ItemName = styled.span`
 `
 
 const ItemPrice = styled.span`
-  color: ${({ theme }) => theme.colors.positive};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
   min-width: 70px;
   text-align: right;
+  flex-shrink: 0;
 `
 
 const DiscountBadge = styled.button<{ $custom: boolean }>`

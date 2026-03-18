@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import styled from 'styled-components'
+import { media } from '~/features/ui/theme'
 import { Card, CardHeader, CardTitle } from '~/features/ui/components/Card'
 import { Input, NumberInput } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
@@ -21,10 +22,17 @@ const PersonSubtotals = styled.div`
   padding-top: ${({ theme }) => theme.spacing.sm};
   border-top: 1px dashed ${({ theme }) => theme.colors.border};
   font-size: ${({ theme }) => theme.fontSizes.sm};
+
+  ${media.mobile} {
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing.xs};
+  }
 `
 
-const SubtotalItem = styled.span<{ $highlight?: boolean }>`
-  color: ${({ $highlight, theme }) => $highlight ? theme.colors.warning : theme.colors.textDim};
+const SubtotalItem = styled.span<{ $final?: boolean }>`
+  color: ${({ $final, theme }) => $final ? theme.colors.positive : theme.colors.textDim};
+  font-weight: ${({ $final }) => $final ? 600 : 400};
+  font-size: ${({ $final, theme }) => $final ? theme.fontSizes.md : 'inherit'};
 `
 
 const RegisteredBadge = styled.span`
@@ -37,11 +45,19 @@ const AddItemRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.sm};
+
+  ${media.mobile} {
+    flex-wrap: wrap;
+  }
 `
 
 const CardContentRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};
+
+  ${media.mobile} {
+    flex-direction: column;
+  }
 `
 
 const CardMainContent = styled.div`
@@ -70,9 +86,11 @@ interface PersonCardProps {
   // QR Platba props
   bankAccountNumber?: string | null
   creatorPersonId?: string | null
+  currentUserPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
   restaurantName?: string
+  isCreator?: boolean
   showCopyQr?: boolean
 }
 
@@ -96,9 +114,11 @@ export function PersonCard({
   onFlushItem,
   bankAccountNumber,
   creatorPersonId,
+  currentUserPersonId,
   orderStatus,
   orderId,
   restaurantName,
+  isCreator,
   showCopyQr,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
@@ -132,13 +152,15 @@ export function PersonCard({
         .map(item => ({ item, owner: p }))
     )
 
-  // QR Platba: show when order is closed, bank account is set, not creator, amount > 0
+  // QR Platba: show when order is closed, bank account is set, not creator's own card, amount > 0
+  // Creator/admin sees QR on all participant cards; participants see only their own
   const showQr = orderStatus === 'CLOSED'
     && !!bankAccountNumber
     && person.id !== creatorPersonId
     && !!summary
     && summary.withFees > 0
     && !!orderId
+    && (isCreator || currentUserPersonId === person.id)
 
   let spdString: string | null = null
   if (showQr && bankAccountNumber && orderId) {
@@ -247,7 +269,7 @@ export function PersonCard({
             <PersonSubtotals>
               <SubtotalItem>Subtotal: {formatCurrency(summary.subtotal)}</SubtotalItem>
               <SubtotalItem>After discount: {formatCurrency(summary.afterDiscount)}</SubtotalItem>
-              <SubtotalItem $highlight>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
+              <SubtotalItem $final>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
             </PersonSubtotals>
           )}
         </CardMainContent>

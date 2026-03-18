@@ -26,9 +26,9 @@ const QrBackground = styled.div`
 `
 
 const Amount = styled.span`
-  color: ${({ theme }) => theme.colors.warning};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 500;
+  color: ${({ theme }) => theme.colors.positive};
+  font-size: ${({ theme }) => theme.fontSizes.md};
+  font-weight: 600;
 `
 
 interface QrPlatbaProps {
