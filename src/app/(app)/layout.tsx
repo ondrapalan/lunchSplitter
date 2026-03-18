@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { Button } from '~/features/ui/components/Button'
+import { useThemeMode } from '~/features/ui/theme/ThemeContext'
 
 const Nav = styled.nav`
   display: flex;
@@ -58,10 +59,31 @@ const Footer = styled.footer`
   }
 `
 
+const ThemeToggle = styled.button`
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: ${({ theme }) => theme.spacing.xs};
+  cursor: pointer;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.md};
+  line-height: 1;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
+
+  const { mode, toggleTheme } = useThemeMode()
+  const themeIcon = mode === 'light' ? '☀️' : mode === 'dark' ? '🌙' : '💻'
+  const themeTitle = mode === 'light' ? 'Light mode (click for dark)' : mode === 'dark' ? 'Dark mode (click for system)' : 'System mode (click for light)'
 
   const handleLogout = async () => {
     await signOut({ redirect: false })
@@ -105,6 +127,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           {session?.user?.name || 'Settings'}
         </NavLink>
+        <ThemeToggle onClick={toggleTheme} title={themeTitle} aria-label={themeTitle}>
+          {themeIcon}
+        </ThemeToggle>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
           Logout
         </Button>
