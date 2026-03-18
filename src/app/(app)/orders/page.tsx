@@ -8,8 +8,8 @@ import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder, listAdminOrders } from '~/actions/orders'
-import { wasEdited } from '~/features/lunch/utils/formatters'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
+import { wasEdited } from '~/features/lunch/utils/formatters'
 
 interface OrderListItem {
   id: string
@@ -87,23 +87,22 @@ export default function OrdersPage() {
   const router = useRouter()
   const [openOrders, setOpenOrders] = useState<OpenOrderListItem[]>([])
   const [closedOrders, setClosedOrders] = useState<OrderListItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [adminOrders, setAdminOrders] = useState<OrderListItem[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const loadOrders = useCallback(async () => {
     try {
-      const [open, closed] = await Promise.all([listOpenOrders(), listOrders()])
+      const [open, closed, adminResult] = await Promise.all([
+        listOpenOrders(),
+        listOrders(),
+        listAdminOrders().catch(() => null),
+      ])
       setOpenOrders(open)
       setClosedOrders(closed)
-
-      // Try loading admin orders — will throw for non-admins
-      try {
-        const admin = await listAdminOrders()
-        setAdminOrders(admin)
+      if (adminResult) {
+        setAdminOrders(adminResult)
         setIsAdmin(true)
-      } catch {
-        // Not an admin — ignore
       }
     } catch {
       toast.error('Failed to load orders')
