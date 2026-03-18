@@ -14,7 +14,8 @@ import { Summary } from '~/features/lunch/components/Summary'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
+import { AdminBadge } from '~/features/ui/components/AdminBadge'
+import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, leaveOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
@@ -55,19 +56,32 @@ const HeaderActions = styled.div`
   align-items: center;
 `
 
+interface OrderAccess {
+  canView: boolean
+  canEdit: boolean
+  canEditMyItems: boolean
+  canJoin: boolean
+  canLeave: boolean
+  canClose: boolean
+  canReopen: boolean
+  canDelete: boolean
+  isCreator: boolean
+  isParticipant: boolean
+  isAdminView: boolean
+  currentUserPersonId: string | null
+}
+
 interface OrderData {
   restaurantName: string
   session: LunchSession
-  isCreator: boolean
   createdAt: string
   updatedAt: string
   creatorName: string
   status: 'OPEN' | 'CLOSED'
-  isParticipant: boolean
-  currentUserPersonId: string | null
   bankAccountNumber: string | null
   creatorBankAccount: string | null
   createdById: string
+  access: OrderAccess
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
@@ -93,7 +107,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
       setOrderData(result)
       getItemsByRestaurant(result.restaurantName).then(setHistoricalItems)
       setLoaded(true)
-      if (result.session.people.length === 0 && result.isCreator) {
+      if (result.session.people.length === 0 && result.access.isCreator) {
         setIsEditing(true)
       }
     } catch {
@@ -164,7 +178,7 @@ function OrderContent({
   onStatusChange: () => Promise<void>
   onJoined: () => Promise<void>
 }) {
-  const { restaurantName, session: initialSession, isCreator, createdAt, updatedAt, creatorName, status, isParticipant, currentUserPersonId, bankAccountNumber: initialBankAccount, createdById } = orderData
+  const { restaurantName, session: initialSession, createdAt, updatedAt, creatorName, status, bankAccountNumber: initialBankAccount, createdById, access } = orderData
   const router = useRouter()
   const [bankAccountNumber, setBankAccountNumber] = useState(initialBankAccount ?? '')
   const [isSaving, setIsSaving] = useState(false)
@@ -172,6 +186,7 @@ function OrderContent({
   const [isReopening, setIsReopening] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isLeaving, setIsLeaving] = useState(false)
 
   // Track latest updatedAt from auto-saves to avoid optimistic lock conflicts
   const latestUpdatedAt = useRef(updatedAt)
@@ -272,6 +287,28 @@ function OrderContent({
     }
   }
 
+  const handleLeave = async () => {
+    const person = session.people.find(p => p.id === access.currentUserPersonId)
+    const itemCount = person?.items.length ?? 0
+
+    if (itemCount > 0) {
+      if (!confirm(`You have ${itemCount} item${itemCount > 1 ? 's' : ''}. Leaving will remove them. Are you sure?`)) {
+        return
+      }
+    }
+
+    setIsLeaving(true)
+    try {
+      await leaveOrder(orderId)
+      toast.success('Left order')
+      router.push('/orders')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to leave order')
+    } finally {
+      setIsLeaving(false)
+    }
+  }
+
   const handleDelete = async () => {
     if (!confirm('Delete this order?')) return
     setIsDeleting(true)
@@ -288,16 +325,15 @@ function OrderContent({
 
   const wasEditedAfterCreation = wasEdited(createdAt, updatedAt)
   const isClosed = status === 'CLOSED'
-  const isOpen = status === 'OPEN'
-  const isEmpty = session.people.length === 0
-  const showDeleteButton = isCreator && isEmpty
 
-  const showCreatorEditButton = isCreator && isOpen && !isEditing
-  const showJoinButton = !isCreator && !isParticipant && isOpen
-  const showCloseButton = isCreator && isOpen && !isEditing
-  const showReopenButton = isCreator && isClosed
-  const showEditMyItemsForPersonId = (!isCreator && isParticipant && isOpen && !isEditingMyItems)
-    ? currentUserPersonId
+  const showCreatorEditButton = access.canEdit && !isEditing
+  const showJoinButton = access.canJoin
+  const showLeaveButton = access.canLeave && !isEditingMyItems
+  const showCloseButton = access.canClose && !isEditing
+  const showReopenButton = access.canReopen && isClosed
+  const showDeleteButton = access.canDelete
+  const showEditMyItemsForPersonId = (access.canEditMyItems && !isEditingMyItems)
+    ? access.currentUserPersonId
     : null
 
   return (
@@ -307,8 +343,11 @@ function OrderContent({
           <SectionTitle style={{ marginBottom: 0 }}>
             {restaurantName}
             <StatusBadge $status={status} style={{ marginLeft: '8px' }}>{status === 'OPEN' ? 'Open' : 'Closed'}</StatusBadge>
+            {access.isAdminView && (
+              <AdminBadge style={{ marginLeft: '8px' }}>Admin view</AdminBadge>
+            )}
           </SectionTitle>
-          {!isCreator && (
+          {!access.isCreator && (
             <LastEdited>Created by {creatorName}</LastEdited>
           )}
           {wasEditedAfterCreation && (
@@ -327,6 +366,9 @@ function OrderContent({
           )}
           {showJoinButton && (
             <Button variant="primary" loading={isJoining} onClick={handleJoin}>Join This Order</Button>
+          )}
+          {showLeaveButton && (
+            <Button variant="danger" loading={isLeaving} onClick={handleLeave}>Leave Order</Button>
           )}
           {showDeleteButton && (
             <Button variant="danger" loading={isDeleting} onClick={handleDelete}>Delete Order</Button>
@@ -367,7 +409,7 @@ function OrderContent({
         canEditNames={isEditing}
         canRemovePeople={isEditing}
         hideShareControls={isEditingMyItems}
-        editablePersonId={isEditingMyItems ? currentUserPersonId : null}
+        editablePersonId={isEditingMyItems ? access.currentUserPersonId : null}
         showEditMyItemsForPersonId={showEditMyItemsForPersonId}
         onEditMyItems={onEditMyItems}
         onAddPerson={isEditing ? handleAutoSaveAddPerson : addPerson}
@@ -385,7 +427,7 @@ function OrderContent({
         orderStatus={status}
         orderId={orderId}
         restaurantName={restaurantName}
-        isCreator={isCreator}
+        isCreator={access.isCreator || access.isAdminView}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />
