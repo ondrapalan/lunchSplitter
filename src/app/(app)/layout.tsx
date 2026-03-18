@@ -17,7 +17,6 @@ const Nav = styled.nav`
 
   ${media.mobile} {
     padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-    flex-wrap: wrap;
     gap: ${({ theme }) => theme.spacing.xs};
   }
 `
@@ -28,7 +27,6 @@ const NavLinks = styled.div`
   flex: 1;
 
   ${media.mobile} {
-    flex-wrap: wrap;
     gap: ${({ theme }) => theme.spacing.xs};
   }
 `
@@ -43,6 +41,9 @@ const NavLink = styled.button<{ $active: boolean }>`
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 500;
   transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -50,8 +51,23 @@ const NavLink = styled.button<{ $active: boolean }>`
 
   ${media.mobile} {
     min-height: 44px;
+    padding: ${({ theme }) => theme.spacing.sm};
+    justify-content: center;
+  }
+`
+
+const NavLabel = styled.span`
+  ${media.mobile} {
+    display: none;
+  }
+`
+
+const NavIcon = styled.span`
+  display: none;
+  line-height: 0;
+
+  ${media.mobile} {
     display: inline-flex;
-    align-items: center;
   }
 `
 
@@ -119,35 +135,65 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <NavLink
             $active={pathname === '/orders/new'}
             onClick={() => router.push('/orders/new')}
+            title="New Order"
           >
-            New Order
+            <NavIcon>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </NavIcon>
+            <NavLabel>New Order</NavLabel>
           </NavLink>
           <NavLink
             $active={pathname === '/orders'}
             onClick={() => router.push('/orders')}
+            title="All Orders"
           >
-            All Orders
+            <NavIcon>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+              </svg>
+            </NavIcon>
+            <NavLabel>All Orders</NavLabel>
           </NavLink>
           <NavLink
             $active={pathname === '/invite'}
             onClick={() => router.push('/invite')}
+            title="Invite"
           >
-            Invite
+            <NavIcon>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
+              </svg>
+            </NavIcon>
+            <NavLabel>Invite</NavLabel>
           </NavLink>
           {session?.user?.role === 'ADMIN' && (
             <NavLink
               $active={pathname.startsWith('/admin')}
               onClick={() => router.push('/admin/users')}
+              title="Users"
             >
-              Users
+              <NavIcon>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </NavIcon>
+              <NavLabel>Users</NavLabel>
             </NavLink>
           )}
         </NavLinks>
         <NavLink
           $active={pathname === '/settings'}
           onClick={() => router.push('/settings')}
+          title={session?.user?.name || 'Settings'}
         >
-          {session?.user?.name || 'Settings'}
+          <NavIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+            </svg>
+          </NavIcon>
+          <NavLabel>{session?.user?.name || 'Settings'}</NavLabel>
         </NavLink>
         <ThemeToggle onClick={toggleTheme} title={themeTitle} aria-label={themeTitle}>
           {mode === 'light' && (
@@ -169,8 +215,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </svg>
           )}
         </ThemeToggle>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          Logout
+        <Button variant="ghost" size="sm" onClick={handleLogout} title="Logout">
+          <NavIcon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </NavIcon>
+          <NavLabel>Logout</NavLabel>
         </Button>
       </Nav>
       <MainContent>{children}</MainContent>
