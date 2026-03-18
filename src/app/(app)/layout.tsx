@@ -42,6 +42,22 @@ const MainContent = styled.main`
   padding: ${({ theme }) => theme.spacing.lg};
 `
 
+const Footer = styled.footer`
+  text-align: center;
+  padding: ${({ theme }) => theme.spacing.xl} ${({ theme }) => theme.spacing.lg};
+  color: ${({ theme }) => theme.colors.textDim};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+
+  a {
+    color: ${({ theme }) => theme.colors.textMuted};
+    text-decoration: none;
+
+    &:hover {
+      color: ${({ theme }) => theme.colors.primary};
+    }
+  }
+`
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const router = useRouter()
@@ -94,6 +110,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Button>
       </Nav>
       <MainContent>{children}</MainContent>
+      <Footer>
+        <a href="https://github.com/ondrapalan/lunchSplitter" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+      </Footer>
     </>
   )
 }
