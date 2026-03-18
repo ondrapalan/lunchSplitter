@@ -4,6 +4,7 @@ import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
 import type { LunchSession, Item } from '~/features/lunch/types'
+import { getOrderAccess } from '~/lib/orderAccess'
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number }[]> {
   const session = await auth()
@@ -84,7 +85,10 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
     where: { id: orderId },
     select: { createdById: true, status: true, updatedAt: true },
   })
-  if (!order || order.createdById !== session.user.id) {
+  if (!order) throw new Error('Order not found')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) {
     throw new Error('Unauthorized')
   }
   if (order.status === 'CLOSED') {
@@ -127,10 +131,16 @@ export async function deleteOrder(orderId: string) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { createdById: true },
+    select: { createdById: true, _count: { select: { people: true } } },
   })
-  if (!order || order.createdById !== session.user.id) {
+  if (!order) throw new Error('Order not found')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) {
     throw new Error('Unauthorized')
+  }
+  if (order._count.people > 0) {
+    throw new Error('Cannot delete order with participants')
   }
 
   // Cascade deletes handle children
@@ -166,28 +176,31 @@ export async function getOrder(orderId: string) {
 
   if (!order) return null
 
-  const isCreator = order.createdById === session.user.id
-  const currentUserPerson = order.people.find(p => p.userId === session.user.id)
-  const isParticipant = !!currentUserPerson
+  const access = getOrderAccess(
+    { createdById: order.createdById, status: order.status as 'OPEN' | 'CLOSED', people: order.people },
+    { id: session.user.id, role: session.user.role },
+  )
 
-  // Only creator and participants can view orders
-  if (!isCreator && !isParticipant) {
+  if (!access.canView) {
     return null
   }
+
+  const currentUserPerson = order.people.find(p => p.userId === session.user.id)
 
   return {
     restaurantName: order.restaurant.name,
     session: prismaOrderToLunchSession(order),
-    isCreator,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     creatorName: order.createdBy.displayName,
     status: order.status as 'OPEN' | 'CLOSED',
-    isParticipant,
-    currentUserPersonId: currentUserPerson?.id ?? null,
     bankAccountNumber: order.bankAccountNumber,
     creatorBankAccount: order.createdBy.bankAccountNumber,
     createdById: order.createdById,
+    access: {
+      ...access,
+      currentUserPersonId: currentUserPerson?.id ?? null,
+    },
   }
 }
 
@@ -222,6 +235,40 @@ export async function listOrders() {
   }))
 }
 
+export async function listAdminOrders() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+  if (session.user.role !== 'ADMIN') throw new Error('Admin only')
+
+  const orders = await prisma.order.findMany({
+    where: {
+      status: 'CLOSED',
+      NOT: {
+        OR: [
+          { createdById: session.user.id },
+          { people: { some: { userId: session.user.id } } },
+        ],
+      },
+    },
+    include: {
+      restaurant: true,
+      createdBy: { select: { displayName: true } },
+      _count: { select: { people: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  return orders.map(order => ({
+    id: order.id,
+    restaurantName: order.restaurant.name,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    isCreator: false,
+    creatorName: order.createdBy.displayName,
+    peopleCount: order._count.people,
+  }))
+}
+
 export async function closeOrder(orderId: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -230,7 +277,10 @@ export async function closeOrder(orderId: string) {
     where: { id: orderId },
     select: { createdById: true },
   })
-  if (!order || order.createdById !== session.user.id) {
+  if (!order) throw new Error('Order not found')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) {
     throw new Error('Unauthorized')
   }
 
@@ -250,7 +300,10 @@ export async function reopenOrder(orderId: string) {
     where: { id: orderId },
     select: { createdById: true },
   })
-  if (!order || order.createdById !== session.user.id) {
+  if (!order) throw new Error('Order not found')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) {
     throw new Error('Unauthorized')
   }
 
@@ -307,6 +360,36 @@ export async function joinOrder(orderId: string) {
   })
 
   return result
+}
+
+export async function leaveOrder(orderId: string) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      people: { select: { id: true, userId: true } },
+    },
+  })
+
+  if (!order) throw new Error('Order not found')
+  if (order.status !== 'OPEN') throw new Error('Order is closed')
+  if (order.createdById === session.user.id) throw new Error('Creator cannot leave their own order')
+
+  const person = order.people.find(p => p.userId === session.user.id)
+  if (!person) throw new Error('You are not a participant')
+
+  await prisma.$transaction(async (tx) => {
+    // Prisma onDelete: Cascade handles OrderItem, SharedItemLink, CustomShare cleanup
+    await tx.orderPerson.delete({ where: { id: person.id } })
+    await tx.order.update({
+      where: { id: orderId },
+      data: { updatedAt: new Date() },
+    })
+  })
+
+  return { success: true }
 }
 
 export async function listOpenOrders() {
