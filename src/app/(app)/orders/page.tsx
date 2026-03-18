@@ -7,8 +7,9 @@ import { toast } from 'react-toastify'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder } from '~/actions/orders'
+import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder, listAdminOrders } from '~/actions/orders'
 import { wasEdited } from '~/features/lunch/utils/formatters'
+import { AdminBadge } from '~/features/ui/components/AdminBadge'
 
 interface OrderListItem {
   id: string
@@ -87,12 +88,23 @@ export default function OrdersPage() {
   const [openOrders, setOpenOrders] = useState<OpenOrderListItem[]>([])
   const [closedOrders, setClosedOrders] = useState<OrderListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [adminOrders, setAdminOrders] = useState<OrderListItem[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const loadOrders = useCallback(async () => {
     try {
       const [open, closed] = await Promise.all([listOpenOrders(), listOrders()])
       setOpenOrders(open)
       setClosedOrders(closed)
+
+      // Try loading admin orders — will throw for non-admins
+      try {
+        const admin = await listAdminOrders()
+        setAdminOrders(admin)
+        setIsAdmin(true)
+      } catch {
+        // Not an admin — ignore
+      }
     } catch {
       toast.error('Failed to load orders')
     } finally {
@@ -153,7 +165,7 @@ export default function OrdersPage() {
     return <SectionTitle>Loading orders...</SectionTitle>
   }
 
-  const isEmpty = openOrders.length === 0 && closedOrders.length === 0
+  const isEmpty = openOrders.length === 0 && closedOrders.length === 0 && adminOrders.length === 0
 
   if (isEmpty) {
     return (
@@ -234,6 +246,41 @@ export default function OrdersPage() {
                       </Button>
                     </>
                   )}
+                </Actions>
+              </OrderRow>
+            ))}
+          </OrderList>
+        </>
+      )}
+
+      {isAdmin && adminOrders.length > 0 && (
+        <>
+          <SectionTitle>
+            All Orders <AdminBadge>Admin</AdminBadge>
+          </SectionTitle>
+          <OrderList>
+            {adminOrders.map(order => (
+              <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
+                <OrderInfo>
+                  <RestaurantName>
+                    {order.restaurantName}
+                    <StatusBadge $status="CLOSED">Closed</StatusBadge>
+                    <CreatorBadge>by {order.creatorName}</CreatorBadge>
+                  </RestaurantName>
+                  <OrderMeta>
+                    {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
+                    {wasEdited(order.createdAt, order.updatedAt) && (
+                      <> &middot; Last edited: {new Date(order.updatedAt).toLocaleDateString()}</>
+                    )}
+                  </OrderMeta>
+                </OrderInfo>
+                <Actions>
+                  <Button variant="secondary" size="sm" onClick={e => handleReopen(e, order.id)}>
+                    Reopen
+                  </Button>
+                  <Button variant="danger" size="sm" onClick={e => handleDelete(e, order.id)}>
+                    Delete
+                  </Button>
                 </Actions>
               </OrderRow>
             ))}
