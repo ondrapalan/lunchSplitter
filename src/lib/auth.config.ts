@@ -5,11 +5,19 @@ export const authConfig = {
     signIn: '/login',
   },
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id!
         token.role = user.role
         token.isFirstLogin = user.isFirstLogin
+      }
+      if (trigger === 'update' && typeof token.id === 'string') {
+        const { prisma } = await import('./prisma')
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { displayName: true },
+        })
+        if (dbUser) token.name = dbUser.displayName
       }
       return token
     },

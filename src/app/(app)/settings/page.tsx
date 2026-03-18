@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import styled from 'styled-components'
@@ -42,6 +43,7 @@ const SectionGap = styled.div`
 `
 
 function DisplayNameSection() {
+  const { update } = useSession()
   const {
     register,
     handleSubmit,
@@ -57,6 +59,7 @@ function DisplayNameSection() {
 
   const onSubmit = async (data: UpdateDisplayNameInput) => {
     await updateDisplayName(data.displayName)
+    await update()
     toast.success('Display name updated')
   }
 
