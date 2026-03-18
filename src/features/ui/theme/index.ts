@@ -111,6 +111,3 @@ export const darkTheme: Theme = {
     cardBackground: '#1C1916',
   },
 }
-
-// Backwards compat — remove after full migration
-export const theme = darkTheme
