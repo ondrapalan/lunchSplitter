@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { Button } from '~/features/ui/components/Button'
 import { useThemeMode } from '~/features/ui/theme/ThemeContext'
+import { media } from '~/features/ui/theme'
 
 const Nav = styled.nav`
   display: flex;
@@ -13,12 +14,23 @@ const Nav = styled.nav`
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
   background: ${({ theme }) => theme.colors.surface};
+
+  ${media.mobile} {
+    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+  }
 `
 
 const NavLinks = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   flex: 1;
+
+  ${media.mobile} {
+    flex-wrap: wrap;
+    gap: ${({ theme }) => theme.spacing.xs};
+  }
 `
 
 const NavLink = styled.button<{ $active: boolean }>`
@@ -35,12 +47,22 @@ const NavLink = styled.button<{ $active: boolean }>`
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
   }
+
+  ${media.mobile} {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
 `
 
 const MainContent = styled.main`
   max-width: 700px;
   margin: 0 auto;
   padding: ${({ theme }) => theme.spacing.lg};
+
+  ${media.mobile} {
+    padding: ${({ theme }) => theme.spacing.sm};
+  }
 `
 
 const Footer = styled.footer`

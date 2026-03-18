@@ -1,7 +1,7 @@
 'use client'
 
 import styled, { css, keyframes } from 'styled-components'
-import { withAlpha } from '~/features/ui/theme'
+import { withAlpha, media } from '~/features/ui/theme'
 
 const spin = keyframes`
   to { transform: rotate(360deg); }
@@ -30,6 +30,11 @@ export const Button = styled.button.withConfig({
       ? css`
           padding: ${theme.spacing.xs} ${theme.spacing.sm};
           font-size: ${theme.fontSizes.sm};
+
+          ${media.mobile} {
+            min-height: 44px;
+            padding: ${theme.spacing.sm} 12px;
+          }
         `
       : css`
           padding: ${theme.spacing.sm} ${theme.spacing.md};

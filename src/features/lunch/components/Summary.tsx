@@ -1,6 +1,7 @@
 'use client'
 
 import styled from 'styled-components'
+import { media } from '~/features/ui/theme'
 import { Card } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { formatCurrency } from '../utils/formatters'
@@ -21,6 +22,12 @@ const Th = styled.th`
   &:not(:first-child) {
     text-align: right;
   }
+
+  &:nth-child(2), &:nth-child(3) {
+    ${media.mobile} {
+      display: none;
+    }
+  }
 `
 
 const Td = styled.td`
@@ -29,6 +36,12 @@ const Td = styled.td`
 
   &:not(:first-child) {
     text-align: right;
+  }
+
+  &:nth-child(2), &:nth-child(3) {
+    ${media.mobile} {
+      display: none;
+    }
   }
 `
 

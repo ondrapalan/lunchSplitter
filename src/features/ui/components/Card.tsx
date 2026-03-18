@@ -1,6 +1,7 @@
 'use client'
 
 import styled from 'styled-components'
+import { media } from '~/features/ui/theme'
 
 export const Card = styled.div`
   background: ${({ theme }) => theme.colors.cardBackground};
@@ -8,6 +9,10 @@ export const Card = styled.div`
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   padding: ${({ theme }) => theme.spacing.md};
   margin-bottom: ${({ theme }) => theme.spacing.md};
+
+  ${media.mobile} {
+    padding: 12px;
+  }
 `
 
 export const CardHeader = styled.div`

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import styled from 'styled-components'
+import { media } from '~/features/ui/theme'
 import { Card } from '~/features/ui/components/Card'
 import { Input, NumberInput } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
@@ -14,11 +15,20 @@ const SettingsRow = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-bottom: ${({ theme }) => theme.spacing.sm};
+
+  ${media.mobile} {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `
 
 const Label = styled.label`
   color: ${({ theme }) => theme.colors.text};
   min-width: 140px;
+
+  ${media.mobile} {
+    min-width: auto;
+  }
 `
 
 const FeeGrid = styled.div`
@@ -27,6 +37,11 @@ const FeeGrid = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
   margin-bottom: ${({ theme }) => theme.spacing.xs};
+
+  ${media.mobile} {
+    grid-template-columns: 1fr 80px 28px 28px;
+    gap: 4px;
+  }
 `
 
 const CzkLabel = styled.span`
