@@ -5,7 +5,6 @@
 
 interface SpdStringParams {
   iban: string
-  recipientName: string
   amount: number
   variableSymbol: string
   message: string
@@ -17,11 +16,10 @@ function sanitizeSpdField(value: string): string {
 }
 
 /** Build a QR Platba SPD string. */
-export function buildSpdString({ iban, recipientName, amount, variableSymbol, message }: SpdStringParams): string {
+export function buildSpdString({ iban, amount, variableSymbol, message }: SpdStringParams): string {
   const parts = [
     'SPD*1.0',
     `ACC:${iban}`,
-    `RN:${sanitizeSpdField(recipientName)}`,
     `AM:${amount.toFixed(2)}`,
     'CC:CZK',
     `X-VS:${variableSymbol}`,

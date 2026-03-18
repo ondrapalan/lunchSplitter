@@ -5,20 +5,18 @@ describe('buildSpdString', () => {
   it('builds a valid SPD string', () => {
     const result = buildSpdString({
       iban: 'CZ6508000000192000145399',
-      recipientName: 'Jan Novak',
       amount: 135.50,
       variableSymbol: '1234567890',
       message: 'Pizza Palace',
     })
     expect(result).toBe(
-      'SPD*1.0*ACC:CZ6508000000192000145399*RN:Jan Novak*AM:135.50*CC:CZK*X-VS:1234567890*MSG:Pizza Palace',
+      'SPD*1.0*ACC:CZ6508000000192000145399*AM:135.50*CC:CZK*X-VS:1234567890*MSG:Pizza Palace',
     )
   })
 
   it('formats amount to 2 decimal places', () => {
     const result = buildSpdString({
       iban: 'CZ6508000000192000145399',
-      recipientName: 'Test',
       amount: 100,
       variableSymbol: '0000000001',
       message: '',

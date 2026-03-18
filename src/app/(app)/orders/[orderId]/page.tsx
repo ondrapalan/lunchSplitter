@@ -360,7 +360,6 @@ function OrderContent({
           : undefined
         }
         bankAccountNumber={bankAccountNumber || null}
-        creatorName={creatorName}
         creatorPersonId={creatorPersonId}
         orderStatus={status}
         orderId={orderId}

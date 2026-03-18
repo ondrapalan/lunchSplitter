@@ -31,7 +31,6 @@ interface PeopleSectionProps {
   onFlushItem?: (personId: string, itemId: string) => void
   // QR Platba props
   bankAccountNumber?: string | null
-  creatorName?: string
   creatorPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
@@ -61,7 +60,6 @@ export function PeopleSection({
   onRemoveItem,
   onFlushItem,
   bankAccountNumber,
-  creatorName: qrCreatorName,
   creatorPersonId,
   orderStatus,
   orderId,
@@ -115,7 +113,6 @@ export function PeopleSection({
             onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
             onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}
             bankAccountNumber={bankAccountNumber}
-            creatorName={qrCreatorName}
             creatorPersonId={creatorPersonId}
             orderStatus={orderStatus}
             orderId={orderId}

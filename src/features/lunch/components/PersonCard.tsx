@@ -69,7 +69,6 @@ interface PersonCardProps {
   onFlushItem?: (itemId: string) => void
   // QR Platba props
   bankAccountNumber?: string | null
-  creatorName?: string
   creatorPersonId?: string | null
   orderStatus?: 'OPEN' | 'CLOSED'
   orderId?: string
@@ -96,7 +95,6 @@ export function PersonCard({
   onRemoveItem,
   onFlushItem,
   bankAccountNumber,
-  creatorName: qrRecipientName,
   creatorPersonId,
   orderStatus,
   orderId,
@@ -143,13 +141,12 @@ export function PersonCard({
     && !!orderId
 
   let spdString: string | null = null
-  if (showQr && bankAccountNumber && qrRecipientName && orderId) {
+  if (showQr && bankAccountNumber && orderId) {
     try {
       const iban = czechAccountToIban(bankAccountNumber)
       const variableSymbol = generateVariableSymbol(orderId, person.id)
       spdString = buildSpdString({
         iban,
-        recipientName: qrRecipientName,
         amount: summary!.withFees,
         variableSymbol,
         message: restaurantName ?? '',
