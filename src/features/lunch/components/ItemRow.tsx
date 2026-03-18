@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import styled from 'styled-components'
+import { withAlpha } from '~/features/ui/theme'
 import { NumberInput } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import type { Item, Person } from '../types'
@@ -30,7 +31,7 @@ const ItemPrice = styled.span`
 `
 
 const DiscountBadge = styled.button<{ $custom: boolean }>`
-  background: ${({ $custom }) => $custom ? 'rgba(199, 146, 234, 0.15)' : 'rgba(84, 110, 122, 0.2)'};
+  background: ${({ $custom, theme }) => $custom ? withAlpha(theme.colors.accent, 0.15) : withAlpha(theme.colors.textDim, 0.2)};
   color: ${({ $custom, theme }) => $custom ? theme.colors.accent : theme.colors.textDim};
   border: 1px solid ${({ $custom, theme }) => $custom ? theme.colors.accent : 'transparent'};
   border-radius: ${({ theme }) => theme.borderRadius.sm};
