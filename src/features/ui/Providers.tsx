@@ -9,12 +9,12 @@ import { GlobalStyles } from '~/GlobalStyles'
 import { ThemeModeProvider, useThemeMode } from '~/features/ui/theme/ThemeContext'
 
 function ThemedApp({ children }: { children: React.ReactNode }) {
-  const { theme, resolvedTheme } = useThemeMode()
+  const { theme, mode } = useThemeMode()
 
   return (
     <ThemeProvider theme={theme}>
       <GlobalStyles />
-      <ToastContainer position="bottom-right" theme={resolvedTheme} />
+      <ToastContainer position="bottom-right" theme={mode} />
       {children}
     </ThemeProvider>
   )
