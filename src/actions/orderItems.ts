@@ -23,14 +23,15 @@ async function getOrderAndAuthorize(orderId: string, personId: string) {
   if (!person) throw new Error('Person not found in order')
 
   const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
   const isOwner = person.userId === session.user.id
 
-  if (!isCreator && !isOwner) throw new Error('Unauthorized')
+  if (!isCreator && !isAdmin && !isOwner) throw new Error('Unauthorized')
 
-  return { session, order, person, isCreator }
+  return { session, order, person, isCreator: isCreator || isAdmin }
 }
 
-async function getCreatorOnly(orderId: string) {
+async function getCreatorOrAdmin(orderId: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -45,7 +46,9 @@ async function getCreatorOnly(orderId: string) {
 
   if (!order) throw new Error('Order not found')
   if (order.status !== 'OPEN') throw new Error('Cannot modify a closed order')
-  if (order.createdById !== session.user.id) throw new Error('Only creator can perform this action')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) throw new Error('Only creator or admin can perform this action')
 
   return { session, order }
 }
@@ -191,7 +194,7 @@ export async function addPersonToOrder(
   name: string,
   userId?: string,
 ) {
-  const { order } = await getCreatorOnly(orderId)
+  const { order } = await getCreatorOrAdmin(orderId)
 
   const maxSortOrder = order.people.reduce((max, p) => Math.max(max, p.sortOrder), -1)
 
@@ -219,7 +222,7 @@ export async function removePersonFromOrder(
   orderId: string,
   personId: string,
 ) {
-  const { order } = await getCreatorOnly(orderId)
+  const { order } = await getCreatorOrAdmin(orderId)
 
   if (!order.people.some(p => p.id === personId)) {
     throw new Error('Person not found in order')
@@ -245,7 +248,7 @@ export async function updatePersonInOrder(
   personId: string,
   name: string,
 ) {
-  const { order } = await getCreatorOnly(orderId)
+  const { order } = await getCreatorOrAdmin(orderId)
 
   if (!order.people.some(p => p.id === personId)) {
     throw new Error('Person not found in order')
