@@ -1,9 +1,14 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { StyledComponentsRegistry } from '~/features/ui/StyledComponentsRegistry'
 import { Providers } from '~/features/ui/Providers'
 
 export const metadata: Metadata = {
   title: 'Lunch Splitter',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 // Must match darkTheme.colors.background in src/features/ui/theme/index.ts

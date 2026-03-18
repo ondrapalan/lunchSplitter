@@ -50,6 +50,9 @@ const baseTheme = {
     md: '8px',
     lg: '12px',
   },
+  breakpoints: {
+    mobile: '480px',
+  },
 } as const
 
 export interface Theme {
@@ -60,7 +63,12 @@ export interface Theme {
   typography: typeof baseTheme.typography
   spacing: typeof baseTheme.spacing
   borderRadius: typeof baseTheme.borderRadius
+  breakpoints: typeof baseTheme.breakpoints
 }
+
+export const media = {
+  mobile: `@media (max-width: ${baseTheme.breakpoints.mobile})`,
+} as const
 
 /** Append hex alpha to a 6-digit hex color. `alpha` is 0–1. */
 export function withAlpha(hex: string, alpha: number): string {
