@@ -73,6 +73,26 @@ export async function getMyInvitations() {
   }
 }
 
+export async function deleteInvitation(id: string) {
+  const session = await auth()
+  if (!session?.user) return { error: 'Unauthorized' }
+
+  const invitation = await prisma.invitation.findUnique({
+    where: { id },
+  })
+
+  if (!invitation || invitation.invitedById !== session.user.id) {
+    return { error: 'Invitation not found' }
+  }
+
+  if (invitation.usedAt) {
+    return { error: 'Cannot delete a used invitation' }
+  }
+
+  await prisma.invitation.delete({ where: { id } })
+  return { success: true }
+}
+
 export async function validateInviteToken(token: string) {
   const invitation = await prisma.invitation.findUnique({
     where: { token },
