@@ -5,6 +5,7 @@ import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
 import type { LunchSession, Item } from '~/features/lunch/types'
 import { getOrderAccess } from '~/lib/orderAccess'
+import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number }[]> {
   const session = await auth()
@@ -221,19 +222,57 @@ export async function listOrders() {
       restaurant: true,
       createdBy: { select: { displayName: true } },
       _count: { select: { people: true } },
+      feeAdjustments: { orderBy: { sortOrder: 'asc' } },
+      people: {
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          user: { select: { displayName: true } },
+          items: {
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              sharedWith: true,
+              customShares: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { updatedAt: 'desc' },
   })
 
-  return orders.map(order => ({
-    id: order.id,
-    restaurantName: order.restaurant.name,
-    createdAt: order.createdAt.toISOString(),
-    updatedAt: order.updatedAt.toISOString(),
-    isCreator: order.createdById === session.user.id,
-    creatorName: order.createdBy.displayName,
-    peopleCount: order._count.people,
-  }))
+  return orders.map(order => {
+    const isCreator = order.createdById === session.user.id
+    let bankAccountNumber: string | null = null
+    let myPersonId: string | null = null
+    let myAmount: number | null = null
+
+    if (!isCreator && order.bankAccountNumber) {
+      const lunchSession = prismaOrderToLunchSession(order)
+      const summaries = calculatePersonSummaries(lunchSession)
+      const myPerson = order.people.find(p => p.userId === session.user.id)
+      if (myPerson) {
+        const mySummary = summaries.find(s => s.personId === myPerson.id)
+        if (mySummary && mySummary.withFees > 0) {
+          bankAccountNumber = order.bankAccountNumber
+          myPersonId = myPerson.id
+          myAmount = mySummary.withFees
+        }
+      }
+    }
+
+    return {
+      id: order.id,
+      restaurantName: order.restaurant.name,
+      createdAt: order.createdAt.toISOString(),
+      updatedAt: order.updatedAt.toISOString(),
+      isCreator,
+      creatorName: order.createdBy.displayName,
+      peopleCount: order._count.people,
+      bankAccountNumber,
+      myPersonId,
+      myAmount,
+    }
+  })
 }
 
 export async function listAdminOrders() {

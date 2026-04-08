@@ -10,6 +10,8 @@ import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder, listAdminOrders } from '~/actions/orders'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import { wasEdited } from '~/features/lunch/utils/formatters'
+import { QrPlatba } from '~/features/lunch/components/QrPlatba'
+import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
 
 interface OrderListItem {
   id: string
@@ -19,6 +21,9 @@ interface OrderListItem {
   isCreator: boolean
   creatorName: string
   peopleCount: number
+  bankAccountNumber: string | null
+  myPersonId: string | null
+  myAmount: number | null
 }
 
 interface OpenOrderListItem extends OrderListItem {
@@ -81,6 +86,25 @@ const Actions = styled.div`
   align-items: center;
   flex-shrink: 0;
 `
+
+function OrderQrCode({ order }: { order: OrderListItem }) {
+  if (order.isCreator || !order.bankAccountNumber || !order.myPersonId || !order.myAmount || order.myAmount <= 0) {
+    return null
+  }
+  try {
+    const iban = czechAccountToIban(order.bankAccountNumber)
+    const variableSymbol = generateVariableSymbol(order.id, order.myPersonId)
+    const spdString = buildSpdString({
+      iban,
+      amount: order.myAmount,
+      variableSymbol,
+      message: order.restaurantName,
+    })
+    return <QrPlatba spdString={spdString} amount={order.myAmount} size={64} />
+  } catch {
+    return null
+  }
+}
 
 export default function OrdersPage() {
   const router = useRouter()
@@ -229,6 +253,7 @@ export default function OrdersPage() {
                     )}
                   </OrderMeta>
                 </OrderInfo>
+                <OrderQrCode order={order} />
                 <Actions>
                   {order.isCreator && (
                     <>

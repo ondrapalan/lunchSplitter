@@ -35,9 +35,10 @@ interface QrPlatbaProps {
   spdString: string
   amount: number
   showCopyButton?: boolean
+  size?: number
 }
 
-export function QrPlatba({ spdString, amount, showCopyButton = false }: QrPlatbaProps) {
+export function QrPlatba({ spdString, amount, showCopyButton = false, size = 100 }: QrPlatbaProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export function QrPlatba({ spdString, amount, showCopyButton = false }: QrPlatba
     if (!canvas) return
 
     QRCode.toCanvas(canvas, spdString, {
-      width: 100,
+      width: size,
       margin: 1,
       color: {
         dark: '#000000',
