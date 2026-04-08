@@ -323,5 +323,169 @@ export async function getFunStats(): Promise<FunStat[]> {
     })
   }
 
+  // --- The Bargain Hunter: lowest average price per item ---
+  const personAvgPrice = new Map<string, { name: string; totalPrice: number; itemCount: number }>()
+  for (const order of orders) {
+    for (const person of order.people) {
+      const key = person.userId ?? `guest:${person.name}`
+      const existing = personAvgPrice.get(key)
+      if (existing) {
+        for (const item of person.items) {
+          existing.totalPrice += item.price
+          existing.itemCount += 1
+        }
+      } else {
+        const totalPrice = person.items.reduce((sum, i) => sum + i.price, 0)
+        personAvgPrice.set(key, {
+          name: person.user?.displayName ?? person.name,
+          totalPrice,
+          itemCount: person.items.length,
+        })
+      }
+    }
+  }
+  const bargainHunter = Array.from(personAvgPrice.values())
+    .filter(e => e.itemCount >= 3)
+    .sort((a, b) => (a.totalPrice / a.itemCount) - (b.totalPrice / b.itemCount))[0]
+  if (bargainHunter) {
+    stats.push({
+      title: 'The Bargain Hunter',
+      subtitle: 'Lowest average item price',
+      personName: bargainHunter.name,
+      value: `${Math.round(bargainHunter.totalPrice / bargainHunter.itemCount)} CZK avg`,
+    })
+  }
+
+  // --- The Gourmet: highest average price per item ---
+  const gourmet = Array.from(personAvgPrice.values())
+    .filter(e => e.itemCount >= 3)
+    .sort((a, b) => (b.totalPrice / b.itemCount) - (a.totalPrice / a.itemCount))[0]
+  if (gourmet && gourmet !== bargainHunter) {
+    stats.push({
+      title: 'The Gourmet',
+      subtitle: 'Highest average item price',
+      personName: gourmet.name,
+      value: `${Math.round(gourmet.totalPrice / gourmet.itemCount)} CZK avg`,
+    })
+  }
+
+  // --- Favourite Spot: restaurant with the most orders ---
+  const restaurantCounts = new Map<string, number>()
+  for (const order of orders) {
+    const name = order.restaurant.name
+    restaurantCounts.set(name, (restaurantCounts.get(name) ?? 0) + 1)
+  }
+  const favSpot = Array.from(restaurantCounts.entries())
+    .sort((a, b) => b[1] - a[1])[0]
+  if (favSpot && favSpot[1] >= 2) {
+    stats.push({
+      title: 'Favourite Spot',
+      subtitle: `${favSpot[1]} orders placed there`,
+      personName: favSpot[0],
+      value: `${Math.round((favSpot[1] / orders.length) * 100)}% of all orders`,
+    })
+  }
+
+  // --- The Loyalist: person who orders from the same restaurant the most ---
+  const personRestaurant = new Map<string, { name: string; restaurantName: string; count: number }>()
+  for (const order of orders) {
+    for (const person of order.people) {
+      const key = `${person.userId ?? person.name}|${order.restaurant.name}`
+      const existing = personRestaurant.get(key)
+      if (existing) {
+        existing.count += 1
+      } else {
+        personRestaurant.set(key, {
+          name: person.user?.displayName ?? person.name,
+          restaurantName: order.restaurant.name,
+          count: 1,
+        })
+      }
+    }
+  }
+  const loyalist = Array.from(personRestaurant.values())
+    .filter(e => e.count >= 3)
+    .sort((a, b) => b.count - a.count)[0]
+  if (loyalist) {
+    stats.push({
+      title: 'The Loyalist',
+      subtitle: `Always picks ${loyalist.restaurantName}`,
+      personName: loyalist.name,
+      value: `${loyalist.count} orders`,
+    })
+  }
+
+  // --- The Feast: person with most items in a single order ---
+  let mostItems: { name: string; count: number; restaurantName: string } | null = null
+  for (const order of orders) {
+    for (const person of order.people) {
+      if (!mostItems || person.items.length > mostItems.count) {
+        mostItems = {
+          name: person.user?.displayName ?? person.name,
+          count: person.items.length,
+          restaurantName: order.restaurant.name,
+        }
+      }
+    }
+  }
+  if (mostItems && mostItems.count >= 3) {
+    stats.push({
+      title: 'The Feast',
+      subtitle: `${mostItems.count} items in one order at ${mostItems.restaurantName}`,
+      personName: mostItems.name,
+      value: `${mostItems.count} items`,
+    })
+  }
+
+  // --- Early Bird: person who creates the most orders ---
+  const creatorCount = new Map<string, { name: string; count: number }>()
+  for (const order of orders) {
+    const creatorPerson = order.people.find(p => p.userId === order.createdById)
+    if (!creatorPerson) continue
+    const key = order.createdById
+    const existing = creatorCount.get(key)
+    if (existing) {
+      existing.count += 1
+    } else {
+      creatorCount.set(key, {
+        name: creatorPerson.user?.displayName ?? creatorPerson.name,
+        count: 1,
+      })
+    }
+  }
+  const earlyBird = Array.from(creatorCount.values())
+    .sort((a, b) => b.count - a.count)[0]
+  if (earlyBird && earlyBird.count >= 2) {
+    stats.push({
+      title: 'The Organizer',
+      subtitle: 'Creates the most lunch orders',
+      personName: earlyBird.name,
+      value: `${earlyBird.count} orders started`,
+    })
+  }
+
+  // --- Most Popular Item: the single item name ordered the most ---
+  const itemPopularity = new Map<string, number>()
+  for (const order of orders) {
+    for (const person of order.people) {
+      for (const item of person.items) {
+        const key = item.name.toLowerCase()
+        itemPopularity.set(key, (itemPopularity.get(key) ?? 0) + 1)
+      }
+    }
+  }
+  const popularItem = Array.from(itemPopularity.entries())
+    .sort((a, b) => b[1] - a[1])[0]
+  if (popularItem && popularItem[1] >= 3) {
+    // Capitalize first letter
+    const displayName = popularItem[0].charAt(0).toUpperCase() + popularItem[0].slice(1)
+    stats.push({
+      title: 'Fan Favourite',
+      subtitle: `Ordered ${popularItem[1]} times across all lunches`,
+      personName: displayName,
+      value: `${popularItem[1]}x ordered`,
+    })
+  }
+
   return stats
 }
