@@ -32,6 +32,13 @@ const StatTitle = styled.div`
   letter-spacing: 0.05em;
 `
 
+const StatDescription = styled.div`
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  color: ${({ theme }) => theme.colors.textDim};
+  font-style: italic;
+  margin-top: 2px;
+`
+
 const PersonName = styled.div`
   font-size: ${({ theme }) => theme.fontSizes.lg};
   font-weight: 600;
@@ -80,6 +87,7 @@ export function FunStats() {
           {stats.map(stat => (
             <StatCard key={stat.title}>
               <StatTitle>{stat.title}</StatTitle>
+              <StatDescription>{stat.description}</StatDescription>
               <PersonName>{stat.personName}</PersonName>
               <StatValue>{stat.value}</StatValue>
               <StatSubtitle>{stat.subtitle}</StatSubtitle>

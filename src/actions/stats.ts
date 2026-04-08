@@ -201,6 +201,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (mostConsistent) {
     stats.push({
       title: 'The Regular',
+      description: 'Orders the same thing every time',
       subtitle: `${mostConsistent.itemName} from ${mostConsistent.restaurantName}`,
       personName: mostConsistent.personName,
       value: `${mostConsistent.count}x`,
@@ -234,6 +235,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (mostExperimental) {
     stats.push({
       title: 'The Explorer',
+      description: 'Never orders the same thing twice',
       subtitle: `${mostExperimental.totalItems} items ordered, ${mostExperimental.uniqueItems.size} unique`,
       personName: mostExperimental.name,
       value: `${mostExperimental.uniqueItems.size} different items`,
@@ -265,6 +267,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (mostSocial && mostSocial.count >= 2) {
     stats.push({
       title: 'The Sharer',
+      description: 'Loves splitting dishes with the group',
       subtitle: 'Most items shared with others',
       personName: mostSocial.name,
       value: `${mostSocial.count} shared`,
@@ -290,6 +293,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (biggestOrder) {
     stats.push({
       title: 'Biggest Single Order',
+      description: 'Went all out in one sitting',
       subtitle: `At ${biggestOrder.restaurantName}`,
       personName: biggestOrder.name,
       value: `${Math.round(biggestOrder.amount)} CZK`,
@@ -317,6 +321,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (lunchRegular && lunchRegular.count >= 2) {
     stats.push({
       title: 'Lunch Regular',
+      description: 'Never misses a group order',
       subtitle: 'Most orders participated in',
       personName: lunchRegular.name,
       value: `${lunchRegular.count} orders`,
@@ -350,6 +355,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (bargainHunter) {
     stats.push({
       title: 'The Bargain Hunter',
+      description: 'Gets the most bang for their buck',
       subtitle: 'Lowest average item price',
       personName: bargainHunter.name,
       value: `${Math.round(bargainHunter.totalPrice / bargainHunter.itemCount)} CZK avg`,
@@ -363,6 +369,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (gourmet && gourmet !== bargainHunter) {
     stats.push({
       title: 'The Gourmet',
+      description: 'Only the finest dishes will do',
       subtitle: 'Highest average item price',
       personName: gourmet.name,
       value: `${Math.round(gourmet.totalPrice / gourmet.itemCount)} CZK avg`,
@@ -380,6 +387,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (favSpot && favSpot[1] >= 2) {
     stats.push({
       title: 'Favourite Spot',
+      description: 'The restaurant everyone keeps coming back to',
       subtitle: `${favSpot[1]} orders placed there`,
       personName: favSpot[0],
       value: `${Math.round((favSpot[1] / orders.length) * 100)}% of all orders`,
@@ -409,6 +417,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (loyalist) {
     stats.push({
       title: 'The Loyalist',
+      description: 'Has a favourite and sticks to it',
       subtitle: `Always picks ${loyalist.restaurantName}`,
       personName: loyalist.name,
       value: `${loyalist.count} orders`,
@@ -431,6 +440,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (mostItems && mostItems.count >= 3) {
     stats.push({
       title: 'The Feast',
+      description: 'Why pick one when you can have them all?',
       subtitle: `${mostItems.count} items in one order at ${mostItems.restaurantName}`,
       personName: mostItems.name,
       value: `${mostItems.count} items`,
@@ -458,6 +468,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   if (earlyBird && earlyBird.count >= 2) {
     stats.push({
       title: 'The Organizer',
+      description: 'The one who gets the lunch ball rolling',
       subtitle: 'Creates the most lunch orders',
       personName: earlyBird.name,
       value: `${earlyBird.count} orders started`,
@@ -481,6 +492,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     const displayName = popularItem[0].charAt(0).toUpperCase() + popularItem[0].slice(1)
     stats.push({
       title: 'Fan Favourite',
+      description: 'The dish everyone keeps ordering',
       subtitle: `Ordered ${popularItem[1]} times across all lunches`,
       personName: displayName,
       value: `${popularItem[1]}x ordered`,

@@ -20,6 +20,7 @@ export interface PersonalStats {
 
 export interface FunStat {
   title: string
+  description: string
   subtitle: string
   personName: string
   value: string
