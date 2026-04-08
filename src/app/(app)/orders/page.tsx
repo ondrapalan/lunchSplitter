@@ -13,7 +13,7 @@ import { wasEdited } from '~/features/lunch/utils/formatters'
 import { QrPlatba } from '~/features/lunch/components/QrPlatba'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
 
-interface OrderListItem {
+interface BaseOrderListItem {
   id: string
   restaurantName: string
   createdAt: string
@@ -21,12 +21,15 @@ interface OrderListItem {
   isCreator: boolean
   creatorName: string
   peopleCount: number
+}
+
+interface OrderListItem extends BaseOrderListItem {
   bankAccountNumber: string | null
   myPersonId: string | null
   myAmount: number | null
 }
 
-interface OpenOrderListItem extends OrderListItem {
+interface OpenOrderListItem extends BaseOrderListItem {
   isParticipant: boolean
 }
 
@@ -110,7 +113,7 @@ export default function OrdersPage() {
   const router = useRouter()
   const [openOrders, setOpenOrders] = useState<OpenOrderListItem[]>([])
   const [closedOrders, setClosedOrders] = useState<OrderListItem[]>([])
-  const [adminOrders, setAdminOrders] = useState<OrderListItem[]>([])
+  const [adminOrders, setAdminOrders] = useState<BaseOrderListItem[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
 

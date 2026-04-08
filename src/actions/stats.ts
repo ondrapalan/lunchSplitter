@@ -235,7 +235,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     stats.push({
       title: 'The Explorer',
       subtitle: `${mostExperimental.totalItems} items ordered, ${mostExperimental.uniqueItems.size} unique`,
-      personName: mostExperimental.personName,
+      personName: mostExperimental.name,
       value: `${mostExperimental.uniqueItems.size} different items`,
     })
   }
@@ -266,7 +266,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     stats.push({
       title: 'The Sharer',
       subtitle: 'Most items shared with others',
-      personName: mostSocial.personName,
+      personName: mostSocial.name,
       value: `${mostSocial.count} shared`,
     })
   }
@@ -318,7 +318,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     stats.push({
       title: 'Lunch Regular',
       subtitle: 'Most orders participated in',
-      personName: lunchRegular.personName,
+      personName: lunchRegular.name,
       value: `${lunchRegular.count} orders`,
     })
   }
