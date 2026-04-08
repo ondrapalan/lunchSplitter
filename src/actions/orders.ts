@@ -6,6 +6,7 @@ import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mapp
 import type { LunchSession, Item } from '~/features/lunch/types'
 import { getOrderAccess } from '~/lib/orderAccess'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
+import { sendOrderQrCodes } from '~/actions/discord'
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number }[]> {
   const session = await auth()
@@ -329,7 +330,10 @@ export async function closeOrder(orderId: string) {
     data: { status: 'CLOSED' },
   })
 
-  return { success: true }
+  // Fire-and-forget: send Discord QR code DMs to participants
+  const discordResult = await sendOrderQrCodes(orderId).catch(() => null)
+
+  return { success: true, discord: discordResult }
 }
 
 export async function reopenOrder(orderId: string) {

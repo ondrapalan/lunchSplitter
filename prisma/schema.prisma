@@ -30,6 +30,7 @@ model User {
   passwordHash      String
   displayName       String
   bankAccountNumber String?
+  discordId         String?       @unique
   role              Role          @default(USER)
   isFirstLogin      Boolean       @default(true)
   createdAt         DateTime      @default(now())
@@ -65,16 +66,26 @@ model FeeAdjustment {
 }
 
 model OrderPerson {
-  id              String           @id @default(cuid())
-  name            String
-  sortOrder       Int
-  order           Order            @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId         String
-  user            User?            @relation(fields: [userId], references: [id])
-  userId          String?
-  items           OrderItem[]
-  sharedItemLinks SharedItemLink[]
-  customShares    CustomShare[]
+  id                  String               @id @default(cuid())
+  name                String
+  sortOrder           Int
+  order               Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId             String
+  user                User?                @relation(fields: [userId], references: [id])
+  userId              String?
+  items               OrderItem[]
+  sharedItemLinks     SharedItemLink[]
+  customShares        CustomShare[]
+  paymentConfirmation PaymentConfirmation?
+}
+
+model PaymentConfirmation {
+  id               String      @id @default(cuid())
+  orderPerson      OrderPerson @relation(fields: [orderPersonId], references: [id], onDelete: Cascade)
+  orderPersonId    String      @unique
+  confirmedAt      DateTime    @default(now())
+  confirmedVia     String      @default("discord")
+  discordMessageId String?
 }
 
 model OrderItem {

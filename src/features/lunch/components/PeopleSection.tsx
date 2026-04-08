@@ -37,6 +37,7 @@ interface PeopleSectionProps {
   orderId?: string
   restaurantName?: string
   isCreator?: boolean
+  paymentConfirmations?: Record<string, { confirmed: boolean; confirmedAt: string | null }>
 }
 
 export function PeopleSection({
@@ -67,6 +68,7 @@ export function PeopleSection({
   orderId,
   restaurantName,
   isCreator,
+  paymentConfirmations,
 }: PeopleSectionProps) {
   // Collect all item names+prices across all people for suggestions
   // Historical items go first so current-session items override their prices during dedup
@@ -122,6 +124,7 @@ export function PeopleSection({
             restaurantName={restaurantName}
             isCreator={isCreator}
             showCopyQr={isCreator}
+            paymentConfirmed={paymentConfirmations?.[person.id]?.confirmed}
           />
         )
       })}

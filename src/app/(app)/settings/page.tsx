@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,11 +10,14 @@ import {
   changePasswordSchema,
   updateDisplayNameSchema,
   updateBankAccountSchema,
+  updateDiscordIdSchema,
   type ChangePasswordInput,
   type UpdateDisplayNameInput,
   type UpdateBankAccountInput,
+  type UpdateDiscordIdInput,
 } from '~/lib/validations'
 import { changePassword, updateDisplayName, getDisplayName, updateBankAccount, getBankAccount } from '~/actions/auth'
+import { linkDiscord, unlinkDiscord, getDiscordId } from '~/actions/discord'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
@@ -123,6 +126,91 @@ function BankAccountSection() {
   )
 }
 
+const LinkedStatus = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.sm};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+`
+
+const LinkedBadge = styled.span<{ $linked: boolean }>`
+  color: ${({ $linked, theme }) => $linked ? theme.colors.positive : theme.colors.textMuted};
+  font-weight: 500;
+`
+
+function DiscordSection() {
+  const [currentId, setCurrentId] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<UpdateDiscordIdInput>({
+    resolver: zodResolver(updateDiscordIdSchema),
+  })
+
+  useEffect(() => {
+    getDiscordId().then(id => {
+      setCurrentId(id)
+      setLoaded(true)
+    })
+  }, [])
+
+  const onSubmit = async (data: UpdateDiscordIdInput) => {
+    const result = await linkDiscord(data.discordId)
+    if (result && 'error' in result) {
+      toast.error(result.error)
+      return
+    }
+    setCurrentId(data.discordId)
+    toast.success('Discord linked')
+    reset()
+  }
+
+  const handleUnlink = async () => {
+    await unlinkDiscord()
+    setCurrentId(null)
+    toast.success('Discord unlinked')
+  }
+
+  if (!loaded) return null
+
+  return (
+    <Card>
+      <CardTitle>Discord</CardTitle>
+      <LinkedStatus>
+        <LinkedBadge $linked={!!currentId}>
+          {currentId ? `Linked: ${currentId}` : 'Not linked'}
+        </LinkedBadge>
+        {currentId && (
+          <Button variant="danger" size="sm" onClick={handleUnlink}>
+            Unlink
+          </Button>
+        )}
+      </LinkedStatus>
+      {!currentId && (
+        <Form onSubmit={handleSubmit(onSubmit)}>
+          <div>
+            <Input
+              {...register('discordId')}
+              placeholder="Your Discord User ID (e.g. 471981616579870732)"
+            />
+            {errors.discordId && <ErrorText>{errors.discordId.message}</ErrorText>}
+            <HelperText>
+              Enable Developer Mode in Discord Settings &gt; Advanced, then right-click your name and &quot;Copy User ID&quot;
+            </HelperText>
+          </div>
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Linking...' : 'Link Discord'}
+          </Button>
+        </Form>
+      )}
+    </Card>
+  )
+}
+
 function ChangePasswordSection() {
   const {
     register,
@@ -189,6 +277,8 @@ export default function SettingsPage() {
       <DisplayNameSection />
       <SectionGap />
       <BankAccountSection />
+      <SectionGap />
+      <DiscordSection />
       <SectionGap />
       <ChangePasswordSection />
     </div>

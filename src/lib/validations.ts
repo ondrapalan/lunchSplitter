@@ -68,5 +68,13 @@ export const updateBankAccountSchema = z.object({
     ),
 })
 
+export const updateDiscordIdSchema = z.object({
+  discordId: z
+    .string()
+    .min(1, 'Discord User ID is required')
+    .regex(/^\d{17,20}$/, 'Discord User ID must be 17-20 digits'),
+})
+
 export type SaveOrderInput = z.infer<typeof saveOrderSchema>
 export type UpdateBankAccountInput = z.infer<typeof updateBankAccountSchema>
+export type UpdateDiscordIdInput = z.infer<typeof updateDiscordIdSchema>

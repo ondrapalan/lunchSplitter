@@ -18,6 +18,7 @@ import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, leaveOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
+import { getPaymentConfirmations } from '~/actions/discord'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
@@ -199,6 +200,14 @@ function OrderContent({
   const [isJoining, setIsJoining] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
+  const [paymentConfirmations, setPaymentConfirmations] = useState<Record<string, { confirmed: boolean; confirmedAt: string | null }>>({})
+
+  // Load payment confirmations for closed orders
+  useEffect(() => {
+    if (status === 'CLOSED') {
+      getPaymentConfirmations(orderId).then(setPaymentConfirmations).catch(() => {})
+    }
+  }, [status, orderId])
 
   // Track latest updatedAt from auto-saves to avoid optimistic lock conflicts
   const latestUpdatedAt = useRef(updatedAt)
@@ -263,8 +272,20 @@ function OrderContent({
   const handleClose = async () => {
     setIsClosing(true)
     try {
-      await closeOrder(orderId)
+      const result = await closeOrder(orderId)
       toast.success('Order closed')
+      if (result.discord) {
+        const { sent, skipped, failed } = result.discord
+        if (sent.length > 0) {
+          toast.info(`Discord QR sent to: ${sent.join(', ')}`)
+        }
+        if (skipped.length > 0) {
+          toast.warn(`No Discord linked: ${skipped.join(', ')}`)
+        }
+        if (failed.length > 0) {
+          toast.error(`Discord failed for: ${failed.join(', ')}`)
+        }
+      }
       await onStatusChange()
     } catch {
       toast.error('Failed to close order')
@@ -441,6 +462,7 @@ function OrderContent({
         orderId={orderId}
         restaurantName={restaurantName}
         isCreator={access.isCreator || access.isAdminView}
+        paymentConfirmations={paymentConfirmations}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />

@@ -41,6 +41,12 @@ const RegisteredBadge = styled.span`
   font-weight: 400;
 `
 
+const PaidBadge = styled.span`
+  color: ${({ theme }) => theme.colors.positive};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 500;
+`
+
 const AddItemRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
@@ -92,6 +98,7 @@ interface PersonCardProps {
   restaurantName?: string
   isCreator?: boolean
   showCopyQr?: boolean
+  paymentConfirmed?: boolean
 }
 
 export function PersonCard({
@@ -120,6 +127,7 @@ export function PersonCard({
   restaurantName,
   isCreator,
   showCopyQr,
+  paymentConfirmed,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
@@ -204,6 +212,7 @@ export function PersonCard({
           >
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
+            {paymentConfirmed && <PaidBadge> (paid)</PaidBadge>}
           </CardTitle>
         )}
         {showEditMyItemsButton && onEditMyItems && (
