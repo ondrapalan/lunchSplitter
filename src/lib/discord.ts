@@ -61,12 +61,40 @@ async function createDmChannel(discordUserId: string): Promise<string> {
 
 /**
  * Send a message to a Discord channel (including DM channels).
+ * Optionally attach files via multipart/form-data.
  */
-export async function sendChannelMessage(channelId: string, message: SendMessageOptions): Promise<{ id: string }> {
-  return discordFetch(`/channels/${channelId}/messages`, {
+export async function sendChannelMessage(
+  channelId: string,
+  message: SendMessageOptions,
+  files?: { name: string; data: Buffer }[],
+): Promise<{ id: string }> {
+  if (!files || files.length === 0) {
+    return discordFetch(`/channels/${channelId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(message),
+    }) as Promise<{ id: string }>
+  }
+
+  // Multipart form-data for file attachments
+  const form = new FormData()
+  form.append('payload_json', JSON.stringify(message))
+  for (let i = 0; i < files.length; i++) {
+    form.append(`files[${i}]`, new Blob([new Uint8Array(files[i].data)]), files[i].name)
+  }
+
+  const token = process.env.DISCORD_BOT_TOKEN
+  if (!token) throw new Error('DISCORD_BOT_TOKEN not configured')
+
+  const res = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
     method: 'POST',
-    body: JSON.stringify(message),
-  }) as Promise<{ id: string }>
+    headers: { Authorization: `Bot ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Discord API error ${res.status}: ${body}`)
+  }
+  return res.json() as Promise<{ id: string }>
 }
 
 /**
@@ -92,35 +120,39 @@ export async function sendPaymentDm(
     restaurantName: string
     amount: number
     orderPersonId: string
-    qrDataUrl: string
+    qrPngBuffer: Buffer
     orderDate: string
   },
 ): Promise<{ channelId: string; messageId: string }> {
   const channelId = await createDmChannel(discordUserId)
 
-  const message = await sendChannelMessage(channelId, {
-    embeds: [
-      {
-        title: `Payment for ${opts.restaurantName}`,
-        description: `You owe **${opts.amount.toFixed(2)} CZK** for lunch on ${opts.orderDate}.`,
-        color: 0x1C5DB7, // Primary blue from theme
-        image: { url: opts.qrDataUrl },
-      },
-    ],
-    components: [
-      {
-        type: 1,
-        components: [
-          {
-            type: 2,
-            style: 3, // Success (green)
-            label: 'Confirm Payment',
-            custom_id: `confirm-payment:${opts.orderPersonId}`,
-          },
-        ],
-      },
-    ],
-  })
+  const message = await sendChannelMessage(
+    channelId,
+    {
+      embeds: [
+        {
+          title: `Payment for ${opts.restaurantName}`,
+          description: `You owe **${opts.amount.toFixed(2)} CZK** for lunch on ${opts.orderDate}.`,
+          color: 0x1C5DB7, // Primary blue from theme
+          image: { url: 'attachment://qr-payment.png' },
+        },
+      ],
+      components: [
+        {
+          type: 1,
+          components: [
+            {
+              type: 2,
+              style: 3, // Success (green)
+              label: 'Confirm Payment',
+              custom_id: `confirm-payment:${opts.orderPersonId}`,
+            },
+          ],
+        },
+      ],
+    },
+    [{ name: 'qr-payment.png', data: opts.qrPngBuffer }],
+  )
 
   return { channelId, messageId: message.id }
 }

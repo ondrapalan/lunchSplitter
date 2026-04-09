@@ -133,8 +133,8 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
         message: order.restaurant.name,
       })
 
-      // Generate QR code as data URL for embedding in Discord
-      const qrDataUrl = await QRCode.toDataURL(spdString, {
+      // Generate QR code as PNG buffer for Discord file attachment
+      const qrPngBuffer = await QRCode.toBuffer(spdString, {
         width: 200,
         margin: 1,
         color: { dark: '#000000', light: '#ffffff' },
@@ -144,7 +144,7 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
         restaurantName: order.restaurant.name,
         amount: summary.withFees,
         orderPersonId: person.id,
-        qrDataUrl,
+        qrPngBuffer,
         orderDate,
       })
 
