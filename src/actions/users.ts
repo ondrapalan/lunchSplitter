@@ -16,6 +16,7 @@ export async function listUsers() {
       displayName: true,
       role: true,
       isFirstLogin: true,
+      aliases: true,
       bankAccountNumber: true,
       discordId: true,
     },
@@ -46,6 +47,22 @@ export async function deleteUser(userId: string) {
   return { success: true }
 }
 
+export async function updateUserAliases(userId: string, aliases: string[]) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'ADMIN') {
+    throw new Error('Unauthorized')
+  }
+
+  const trimmed = aliases.map(a => a.trim()).filter(Boolean)
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { aliases: trimmed },
+  })
+
+  return { success: true }
+}
+
 export async function getRegisteredUsers() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -54,6 +71,7 @@ export async function getRegisteredUsers() {
     select: {
       id: true,
       displayName: true,
+      aliases: true,
     },
     orderBy: { displayName: 'asc' },
   })

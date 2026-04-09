@@ -7,7 +7,7 @@ import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { createUserSchema, type CreateUserInput } from '~/lib/validations'
 import { createUser, resetUserPassword } from '~/actions/auth'
-import { listUsers, deleteUser } from '~/actions/users'
+import { listUsers, deleteUser, updateUserAliases } from '~/actions/users'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
@@ -109,12 +109,61 @@ const StatusIcon = styled.span<{ $active: boolean }>`
   line-height: 0;
 `
 
+const AliasRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`
+
+const AliasTag = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: ${({ theme }) => theme.colors.surfaceLight};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  padding: 2px ${({ theme }) => theme.spacing.xs};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+`
+
+const RemoveAlias = styled.button`
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.textDim};
+  cursor: pointer;
+  padding: 0;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  line-height: 1;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.negative};
+  }
+`
+
+const AliasInput = styled.input`
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  padding: 2px ${({ theme }) => theme.spacing.xs};
+  width: 100px;
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`
+
 interface UserListItem {
   id: string
   username: string
   displayName: string
   role: string
   isFirstLogin: boolean
+  aliases: string[]
   bankAccountNumber: string | null
   discordId: string | null
 }
@@ -146,6 +195,30 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadUsers()
   }, [])
+
+  const handleAddAlias = async (userId: string, alias: string) => {
+    const user = users.find(u => u.id === userId)
+    if (!user || !alias.trim()) return
+    const newAliases = [...user.aliases, alias.trim()]
+    try {
+      await updateUserAliases(userId, newAliases)
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, aliases: newAliases } : u))
+    } catch {
+      toast.error('Failed to add alias')
+    }
+  }
+
+  const handleRemoveAlias = async (userId: string, index: number) => {
+    const user = users.find(u => u.id === userId)
+    if (!user) return
+    const newAliases = user.aliases.filter((_, i) => i !== index)
+    try {
+      await updateUserAliases(userId, newAliases)
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, aliases: newAliases } : u))
+    } catch {
+      toast.error('Failed to remove alias')
+    }
+  }
 
   const handleDelete = async (userId: string, displayName: string) => {
     if (!confirm(`Delete user "${displayName}"? Their order participations will be kept as guest entries.`)) return
@@ -248,6 +321,23 @@ export default function AdminUsersPage() {
                 </StatusIcon>
               </StatusIcons>
               {user.isFirstLogin && <UserMeta> - pending password setup</UserMeta>}
+              <AliasRow>
+                {user.aliases.map((alias, i) => (
+                  <AliasTag key={i}>
+                    {alias}
+                    <RemoveAlias onClick={() => handleRemoveAlias(user.id, i)} title="Remove alias">&times;</RemoveAlias>
+                  </AliasTag>
+                ))}
+                <AliasInput
+                  placeholder="+ alias"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      handleAddAlias(user.id, e.currentTarget.value)
+                      e.currentTarget.value = ''
+                    }
+                  }}
+                />
+              </AliasRow>
               {resetPassword?.userId === user.id && (
                 <TempPasswordBox>
                   <TempPasswordLabel>New temporary password:</TempPasswordLabel>

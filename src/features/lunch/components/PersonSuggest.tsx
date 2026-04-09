@@ -52,6 +52,12 @@ const UserBadge = styled.span`
   font-size: ${({ theme }) => theme.fontSizes.xs};
 `
 
+const AliasHint = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  margin-left: ${({ theme }) => theme.spacing.xs};
+`
+
 const GuestHint = styled.span`
   color: ${({ theme }) => theme.colors.textDim};
   font-size: ${({ theme }) => theme.fontSizes.xs};
@@ -60,6 +66,7 @@ const GuestHint = styled.span`
 export interface UserSuggestion {
   id: string
   displayName: string
+  aliases: string[]
 }
 
 interface PersonSuggestProps {
@@ -75,9 +82,18 @@ export function PersonSuggest({ onAddPerson, users, excludeUserIds }: PersonSugg
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const available = users.filter(u => !excludeUserIds.includes(u.id))
-  const filtered = value.trim().length > 0
-    ? available.filter(u => u.displayName.toLowerCase().includes(value.toLowerCase()))
+  const query = value.trim().toLowerCase()
+  const filtered = query.length > 0
+    ? available.filter(u =>
+        u.displayName.toLowerCase().includes(query) ||
+        u.aliases.some(a => a.toLowerCase().includes(query))
+      )
     : available
+
+  const getMatchingAlias = (user: UserSuggestion): string | undefined => {
+    if (!query || user.displayName.toLowerCase().includes(query)) return undefined
+    return user.aliases.find(a => a.toLowerCase().includes(query))
+  }
 
   useEffect(() => {
     setActiveIndex(-1)
@@ -151,16 +167,22 @@ export function PersonSuggest({ onAddPerson, users, excludeUserIds }: PersonSugg
         />
         {open && filtered.length > 0 && (
           <Dropdown>
-            {filtered.map((u, i) => (
-              <Option
-                key={u.id}
-                $active={i === activeIndex}
-                onMouseDown={() => handleSelect(u)}
-              >
-                <span>{u.displayName}</span>
-                <UserBadge>user</UserBadge>
-              </Option>
-            ))}
+            {filtered.map((u, i) => {
+              const matchedAlias = getMatchingAlias(u)
+              return (
+                <Option
+                  key={u.id}
+                  $active={i === activeIndex}
+                  onMouseDown={() => handleSelect(u)}
+                >
+                  <span>
+                    {u.displayName}
+                    {matchedAlias && <AliasHint>aka {matchedAlias}</AliasHint>}
+                  </span>
+                  <UserBadge>user</UserBadge>
+                </Option>
+              )
+            })}
             {value.trim() && !filtered.some(u => u.displayName.toLowerCase() === value.trim().toLowerCase()) && (
               <Option
                 $active={false}

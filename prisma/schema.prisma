@@ -29,6 +29,7 @@ model User {
   username          String        @unique
   passwordHash      String
   displayName       String
+  aliases           String[]      @default([])
   bankAccountNumber String?
   discordId         String?       @unique
   role              Role          @default(USER)
