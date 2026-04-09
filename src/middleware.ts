@@ -8,8 +8,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth
   const user = req.auth?.user
 
-  // Public: login page
-  if (nextUrl.pathname === '/login') {
+  // Public: login and request-access pages
+  if (nextUrl.pathname === '/login' || nextUrl.pathname === '/request-access') {
     if (isLoggedIn) {
       return Response.redirect(new URL('/orders', nextUrl))
     }

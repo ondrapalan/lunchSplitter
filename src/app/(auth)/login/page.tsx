@@ -36,6 +36,22 @@ const Description = styled.p`
   margin-bottom: ${({ theme }) => theme.spacing.md};
 `
 
+const RequestLink = styled.button`
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.primary};
+  cursor: pointer;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  margin-top: ${({ theme }) => theme.spacing.sm};
+  text-align: center;
+  display: block;
+  width: 100%;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`
+
 export default function LoginPage() {
   const router = useRouter()
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
@@ -97,6 +113,9 @@ function LoginForm({ router }: { router: ReturnType<typeof useRouter> }) {
           {isSubmitting ? 'Logging in...' : 'Login'}
         </Button>
       </Form>
+      <RequestLink onClick={() => router.push('/request-access')}>
+        Request Access
+      </RequestLink>
     </Card>
   )
 }

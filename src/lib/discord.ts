@@ -158,6 +158,51 @@ export async function sendPaymentDm(
 }
 
 /**
+ * Send a DM to an admin about a new access request.
+ */
+export async function sendAccessRequestDm(
+  adminDiscordId: string,
+  opts: {
+    requestId: string
+    username: string
+    displayName: string
+  },
+): Promise<string> {
+  const channelId = await createDmChannel(adminDiscordId)
+
+  const message = await sendChannelMessage(channelId, {
+    embeds: [
+      {
+        title: 'New Access Request',
+        description: `**${opts.displayName}** (username: \`${opts.username}\`) wants to join Lunch Splitter.`,
+        color: 0xC47415, // Accent color from theme
+      },
+    ],
+    components: [
+      {
+        type: 1,
+        components: [
+          {
+            type: 2,
+            style: 3, // Success (green)
+            label: 'Approve',
+            custom_id: `approve-access:${opts.requestId}`,
+          },
+          {
+            type: 2,
+            style: 4, // Danger (red)
+            label: 'Deny',
+            custom_id: `deny-access:${opts.requestId}`,
+          },
+        ],
+      },
+    ],
+  })
+
+  return message.id
+}
+
+/**
  * Check if Discord bot is configured.
  */
 export function isDiscordConfigured(): boolean {

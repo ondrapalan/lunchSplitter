@@ -121,6 +121,16 @@ model CustomShare {
   @@unique([itemId, personId])
 }
 
+model AccessRequest {
+  id               String   @id @default(cuid())
+  username         String   @unique
+  displayName      String
+  passwordHash     String
+  status           String   @default("pending")
+  createdAt        DateTime @default(now())
+  discordMessageId String?
+}
+
 model Invitation {
   id          String    @id @default(cuid())
   token       String    @unique
