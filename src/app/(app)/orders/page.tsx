@@ -27,6 +27,7 @@ interface OrderListItem extends BaseOrderListItem {
   bankAccountNumber: string | null
   myPersonId: string | null
   myAmount: number | null
+  paymentStatus: { paid: number; total: number } | null
 }
 
 interface OpenOrderListItem extends BaseOrderListItem {
@@ -88,6 +89,13 @@ const Actions = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
   flex-shrink: 0;
+`
+
+const PaymentStatus = styled.span<{ $allPaid: boolean }>`
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 500;
+  color: ${({ $allPaid, theme }) => $allPaid ? theme.colors.positive : theme.colors.warning};
+  white-space: nowrap;
 `
 
 function OrderQrCode({ order }: { order: OrderListItem }) {
@@ -253,6 +261,11 @@ export default function OrdersPage() {
                     {new Date(order.createdAt).toLocaleDateString()} &middot; {order.peopleCount} people
                     {wasEdited(order.createdAt, order.updatedAt) && (
                       <> &middot; Last edited: {new Date(order.updatedAt).toLocaleDateString()}</>
+                    )}
+                    {order.paymentStatus && order.paymentStatus.total > 0 && (
+                      <> &middot; <PaymentStatus $allPaid={order.paymentStatus.paid === order.paymentStatus.total}>
+                        {order.paymentStatus.paid}/{order.paymentStatus.total} paid
+                      </PaymentStatus></>
                     )}
                   </OrderMeta>
                 </OrderInfo>

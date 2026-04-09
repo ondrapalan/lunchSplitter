@@ -225,6 +225,7 @@ export async function listOrders() {
         orderBy: { sortOrder: 'asc' },
         include: {
           user: { select: { displayName: true } },
+          paymentConfirmation: { select: { confirmedVia: true } },
           items: {
             orderBy: { sortOrder: 'asc' },
             include: {
@@ -243,6 +244,7 @@ export async function listOrders() {
     let bankAccountNumber: string | null = null
     let myPersonId: string | null = null
     let myAmount: number | null = null
+    let paymentStatus: { paid: number; total: number } | null = null
 
     if (!isCreator && order.bankAccountNumber) {
       const lunchSession = prismaOrderToLunchSession(order)
@@ -258,6 +260,16 @@ export async function listOrders() {
       }
     }
 
+    // For creator's orders: count how many participants (excluding creator) have confirmed payment
+    if (isCreator) {
+      const creatorPersonId = order.people.find(p => p.userId === order.createdById)?.id
+      const participants = order.people.filter(p => p.id !== creatorPersonId)
+      const paid = participants.filter(p =>
+        p.paymentConfirmation && p.paymentConfirmation.confirmedVia !== 'pending'
+      ).length
+      paymentStatus = { paid, total: participants.length }
+    }
+
     return {
       id: order.id,
       restaurantName: order.restaurant.name,
@@ -269,6 +281,7 @@ export async function listOrders() {
       bankAccountNumber,
       myPersonId,
       myAmount,
+      paymentStatus,
     }
   })
 }
