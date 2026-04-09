@@ -133,16 +133,13 @@ export async function deleteOrder(orderId: string) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { createdById: true, _count: { select: { people: true } } },
+    select: { createdById: true },
   })
   if (!order) throw new Error('Order not found')
   const isCreator = order.createdById === session.user.id
   const isAdmin = session.user.role === 'ADMIN'
   if (!isCreator && !isAdmin) {
     throw new Error('Unauthorized')
-  }
-  if (order._count.people > 0) {
-    throw new Error('Cannot delete order with participants')
   }
 
   // Cascade deletes handle children
