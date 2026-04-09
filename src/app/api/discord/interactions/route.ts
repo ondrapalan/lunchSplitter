@@ -41,6 +41,7 @@ export async function POST(request: Request) {
 
     const orderPersonId = customId.replace('confirm-payment:', '')
     const discordUserId = interaction.member?.user?.id ?? interaction.user?.id
+    console.log('Payment confirmation attempt:', { orderPersonId, discordUserId, customId })
 
     try {
       // Verify the Discord user matches the person's linked user
@@ -73,16 +74,18 @@ export async function POST(request: Request) {
         },
       })
 
-      // Respond by updating the message to show confirmed
+      // Respond by updating the message — build fresh embed to avoid echoing Discord's internal fields
+      const originalEmbed = interaction.message?.embeds?.[0] as Record<string, unknown> | undefined
       return Response.json({
         type: InteractionResponseType.UPDATE_MESSAGE,
         data: {
-          embeds: interaction.message?.embeds?.map((embed: Record<string, unknown>) => ({
-            ...embed,
-            color: 0x178043, // Green - positive color from theme
-            title: embed.title ? `${embed.title}` : undefined,
-            description: `~~${embed.description ?? ''}~~\n\n**Payment confirmed!**`,
-          })) ?? [],
+          embeds: [
+            {
+              title: originalEmbed?.title ?? 'Payment',
+              description: `~~${originalEmbed?.description ?? ''}~~\n\n**Payment confirmed!**`,
+              color: 0x178043,
+            },
+          ],
           components: [
             {
               type: 1,
@@ -97,6 +100,7 @@ export async function POST(request: Request) {
               ],
             },
           ],
+          attachments: [],
         },
       })
     } catch (err) {
