@@ -147,8 +147,9 @@ export function PersonCard({
   }
 
   const handleSuggestionSelect = (suggestion: ItemSuggestion) => {
-    setNewItemName(suggestion.name)
-    setNewItemPrice(String(suggestion.price))
+    onAddItem(suggestion.name, suggestion.price)
+    setNewItemName('')
+    setNewItemPrice('')
   }
 
   // Find items shared from other people to this person
