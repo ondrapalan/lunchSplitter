@@ -23,6 +23,27 @@ export async function listUsers() {
   return users
 }
 
+export async function deleteUser(userId: string) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'ADMIN') {
+    throw new Error('Unauthorized')
+  }
+
+  if (userId === session.user.id) {
+    throw new Error('Cannot delete yourself')
+  }
+
+  // Unlink from order participations (set userId to null) so orders aren't affected
+  await prisma.orderPerson.updateMany({
+    where: { userId },
+    data: { userId: null },
+  })
+
+  await prisma.user.delete({ where: { id: userId } })
+
+  return { success: true }
+}
+
 export async function getRegisteredUsers() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')

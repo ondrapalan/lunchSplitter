@@ -7,7 +7,7 @@ import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { createUserSchema, type CreateUserInput } from '~/lib/validations'
 import { createUser, resetUserPassword } from '~/actions/auth'
-import { listUsers } from '~/actions/users'
+import { listUsers, deleteUser } from '~/actions/users'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
@@ -131,6 +131,17 @@ export default function AdminUsersPage() {
     loadUsers()
   }, [])
 
+  const handleDelete = async (userId: string, displayName: string) => {
+    if (!confirm(`Delete user "${displayName}"? Their order participations will be kept as guest entries.`)) return
+    try {
+      await deleteUser(userId)
+      toast.success('User deleted')
+      loadUsers()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user')
+    }
+  }
+
   const handleReset = async (userId: string) => {
     if (!confirm('Reset this user\'s password? They will need to set a new one on next login.')) return
     setResetPassword(null)
@@ -214,6 +225,9 @@ export default function AdminUsersPage() {
               <RoleBadge $admin={user.role === 'ADMIN'}>{user.role}</RoleBadge>
               <Button variant="secondary" size="sm" onClick={() => handleReset(user.id)}>
                 Reset PW
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => handleDelete(user.id, user.displayName)}>
+                Delete
               </Button>
             </UserActions>
           </UserRow>
