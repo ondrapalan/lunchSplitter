@@ -95,12 +95,28 @@ const RoleBadge = styled.span<{ $admin: boolean }>`
   text-transform: uppercase;
 `
 
+const StatusIcons = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-left: ${({ theme }) => theme.spacing.sm};
+  vertical-align: middle;
+`
+
+const StatusIcon = styled.span<{ $active: boolean }>`
+  display: inline-flex;
+  color: ${({ $active, theme }) => ($active ? theme.colors.positive : theme.colors.border)};
+  line-height: 0;
+`
+
 interface UserListItem {
   id: string
   username: string
   displayName: string
   role: string
   isFirstLogin: boolean
+  bankAccountNumber: string | null
+  discordId: string | null
 }
 
 export default function AdminUsersPage() {
@@ -213,6 +229,26 @@ export default function AdminUsersPage() {
             <div>
               <span>{user.displayName}</span>
               <UserMeta> (@{user.username})</UserMeta>
+              <StatusIcons>
+                <StatusIcon $active={!!user.bankAccountNumber} title={user.bankAccountNumber ? 'Bank account linked' : 'No bank account'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="10" width="18" height="11" rx="2" />
+                    <path d="M12 3L2 10h20L12 3z" />
+                    <line x1="7" y1="14" x2="7" y2="17" />
+                    <line x1="12" y1="14" x2="12" y2="17" />
+                    <line x1="17" y1="14" x2="17" y2="17" />
+                  </svg>
+                </StatusIcon>
+                <StatusIcon $active={!!user.discordId} title={user.discordId ? 'Discord linked' : 'No Discord'}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.5 9a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z" />
+                    <path d="M14.5 9a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5z" />
+                    <path d="M8.5 4.5L7 2" />
+                    <path d="M15.5 4.5L17 2" />
+                    <path d="M4.28 7.05A17.1 17.1 0 0 1 8.68 4.37a.09.09 0 0 1 .08.04 11.6 11.6 0 0 1 .54 1.11 15.7 15.7 0 0 1 5.4 0c.15-.37.34-.76.54-1.11a.09.09 0 0 1 .08-.04 17.1 17.1 0 0 1 4.4 2.68.08.08 0 0 1 .03.03c2.4 3.53 3.6 7.52 3.13 12.12a.09.09 0 0 1-.03.06 17.1 17.1 0 0 1-5.32 2.69.09.09 0 0 1-.1-.03 12.2 12.2 0 0 1-1.08-1.77.08.08 0 0 1 .04-.1 11.3 11.3 0 0 0 1.66-.8.08.08 0 0 0 .01-.12 8.8 8.8 0 0 1-.33-.26.07.07 0 0 0-.07-.01 12.2 12.2 0 0 1-10.7 0 .07.07 0 0 0-.07.01c-.11.09-.22.18-.33.26a.08.08 0 0 0 0 .12c.52.3 1.08.57 1.66.8a.08.08 0 0 1 .04.1c-.32.62-.68 1.21-1.08 1.77a.09.09 0 0 1-.1.03 17.06 17.06 0 0 1-5.32-2.69.08.08 0 0 1-.03-.05C.44 14.57-.27 10.58.91 7.08a.06.06 0 0 1 .03-.03z" />
+                  </svg>
+                </StatusIcon>
+              </StatusIcons>
               {user.isFirstLogin && <UserMeta> - pending password setup</UserMeta>}
               {resetPassword?.userId === user.id && (
                 <TempPasswordBox>

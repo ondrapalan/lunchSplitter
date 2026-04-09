@@ -16,6 +16,8 @@ export async function listUsers() {
       displayName: true,
       role: true,
       isFirstLogin: true,
+      bankAccountNumber: true,
+      discordId: true,
     },
     orderBy: { createdAt: 'asc' },
   })
