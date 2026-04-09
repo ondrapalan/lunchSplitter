@@ -44,7 +44,7 @@ export function getOrderAccess(
     canLeave: isParticipant && isOpen && !isCreator,
     canClose: (isCreator || isAdmin) && isOpen,
     canReopen: isCreator || isAdmin,
-    canDelete: (isCreator || isAdmin) && isEmpty,
+    canDelete: (isCreator && isEmpty) || isAdmin,
     isCreator,
     isParticipant,
     isAdminView,

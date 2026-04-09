@@ -164,12 +164,18 @@ describe('getOrderAccess', () => {
       expect(access.canEdit).toBe(true) // admin privilege still grants canEdit
     })
 
-    it('can delete empty orders they did not create', () => {
-      const access = getOrderAccess(
+    it('can delete any order regardless of people', () => {
+      const emptyAccess = getOrderAccess(
         makeOrder({ createdById: 'creator-1', people: [] }),
         makeUser({ id: 'admin-1', role: 'ADMIN' }),
       )
-      expect(access.canDelete).toBe(true)
+      expect(emptyAccess.canDelete).toBe(true)
+
+      const nonEmptyAccess = getOrderAccess(
+        makeOrder({ createdById: 'creator-1', people: [{ userId: 'other' }] }),
+        makeUser({ id: 'admin-1', role: 'ADMIN' }),
+      )
+      expect(nonEmptyAccess.canDelete).toBe(true)
     })
   })
 })
