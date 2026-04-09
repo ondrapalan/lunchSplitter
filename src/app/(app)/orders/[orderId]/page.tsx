@@ -18,7 +18,7 @@ import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, leaveOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
-import { getPaymentConfirmations } from '~/actions/discord'
+import { getPaymentConfirmations, togglePaymentConfirmation } from '~/actions/discord'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
@@ -202,12 +202,30 @@ function OrderContent({
   const [isLeaving, setIsLeaving] = useState(false)
   const [paymentConfirmations, setPaymentConfirmations] = useState<Record<string, { confirmed: boolean; confirmedAt: string | null }>>({})
 
-  // Load payment confirmations for closed orders
+  // Load payment confirmations for closed orders + poll every 30s
   useEffect(() => {
-    if (status === 'CLOSED') {
+    if (status !== 'CLOSED') return
+
+    const loadConfirmations = () => {
       getPaymentConfirmations(orderId).then(setPaymentConfirmations).catch(() => {})
     }
+    loadConfirmations()
+
+    const interval = setInterval(loadConfirmations, 30_000)
+    return () => clearInterval(interval)
   }, [status, orderId])
+
+  const handleTogglePayment = useCallback(async (personId: string) => {
+    try {
+      const { confirmed } = await togglePaymentConfirmation(personId)
+      setPaymentConfirmations(prev => ({
+        ...prev,
+        [personId]: { confirmed, confirmedAt: confirmed ? new Date().toISOString() : null },
+      }))
+    } catch {
+      toast.error('Failed to update payment status')
+    }
+  }, [])
 
   // Track latest updatedAt from auto-saves to avoid optimistic lock conflicts
   const latestUpdatedAt = useRef(updatedAt)
@@ -463,6 +481,7 @@ function OrderContent({
         restaurantName={restaurantName}
         isCreator={access.isCreator || access.isAdminView}
         paymentConfirmations={paymentConfirmations}
+        onTogglePayment={(access.isCreator || access.isAdminView) ? handleTogglePayment : undefined}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />

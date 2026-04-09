@@ -173,6 +173,41 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
 }
 
 /**
+ * Manually confirm or unconfirm a payment (for order creator/admin).
+ */
+export async function togglePaymentConfirmation(orderPersonId: string): Promise<{ confirmed: boolean }> {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const orderPerson = await prisma.orderPerson.findUnique({
+    where: { id: orderPersonId },
+    include: {
+      order: { select: { createdById: true } },
+      paymentConfirmation: true,
+    },
+  })
+  if (!orderPerson) throw new Error('Person not found')
+
+  const isCreator = orderPerson.order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) throw new Error('Unauthorized')
+
+  if (orderPerson.paymentConfirmation && orderPerson.paymentConfirmation.confirmedVia !== 'pending') {
+    // Unconfirm
+    await prisma.paymentConfirmation.delete({ where: { orderPersonId } })
+    return { confirmed: false }
+  } else {
+    // Confirm
+    await prisma.paymentConfirmation.upsert({
+      where: { orderPersonId },
+      create: { orderPersonId, confirmedVia: 'manual' },
+      update: { confirmedVia: 'manual', confirmedAt: new Date() },
+    })
+    return { confirmed: true }
+  }
+}
+
+/**
  * Get payment confirmation status for all people in an order.
  */
 export async function getPaymentConfirmations(orderId: string): Promise<Record<string, { confirmed: boolean; confirmedAt: string | null }>> {

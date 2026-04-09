@@ -47,6 +47,41 @@ const PaidBadge = styled.span`
   font-weight: 500;
 `
 
+const QrWithStatus = styled.div`
+  position: relative;
+`
+
+const PaymentOverlay = styled.button<{ $confirmed: boolean }>`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: ${({ $confirmed }) => $confirmed ? 'rgba(23, 128, 67, 0.85)' : 'transparent'};
+  border: none;
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  cursor: pointer;
+  transition: background 0.2s ease;
+  padding: 0;
+
+  &:hover {
+    background: ${({ $confirmed }) => $confirmed ? 'rgba(23, 128, 67, 0.75)' : 'rgba(23, 128, 67, 0.15)'};
+  }
+`
+
+const CheckmarkSvg = styled.svg<{ $visible: boolean }>`
+  opacity: ${({ $visible }) => $visible ? 1 : 0};
+  transition: opacity 0.2s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+
+  ${PaymentOverlay}:hover & {
+    opacity: ${({ $visible }) => $visible ? 1 : 0.4};
+  }
+`
+
 const AddItemRow = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
@@ -99,6 +134,7 @@ interface PersonCardProps {
   isCreator?: boolean
   showCopyQr?: boolean
   paymentConfirmed?: boolean
+  onTogglePayment?: () => void
 }
 
 export function PersonCard({
@@ -128,6 +164,7 @@ export function PersonCard({
   isCreator,
   showCopyQr,
   paymentConfirmed,
+  onTogglePayment,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
@@ -285,11 +322,24 @@ export function PersonCard({
         </CardMainContent>
 
         {spdString && (
-          <QrPlatba
-            spdString={spdString}
-            amount={summary!.withFees}
-            showCopyButton={showCopyQr}
-          />
+          <QrWithStatus>
+            <QrPlatba
+              spdString={spdString}
+              amount={summary!.withFees}
+              showCopyButton={showCopyQr}
+            />
+            {isCreator && onTogglePayment && (
+              <PaymentOverlay
+                $confirmed={!!paymentConfirmed}
+                onClick={e => { e.stopPropagation(); onTogglePayment() }}
+                title={paymentConfirmed ? 'Click to unmark payment' : 'Click to mark as paid'}
+              >
+                <CheckmarkSvg $visible={!!paymentConfirmed} width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </CheckmarkSvg>
+              </PaymentOverlay>
+            )}
+          </QrWithStatus>
         )}
       </CardContentRow>
     </Card>
