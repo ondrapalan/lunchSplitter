@@ -30,6 +30,12 @@ const Description = styled.p`
   margin-bottom: ${({ theme }) => theme.spacing.md};
 `
 
+const HelperText = styled.p`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`
+
 const SuccessMessage = styled.div`
   text-align: center;
   color: ${({ theme }) => theme.colors.positive};
@@ -94,10 +100,12 @@ export default function RequestAccessPage() {
         <div>
           <Input {...register('username')} placeholder="Username" autoComplete="username" />
           {errors.username && <ErrorText>{errors.username.message}</ErrorText>}
+          <HelperText>Used for logging in. No spaces or special characters.</HelperText>
         </div>
         <div>
           <Input {...register('displayName')} placeholder="Display name" />
           {errors.displayName && <ErrorText>{errors.displayName.message}</ErrorText>}
+          <HelperText>Visible to other users in orders and stats.</HelperText>
         </div>
         <div>
           <Input {...register('password')} type="password" placeholder="Password" autoComplete="new-password" />

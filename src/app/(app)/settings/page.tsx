@@ -76,6 +76,7 @@ function DisplayNameSection() {
             placeholder="Display name"
           />
           {errors.displayName && <ErrorText>{errors.displayName.message}</ErrorText>}
+          <HelperText>Visible to other users in orders and stats.</HelperText>
         </div>
         <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : 'Save'}
