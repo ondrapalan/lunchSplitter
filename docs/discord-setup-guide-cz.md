@@ -21,7 +21,7 @@ Tím získáte číslo jako `471981616579870732` — to je vaše Discord User ID
 ## Krok 2: Vložte ID do Lunch Splitteru
 
 1. Otevřete web **https://lunch-splitter-black.vercel.app**
-2. Přihlaste se
+2. Přihlaste se (pokud ještě nemáte účet, tak requestněte registraci)
 3. Klikněte na **Nastavení** (ikonka panáčka vpravo nahoře)
 4. Najděte sekci **Discord** (chvilku trvá než se zobrazí)
 5. Vložte své Discord User ID do pole
