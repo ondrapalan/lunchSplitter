@@ -81,18 +81,20 @@ export function PersonSuggest({ onAddPerson, users, excludeUserIds }: PersonSugg
   const [activeIndex, setActiveIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
 
+  const strip = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
   const available = users.filter(u => !excludeUserIds.includes(u.id))
-  const query = value.trim().toLowerCase()
+  const query = strip(value.trim())
   const filtered = query.length > 0
     ? available.filter(u =>
-        u.displayName.toLowerCase().includes(query) ||
-        u.aliases.some(a => a.toLowerCase().includes(query))
+        strip(u.displayName).includes(query) ||
+        u.aliases.some(a => strip(a).includes(query))
       )
     : available
 
   const getMatchingAlias = (user: UserSuggestion): string | undefined => {
-    if (!query || user.displayName.toLowerCase().includes(query)) return undefined
-    return user.aliases.find(a => a.toLowerCase().includes(query))
+    if (!query || strip(user.displayName).includes(query)) return undefined
+    return user.aliases.find(a => strip(a).includes(query))
   }
 
   useEffect(() => {
@@ -183,7 +185,7 @@ export function PersonSuggest({ onAddPerson, users, excludeUserIds }: PersonSugg
                 </Option>
               )
             })}
-            {value.trim() && !filtered.some(u => u.displayName.toLowerCase() === value.trim().toLowerCase()) && (
+            {value.trim() && !filtered.some(u => strip(u.displayName) === query) && (
               <Option
                 $active={false}
                 onMouseDown={handleAddGuest}
