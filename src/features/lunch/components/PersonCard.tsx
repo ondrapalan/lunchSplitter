@@ -47,10 +47,6 @@ const PaidBadge = styled.span`
   font-weight: 500;
 `
 
-const QrWithStatus = styled.div`
-  position: relative;
-`
-
 const PaymentOverlay = styled.button<{ $confirmed: boolean }>`
   position: absolute;
   top: 0;
@@ -322,14 +318,13 @@ export function PersonCard({
         </CardMainContent>
 
         {spdString && (
-          <QrWithStatus>
-            <QrPlatba
-              spdString={spdString}
-              amount={summary!.withFees}
-              showCopyButton={showCopyQr}
-            />
-            {isCreator && onTogglePayment && (
+          <QrPlatba
+            spdString={spdString}
+            amount={summary!.withFees}
+            showCopyButton={showCopyQr}
+            overlay={isCreator && onTogglePayment ? (
               <PaymentOverlay
+                type="button"
                 $confirmed={!!paymentConfirmed}
                 onClick={e => { e.stopPropagation(); onTogglePayment() }}
                 title={paymentConfirmed ? 'Click to unmark payment' : 'Click to mark as paid'}
@@ -338,8 +333,8 @@ export function PersonCard({
                   <polyline points="20 6 9 17 4 12" />
                 </CheckmarkSvg>
               </PaymentOverlay>
-            )}
-          </QrWithStatus>
+            ) : undefined}
+          />
         )}
       </CardContentRow>
     </Card>

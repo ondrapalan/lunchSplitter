@@ -25,6 +25,10 @@ const QrBackground = styled.div`
   line-height: 0;
 `
 
+const QrCanvasArea = styled.div`
+  position: relative;
+`
+
 const Amount = styled.span`
   color: ${({ theme }) => theme.colors.positive};
   font-size: ${({ theme }) => theme.fontSizes.md};
@@ -36,9 +40,10 @@ interface QrPlatbaProps {
   amount: number
   showCopyButton?: boolean
   size?: number
+  overlay?: React.ReactNode
 }
 
-export function QrPlatba({ spdString, amount, showCopyButton = false, size = 100 }: QrPlatbaProps) {
+export function QrPlatba({ spdString, amount, showCopyButton = false, size = 100, overlay }: QrPlatbaProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -77,9 +82,12 @@ export function QrPlatba({ spdString, amount, showCopyButton = false, size = 100
 
   return (
     <QrWrapper>
-      <QrBackground>
-        <QrCanvas ref={canvasRef} />
-      </QrBackground>
+      <QrCanvasArea>
+        <QrBackground>
+          <QrCanvas ref={canvasRef} />
+        </QrBackground>
+        {overlay}
+      </QrCanvasArea>
       <Amount>{formatCurrency(amount)} CZK</Amount>
       {showCopyButton && (
         <Button variant="secondary" size="sm" onClick={handleCopy}>
