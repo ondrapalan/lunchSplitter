@@ -48,6 +48,49 @@ const SaveBar = styled.div`
   border-top: 1px solid ${({ theme }) => theme.colors.border};
 `
 
+const DialogBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: ${({ theme }) => theme.spacing.md};
+`
+
+const DialogPanel = styled.div`
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: ${({ theme }) => theme.spacing.lg};
+  max-width: 440px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`
+
+const DialogTitle = styled.h3`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+`
+
+const DialogBody = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  line-height: 1.5;
+`
+
+const DialogActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.sm};
+  justify-content: flex-end;
+`
+
 const SaveStatus = styled.span`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.fontSizes.sm};
@@ -207,6 +250,7 @@ function OrderContent({
   const [isJoining, setIsJoining] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [paymentConfirmations, setPaymentConfirmations] = useState<Record<string, { confirmed: boolean; confirmedAt: string | null }>>({})
 
   // Load payment confirmations for closed orders + poll every 30s
@@ -312,11 +356,12 @@ function OrderContent({
 
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
 
-  const handleClose = async () => {
+  const handleClose = async (sendDiscord: boolean) => {
+    setCloseDialogOpen(false)
     setIsClosing(true)
     try {
-      const result = await closeOrder(orderId)
-      toast.success('Order closed')
+      const result = await closeOrder(orderId, { sendDiscord })
+      toast.success(sendDiscord ? 'Order closed' : 'Order closed (no DMs sent)')
       if (result.discord) {
         const { sent, skipped, failed } = result.discord
         if (sent.length > 0) {
@@ -432,7 +477,7 @@ function OrderContent({
         </div>
         <HeaderActions>
           {showCloseButton && (
-            <Button variant="secondary" loading={isClosing} onClick={handleClose}>Close Order</Button>
+            <Button variant="secondary" loading={isClosing} onClick={() => setCloseDialogOpen(true)}>Close Order</Button>
           )}
           {showReopenButton && (
             <Button variant="secondary" loading={isReopening} onClick={handleReopen}>Reopen Order</Button>
@@ -533,6 +578,30 @@ function OrderContent({
             Done
           </Button>
         </SaveBar>
+      )}
+
+      {closeDialogOpen && (
+        <DialogBackdrop onClick={() => !isClosing && setCloseDialogOpen(false)}>
+          <DialogPanel onClick={e => e.stopPropagation()}>
+            <DialogTitle>Close this order?</DialogTitle>
+            <DialogBody>
+              Closing the order locks it from further edits. You can also send each
+              participant a Discord DM with their QR code — skip this if you&apos;ve
+              already sent them (for example after reopening to edit).
+            </DialogBody>
+            <DialogActions>
+              <Button variant="secondary" onClick={() => setCloseDialogOpen(false)} disabled={isClosing}>
+                Cancel
+              </Button>
+              <Button variant="secondary" loading={isClosing} onClick={() => handleClose(false)}>
+                Close silently
+              </Button>
+              <Button variant="primary" loading={isClosing} onClick={() => handleClose(true)}>
+                Close &amp; send QRs
+              </Button>
+            </DialogActions>
+          </DialogPanel>
+        </DialogBackdrop>
       )}
     </div>
   )

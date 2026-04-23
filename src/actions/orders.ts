@@ -351,7 +351,7 @@ export async function listAdminOrders() {
   }))
 }
 
-export async function closeOrder(orderId: string) {
+export async function closeOrder(orderId: string, options?: { sendDiscord?: boolean }) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -371,8 +371,10 @@ export async function closeOrder(orderId: string) {
     data: { status: 'CLOSED' },
   })
 
-  // Fire-and-forget: send Discord QR code DMs to participants
-  const discordResult = await sendOrderQrCodes(orderId).catch(() => null)
+  const sendDiscord = options?.sendDiscord ?? true
+  const discordResult = sendDiscord
+    ? await sendOrderQrCodes(orderId).catch(() => null)
+    : null
 
   return { success: true, discord: discordResult }
 }
