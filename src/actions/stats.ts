@@ -79,11 +79,7 @@ function aggregateSpending(orders: Awaited<ReturnType<typeof fetchClosedOrders>>
       const summary = summaries.find(s => s.personId === person.id)
       if (!summary || summary.withFees <= 0) continue
 
-      // Hosts absorb any guests they covered in this order
-      const hostedGuestsTotal = order.people
-        .filter(g => g.hostUserId === person.userId && isGuestRow(g))
-        .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
-      const chargeable = summary.withFees + hostedGuestsTotal
+      const chargeable = summary.withFees
 
       const key = person.userId ?? `legacy:${person.name}`
       const existing = map.get(key)
