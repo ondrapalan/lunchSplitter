@@ -35,7 +35,7 @@ interface PeopleSectionProps {
   onUpdatePersonHost?: (personId: string, hostUserId: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
-  onAddItem: (personId: string, name: string, price: number) => void
+  onAddItem: (personId: string, name: string, price: number, options?: { isPackaging?: boolean }) => void
   onUpdateItem: (personId: string, itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (personId: string, itemId: string) => void
   onFlushItem?: (personId: string, itemId: string) => void
@@ -174,7 +174,7 @@ export function PeopleSection({
             onEditMyItems={onEditMyItems}
             onRemovePerson={() => onRemovePerson(person.id)}
             onUpdateName={name => onUpdatePersonName(person.id, name)}
-            onAddItem={(name, price) => onAddItem(person.id, name, price)}
+            onAddItem={(name, price, options) => onAddItem(person.id, name, price, options)}
             onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
             onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
             onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}

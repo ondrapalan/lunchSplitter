@@ -206,6 +206,7 @@ export async function getFunStats(): Promise<FunStat[]> {
       if (isGuestRow(person)) continue
       const name = person.user?.displayName ?? person.name
       for (const item of person.items) {
+        if (item.isPackaging) continue
         const key = `${person.userId ?? person.name}|${item.name.toLowerCase()}|${restaurantName.toLowerCase()}`
         const existing = itemRestaurantCounts.get(key)
         if (existing) {
@@ -235,18 +236,19 @@ export async function getFunStats(): Promise<FunStat[]> {
     for (const person of order.people) {
       if (isGuestRow(person)) continue
       const key = person.userId ?? `legacy:${person.name}`
+      const foodItems = person.items.filter(i => !i.isPackaging)
       const existing = personItems.get(key)
       if (existing) {
-        for (const item of person.items) {
+        for (const item of foodItems) {
           existing.uniqueItems.add(item.name.toLowerCase())
           existing.totalItems += 1
         }
       } else {
-        const uniqueItems = new Set(person.items.map(i => i.name.toLowerCase()))
+        const uniqueItems = new Set(foodItems.map(i => i.name.toLowerCase()))
         personItems.set(key, {
           name: person.user?.displayName ?? person.name,
           uniqueItems,
-          totalItems: person.items.length,
+          totalItems: foodItems.length,
         })
       }
     }
@@ -271,6 +273,7 @@ export async function getFunStats(): Promise<FunStat[]> {
       if (isGuestRow(person)) continue
       const key = person.userId ?? `legacy:${person.name}`
       for (const item of person.items) {
+        if (item.isPackaging) continue
         if (item.sharedWith.length > 0) {
           const existing = shareCount.get(key)
           if (existing) {
@@ -359,18 +362,19 @@ export async function getFunStats(): Promise<FunStat[]> {
     for (const person of order.people) {
       if (isGuestRow(person)) continue
       const key = person.userId ?? `legacy:${person.name}`
+      const foodItems = person.items.filter(i => !i.isPackaging)
       const existing = personAvgPrice.get(key)
       if (existing) {
-        for (const item of person.items) {
+        for (const item of foodItems) {
           existing.totalPrice += item.price
           existing.itemCount += 1
         }
       } else {
-        const totalPrice = person.items.reduce((sum, i) => sum + i.price, 0)
+        const totalPrice = foodItems.reduce((sum, i) => sum + i.price, 0)
         personAvgPrice.set(key, {
           name: person.user?.displayName ?? person.name,
           totalPrice,
-          itemCount: person.items.length,
+          itemCount: foodItems.length,
         })
       }
     }
@@ -456,10 +460,11 @@ export async function getFunStats(): Promise<FunStat[]> {
   for (const order of orders) {
     for (const person of order.people) {
       if (isGuestRow(person)) continue
-      if (!mostItems || person.items.length > mostItems.count) {
+      const foodCount = person.items.filter(i => !i.isPackaging).length
+      if (!mostItems || foodCount > mostItems.count) {
         mostItems = {
           name: person.user?.displayName ?? person.name,
-          count: person.items.length,
+          count: foodCount,
           restaurantName: order.restaurant.name,
         }
       }
@@ -509,6 +514,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     for (const person of order.people) {
       if (isGuestRow(person)) continue
       for (const item of person.items) {
+        if (item.isPackaging) continue
         const key = item.name.toLowerCase()
         itemPopularity.set(key, (itemPopularity.get(key) ?? 0) + 1)
       }

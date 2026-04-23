@@ -8,7 +8,7 @@ import { getOrderAccess } from '~/lib/orderAccess'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { sendOrderQrCodes } from '~/actions/discord'
 
-export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number }[]> {
+export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number; isPackaging: boolean }[]> {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
@@ -20,16 +20,16 @@ export async function getItemsByRestaurant(restaurantName: string): Promise<{ na
         },
       },
     },
-    select: { name: true, price: true },
+    select: { name: true, price: true, isPackaging: true },
     orderBy: { person: { order: { createdAt: 'desc' } } },
     take: 500,
   })
 
-  const seen = new Map<string, { name: string; price: number }>()
+  const seen = new Map<string, { name: string; price: number; isPackaging: boolean }>()
   for (const item of items) {
     const key = item.name.toLowerCase()
     if (!seen.has(key)) {
-      seen.set(key, { name: item.name, price: item.price })
+      seen.set(key, { name: item.name, price: item.price, isPackaging: item.isPackaging })
     }
   }
 

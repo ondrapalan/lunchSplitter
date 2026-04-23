@@ -46,7 +46,7 @@ describe('generateCopySummary', () => {
       people: [
         {
           id: 'domca', name: 'Domca', items: [
-            { id: 'i1', name: 'Grilled roastbeef', price: 164, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i1', name: 'Grilled roastbeef', price: 164, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
       ],

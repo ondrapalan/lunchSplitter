@@ -39,30 +39,30 @@ describe('calculatePersonSummaries', () => {
       people: [
         {
           id: 'domca', name: 'Domca', items: [
-            { id: 'i1', name: 'Grilled roastbeef', price: 164, discountPercent: null, sharedWith: [], customShares: null },
-            { id: 'i2', name: 'Parizska rychlovka', price: 69, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i1', name: 'Grilled roastbeef', price: 164, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+            { id: 'i2', name: 'Parizska rychlovka', price: 69, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
         {
           id: 'bary', name: 'Bary', items: [
-            { id: 'i3', name: 'Sweet chili', price: 129, discountPercent: null, sharedWith: [], customShares: null },
-            { id: 'i4', name: 'Caesar', price: 154, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i3', name: 'Sweet chili', price: 129, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+            { id: 'i4', name: 'Caesar', price: 154, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
         {
           id: 'ja', name: 'Ja', items: [
-            { id: 'i5', name: 'Sweet chili', price: 129, discountPercent: null, sharedWith: [], customShares: null },
-            { id: 'i6', name: 'Parizska', price: 139, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i5', name: 'Sweet chili', price: 129, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+            { id: 'i6', name: 'Parizska', price: 139, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
         {
           id: 'lukas', name: 'Lukas', items: [
-            { id: 'i7', name: 'Caesar menu', price: 292, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i7', name: 'Caesar menu', price: 292, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
         {
           id: 'jira', name: 'Jira', items: [
-            { id: 'i8', name: 'Caesar menu', price: 292, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i8', name: 'Caesar menu', price: 292, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
       ],
@@ -105,7 +105,7 @@ describe('calculatePersonSummaries', () => {
       people: [
         {
           id: 'a', name: 'Alice', items: [
-            { id: 'i1', name: 'Family Menu', price: 300, discountPercent: null, sharedWith: ['b', 'c'], customShares: null },
+            { id: 'i1', name: 'Family Menu', price: 300, discountPercent: null, isPackaging: false, sharedWith: ['b', 'c'], customShares: null },
           ],
         },
         { id: 'b', name: 'Bob', items: [] },
@@ -127,8 +127,8 @@ describe('calculatePersonSummaries', () => {
       people: [
         {
           id: 'a', name: 'Alice', items: [
-            { id: 'i1', name: 'Regular', price: 100, discountPercent: null, sharedWith: [], customShares: null },
-            { id: 'i2', name: 'Special', price: 100, discountPercent: 20, sharedWith: [], customShares: null },
+            { id: 'i1', name: 'Regular', price: 100, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+            { id: 'i2', name: 'Special', price: 100, discountPercent: 20, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
       ],
@@ -151,6 +151,7 @@ describe('calculatePersonSummaries', () => {
             {
               id: 'i1', name: 'Family Menu', price: 400,
               discountPercent: null,
+              isPackaging: false,
               sharedWith: ['b'],
               customShares: { a: 250, b: 150 },
             },
@@ -176,7 +177,7 @@ describe('calculatePersonSummaries', () => {
       people: [
         {
           id: 'a', name: 'Alice', items: [
-            { id: 'i1', name: 'Lunch', price: 200, discountPercent: null, sharedWith: [], customShares: null },
+            { id: 'i1', name: 'Lunch', price: 200, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
           ],
         },
       ],

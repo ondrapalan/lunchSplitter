@@ -17,6 +17,7 @@ interface ItemChanges {
   name?: string
   price?: number
   discountPercent?: number | null
+  isPackaging?: boolean
   sharedWith?: string[]
   customShares?: Record<string, number> | null
 }
@@ -88,7 +89,7 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     }
   }, [enabled, onUpdatedAt])
 
-  const saveAddItem = useCallback((personId: string, item: { id: string; name: string; price: number; discountPercent: number | null }) => {
+  const saveAddItem = useCallback((personId: string, item: { id: string; name: string; price: number; discountPercent: number | null; isPackaging?: boolean }) => {
     execSave(() => addItemToOrder(orderId, personId, item))
   }, [orderId, execSave])
 

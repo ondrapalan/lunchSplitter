@@ -46,6 +46,7 @@ const PriceHint = styled.span`
 export interface ItemSuggestion {
   name: string
   price: number
+  isPackaging?: boolean
 }
 
 interface ItemSuggestProps {
@@ -139,7 +140,7 @@ export function ItemSuggest({ value, onChange, onSelect, suggestions, onKeyDown,
                 setOpen(false)
               }}
             >
-              <span>{s.name}</span>
+              <span>{s.name}{s.isPackaging && ' 📦'}</span>
               <PriceHint>{s.price} CZK</PriceHint>
             </Option>
           ))}

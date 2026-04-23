@@ -117,12 +117,19 @@ export function useLunchSession(initialSession?: LunchSession) {
     }))
   }, [])
 
-  const addItem = useCallback((personId: string, name: string, price: number, id?: string) => {
+  const addItem = useCallback((
+    personId: string,
+    name: string,
+    price: number,
+    id?: string,
+    options?: { isPackaging?: boolean },
+  ) => {
     const item: Item = {
       id: id ?? generateId(),
       name,
       price,
       discountPercent: null,
+      isPackaging: options?.isPackaging ?? false,
       sharedWith: [],
       customShares: null,
     }

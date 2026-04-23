@@ -116,6 +116,7 @@ model OrderItem {
   name            String
   price           Float
   discountPercent Float?
+  isPackaging     Boolean          @default(false)
   sortOrder       Int
   person          OrderPerson      @relation(fields: [personId], references: [id], onDelete: Cascade)
   personId        String

@@ -262,8 +262,9 @@ export default function AdminGuestsPage() {
         </Form>
       </Card>
 
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
         <Link href="/admin/guests/backfill">Backfill legacy free-text guests →</Link>
+        <Link href="/admin/items">Packaging / item backfill →</Link>
       </div>
 
       <SectionTitle>Existing Guests</SectionTitle>

@@ -23,9 +23,25 @@ const Row = styled.div`
   }
 `
 
-const ItemName = styled.span`
+const ItemName = styled.span<{ $packaging?: boolean }>`
   flex: 1;
-  color: ${({ theme }) => theme.colors.text};
+  color: ${({ $packaging, theme }) => $packaging ? theme.colors.textDim : theme.colors.text};
+  font-style: ${({ $packaging }) => $packaging ? 'italic' : 'normal'};
+`
+
+const PackagingToggle = styled.button<{ $on: boolean }>`
+  background: ${({ $on, theme }) => $on ? withAlpha(theme.colors.secondary, 0.2) : 'transparent'};
+  color: ${({ $on, theme }) => $on ? theme.colors.secondary : theme.colors.textDim};
+  border: 1px solid ${({ $on, theme }) => $on ? theme.colors.secondary : theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  padding: 2px 6px;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  cursor: pointer;
+  line-height: 1;
+
+  &:hover {
+    opacity: 0.8;
+  }
 `
 
 const ItemPrice = styled.span`
@@ -130,7 +146,10 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, edita
     <div>
       <Row>
         <ItemDetails>
-          <ItemName>{item.name}</ItemName>
+          <ItemName $packaging={item.isPackaging}>
+            {item.isPackaging && '📦 '}
+            {item.name}
+          </ItemName>
           {item.sharedWith.length > 0 && (
             <SharedBadge>
               Shared with: {item.sharedWith.map(id => allPeople.find(p => p.id === id)?.name).filter(Boolean).join(', ')}
@@ -169,6 +188,14 @@ export function ItemRow({ item, globalDiscountPercent, allPeople, ownerId, edita
         )}
         {editable && (
           <>
+            <PackagingToggle
+              type="button"
+              $on={item.isPackaging}
+              onClick={() => onUpdate({ isPackaging: !item.isPackaging })}
+              title={item.isPackaging ? 'Packaging — click to unmark' : 'Mark as packaging (box, container)'}
+            >
+              📦
+            </PackagingToggle>
             {!hideShareControls && (
               <Button variant="ghost" size="sm" onClick={() => setShowShareSelector(!showShareSelector)}>
                 {showShareSelector ? 'Hide' : 'Share'}

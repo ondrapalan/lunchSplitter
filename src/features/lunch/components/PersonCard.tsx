@@ -138,7 +138,7 @@ interface PersonCardProps {
   onEditMyItems?: () => void
   onRemovePerson: () => void
   onUpdateName: (name: string) => void
-  onAddItem: (name: string, price: number) => void
+  onAddItem: (name: string, price: number, options?: { isPackaging?: boolean }) => void
   onUpdateItem: (itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (itemId: string) => void
   onFlushItem?: (itemId: string) => void
@@ -213,7 +213,7 @@ export function PersonCard({
   }
 
   const handleSuggestionSelect = (suggestion: ItemSuggestion) => {
-    onAddItem(suggestion.name, suggestion.price)
+    onAddItem(suggestion.name, suggestion.price, { isPackaging: suggestion.isPackaging })
     setNewItemName('')
     setNewItemPrice('')
   }

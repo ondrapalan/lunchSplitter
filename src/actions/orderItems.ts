@@ -56,7 +56,7 @@ async function getCreatorOrAdmin(orderId: string) {
 export async function addItemToOrder(
   orderId: string,
   personId: string,
-  item: { id: string; name: string; price: number; discountPercent: number | null },
+  item: { id: string; name: string; price: number; discountPercent: number | null; isPackaging?: boolean },
 ) {
   const { person } = await getOrderAndAuthorize(orderId, personId)
 
@@ -69,6 +69,7 @@ export async function addItemToOrder(
         name: item.name,
         price: item.price,
         discountPercent: item.discountPercent,
+        isPackaging: item.isPackaging ?? false,
         sortOrder,
         personId,
       },
@@ -116,6 +117,7 @@ export async function updateItemInOrder(
     name?: string
     price?: number
     discountPercent?: number | null
+    isPackaging?: boolean
     sharedWith?: string[]
     customShares?: Record<string, number> | null
   },
@@ -133,10 +135,11 @@ export async function updateItemInOrder(
   if (!existingItem || existingItem.personId !== personId) throw new Error('Item not found')
 
   const updatedOrder = await prisma.$transaction(async (tx) => {
-    const itemUpdate: { name?: string; price?: number; discountPercent?: number | null } = {}
+    const itemUpdate: { name?: string; price?: number; discountPercent?: number | null; isPackaging?: boolean } = {}
     if (changes.name !== undefined) itemUpdate.name = changes.name
     if (changes.price !== undefined) itemUpdate.price = changes.price
     if ('discountPercent' in changes) itemUpdate.discountPercent = changes.discountPercent
+    if (changes.isPackaging !== undefined) itemUpdate.isPackaging = changes.isPackaging
 
     if (Object.keys(itemUpdate).length > 0) {
       await tx.orderItem.update({ where: { id: itemId }, data: itemUpdate })

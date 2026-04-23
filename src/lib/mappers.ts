@@ -53,6 +53,7 @@ export function prismaOrderToLunchSession(order: PrismaOrderWithRelations): Lunc
           name: i.name,
           price: i.price,
           discountPercent: i.discountPercent,
+          isPackaging: i.isPackaging,
           sharedWith,
           customShares,
         } satisfies Item
@@ -96,6 +97,7 @@ export function lunchSessionToPrismaInput(session: LunchSession) {
             name: item.name,
             price: item.price,
             discountPercent: item.discountPercent,
+            isPackaging: item.isPackaging,
             sortOrder: itemIndex,
             sharedWith: {
               create: item.sharedWith.map(personId => ({

@@ -306,10 +306,10 @@ function OrderContent({
     onUpdatedAt: (val) => { latestUpdatedAt.current = val },
   })
 
-  const handleAutoSaveAddItem = useCallback((personId: string, name: string, price: number) => {
+  const handleAutoSaveAddItem = useCallback((personId: string, name: string, price: number, options?: { isPackaging?: boolean }) => {
     const itemId = crypto.randomUUID()
-    addItem(personId, name, price, itemId)
-    autoSave.saveAddItem(personId, { id: itemId, name, price, discountPercent: null })
+    addItem(personId, name, price, itemId, options)
+    autoSave.saveAddItem(personId, { id: itemId, name, price, discountPercent: null, isPackaging: options?.isPackaging ?? false })
   }, [addItem, autoSave])
 
   const handleAutoSaveRemoveItem = useCallback((personId: string, itemId: string) => {
@@ -539,7 +539,10 @@ function OrderContent({
         onUpdatePersonHost={isEditing ? handleAutoSaveUpdatePersonHost : updatePersonHost}
         onRemovePerson={isEditing ? handleAutoSaveRemovePerson : removePerson}
         onUpdatePersonName={isEditing ? handleAutoSaveUpdatePersonName : updatePersonName}
-        onAddItem={isEditing || isEditingMyItems ? handleAutoSaveAddItem : addItem}
+        onAddItem={isEditing || isEditingMyItems
+          ? handleAutoSaveAddItem
+          : (personId, name, price, options) => addItem(personId, name, price, undefined, options)
+        }
         onUpdateItem={isEditing || isEditingMyItems ? handleAutoSaveUpdateItem : updateItem}
         onRemoveItem={isEditing || isEditingMyItems ? handleAutoSaveRemoveItem : removeItem}
         onFlushItem={(isEditing || isEditingMyItems)

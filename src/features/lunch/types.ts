@@ -9,6 +9,7 @@ export interface Item {
   name: string
   price: number
   discountPercent: number | null // null = use global discount
+  isPackaging: boolean
   sharedWith: string[] // person IDs who also share this item (excludes owner)
   customShares: Record<string, number> | null // null = equal split, or personId -> pre-discount amount
 }
