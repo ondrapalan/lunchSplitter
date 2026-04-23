@@ -338,16 +338,26 @@ export function PersonCard({
             </AddItemRow>
           )}
 
-          {summary && (
-            <PersonSubtotals>
-              <SubtotalItem>Subtotal: {formatCurrency(summary.subtotal)}</SubtotalItem>
-              <SubtotalItem>After discount: {formatCurrency(summary.afterDiscount)}</SubtotalItem>
-              <SubtotalItem $final>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
-            </PersonSubtotals>
-          )}
-          {hostedGuestNames && hostedGuestNames.length > 0 && chargeableAmount !== null && chargeableAmount !== undefined && (
+          {summary && (() => {
+            const hasHostedGuests = !!hostedGuestNames && hostedGuestNames.length > 0 && chargeableAmount !== null && chargeableAmount !== undefined
+            // "With fees" is only the FINAL bill when the person isn't hosting anyone and isn't a guest themselves.
+            const withFeesIsFinal = !hasHostedGuests && !isGuestPerson
+            return (
+              <PersonSubtotals>
+                <SubtotalItem>Subtotal: {formatCurrency(summary.subtotal)}</SubtotalItem>
+                <SubtotalItem>After discount: {formatCurrency(summary.afterDiscount)}</SubtotalItem>
+                <SubtotalItem $final={withFeesIsFinal}>
+                  With fees: {formatCurrency(summary.withFees)}
+                </SubtotalItem>
+                {hasHostedGuests && (
+                  <SubtotalItem $final>Total: {formatCurrency(chargeableAmount)}</SubtotalItem>
+                )}
+              </PersonSubtotals>
+            )
+          })()}
+          {hostedGuestNames && hostedGuestNames.length > 0 && (
             <HostingNote>
-              Hosting {hostedGuestNames.join(', ')} — total to pay {formatCurrency(chargeableAmount)}
+              Hosting {hostedGuestNames.join(', ')}
             </HostingNote>
           )}
           {isGuestPerson && (
