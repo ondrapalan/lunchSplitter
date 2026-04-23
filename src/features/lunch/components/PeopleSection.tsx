@@ -117,11 +117,11 @@ export function PeopleSection({
   }, [registeredUsers, people])
 
   const hostedGuestsByHostId = useMemo(() => {
-    const map = new Map<string, string[]>()
+    const map = new Map<string, Array<{ id: string; name: string }>>()
     for (const p of people) {
       if (!isGuest(p) || !p.hostUserId) continue
       const arr = map.get(p.hostUserId) ?? []
-      arr.push(p.name)
+      arr.push({ id: p.id, name: p.name })
       map.set(p.hostUserId, arr)
     }
     return map
@@ -140,19 +140,21 @@ export function PeopleSection({
         const hostedByName = personIsGuest && person.hostUserId
           ? userDisplayNameById.get(person.hostUserId) ?? null
           : null
-        const hostedGuestNames = !personIsGuest && person.userId
+        const hostedGuestEntries = !personIsGuest && person.userId
           ? hostedGuestsByHostId.get(person.userId) ?? []
           : []
+        const hostedGuests = hostedGuestEntries.map(g => ({
+          name: g.name,
+          amount: summaries.find(s => s.personId === g.id)?.withFees ?? 0,
+        }))
 
         // Chargeable amount: guests owe 0, hosts owe their own + hosted guests' withFees
         let chargeableAmount: number | null = null
         if (personIsGuest) {
           chargeableAmount = 0
-        } else if (hostedGuestNames.length > 0) {
+        } else if (hostedGuests.length > 0) {
           const ownWithFees = summaries.find(s => s.personId === person.id)?.withFees ?? 0
-          const guestsTotal = people
-            .filter(p => isGuest(p) && p.hostUserId === person.userId)
-            .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+          const guestsTotal = hostedGuests.reduce((sum, g) => sum + g.amount, 0)
           chargeableAmount = ownWithFees + guestsTotal
         }
 
@@ -187,7 +189,7 @@ export function PeopleSection({
             paymentConfirmed={paymentConfirmations?.[person.id]?.confirmed}
             onTogglePayment={onTogglePayment ? () => onTogglePayment(person.id) : undefined}
             hostedByName={hostedByName}
-            hostedGuestNames={hostedGuestNames}
+            hostedGuests={hostedGuests}
             chargeableAmount={chargeableAmount}
             hostOptions={registeredUsers.map(u => ({ id: u.id, displayName: u.displayName }))}
             onChangeHost={onUpdatePersonHost ? (hostUserId: string) => onUpdatePersonHost(person.id, hostUserId) : undefined}

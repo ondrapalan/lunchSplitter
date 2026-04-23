@@ -155,7 +155,7 @@ interface PersonCardProps {
   onTogglePayment?: () => void
   // Guest / host props
   hostedByName?: string | null
-  hostedGuestNames?: string[]
+  hostedGuests?: Array<{ name: string; amount: number }>
   chargeableAmount?: number | null
   hostOptions?: HostOption[]
   onChangeHost?: (hostUserId: string) => void
@@ -190,7 +190,7 @@ export function PersonCard({
   paymentConfirmed,
   onTogglePayment,
   hostedByName,
-  hostedGuestNames,
+  hostedGuests,
   chargeableAmount,
   hostOptions,
   onChangeHost,
@@ -348,7 +348,7 @@ export function PersonCard({
           )}
 
           {summary && (() => {
-            const hasHostedGuests = !!hostedGuestNames && hostedGuestNames.length > 0 && chargeableAmount !== null && chargeableAmount !== undefined
+            const hasHostedGuests = !!hostedGuests && hostedGuests.length > 0 && chargeableAmount !== null && chargeableAmount !== undefined
             // "With fees" is only the FINAL bill when the person isn't hosting anyone and isn't a guest themselves.
             const withFeesIsFinal = !hasHostedGuests && !isGuestPerson
             return (
@@ -364,9 +364,9 @@ export function PersonCard({
               </PersonSubtotals>
             )
           })()}
-          {hostedGuestNames && hostedGuestNames.length > 0 && (
+          {hostedGuests && hostedGuests.length > 0 && (
             <HostingNote>
-              Hosting {hostedGuestNames.join(', ')}
+              Hosting {hostedGuests.map(g => `${g.name} (${formatCurrency(g.amount)})`).join(', ')}
             </HostingNote>
           )}
           {isGuestPerson && (
