@@ -18,6 +18,7 @@ import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '../u
 
 const PersonSubtotals = styled.div`
   display: flex;
+  align-items: baseline;
   gap: ${({ theme }) => theme.spacing.md};
   margin-top: ${({ theme }) => theme.spacing.sm};
   padding-top: ${({ theme }) => theme.spacing.sm};
@@ -46,6 +47,13 @@ const GuestBadge = styled.span`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 400;
+`
+
+const GuestAmount = styled.span`
+  color: ${({ theme }) => theme.colors.textDim};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 500;
+  margin-left: ${({ theme }) => theme.spacing.sm};
 `
 
 const PaidBadge = styled.span`
@@ -276,6 +284,7 @@ export function PersonCard({
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
             {isGuestPerson && <GuestBadge> (guest — hosted by {hostedByName})</GuestBadge>}
+            {isGuestPerson && summary && <GuestAmount>{formatCurrency(summary.withFees)}</GuestAmount>}
             {paymentConfirmed && <PaidBadge> (paid)</PaidBadge>}
           </CardTitle>
         )}
