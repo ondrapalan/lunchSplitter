@@ -46,7 +46,10 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 0,
           orderId: 'order-1',
           userId: 'user-alice',
+          guestId: null,
+          hostUserId: null,
           user: { displayName: 'Alice Updated' },
+          guest: null,
           items: [
             {
               id: 'item-1',
@@ -70,7 +73,10 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 1,
           orderId: 'order-1',
           userId: null,
+          guestId: null,
+          hostUserId: null,
           user: null,
+          guest: null,
           items: [],
         },
       ],
@@ -106,7 +112,10 @@ describe('prismaOrderToLunchSession', () => {
           sortOrder: 0,
           orderId: 'order-1',
           userId: null,
+          guestId: null,
+          hostUserId: null,
           user: null,
+          guest: null,
           items: [
             {
               id: 'item-1',

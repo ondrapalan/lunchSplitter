@@ -1,4 +1,4 @@
-import type { FeeAdjustment, LunchSession, PersonSummary } from '../types'
+import type { FeeAdjustment, LunchSession, Person, PersonSummary } from '../types'
 
 export function calculateNetFees(feeAdjustments: FeeAdjustment[]): number {
   return feeAdjustments.reduce((sum, fee) => sum + fee.amount, 0)
@@ -71,4 +71,38 @@ export function calculatePersonSummaries(session: LunchSession): PersonSummary[]
       withFees: afterDiscount + feePerPerson,
     }
   })
+}
+
+export function isGuest(person: Person): boolean {
+  return !!person.guestId || !!person.newGuest
+}
+
+/**
+ * Returns the amount a given person is actually on the hook to pay:
+ * - Guests owe 0 (their host covers them).
+ * - Registered users owe their own share + the shares of every guest hosted by them in this session.
+ */
+export function calculateChargeableAmount(
+  personId: string,
+  session: LunchSession,
+  summaries?: PersonSummary[],
+): number {
+  const allSummaries = summaries ?? calculatePersonSummaries(session)
+  const person = session.people.find(p => p.id === personId)
+  if (!person) return 0
+  if (isGuest(person)) return 0
+
+  const ownSummary = allSummaries.find(s => s.personId === personId)
+  let total = ownSummary?.withFees ?? 0
+
+  const hostUserId = person.userId
+  if (hostUserId) {
+    for (const other of session.people) {
+      if (!isGuest(other)) continue
+      if (other.hostUserId !== hostUserId) continue
+      const s = allSummaries.find(ss => ss.personId === other.id)
+      total += s?.withFees ?? 0
+    }
+  }
+  return total
 }

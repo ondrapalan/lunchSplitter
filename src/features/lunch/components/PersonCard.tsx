@@ -11,6 +11,7 @@ import { SharedItemRef } from './SharedItemRef'
 import { ItemSuggest } from './ItemSuggest'
 import type { ItemSuggestion } from './ItemSuggest'
 import { QrPlatba } from './QrPlatba'
+import { HostPicker, type HostOption } from './HostPicker'
 import type { Item, Person, PersonSummary } from '../types'
 import { formatCurrency } from '../utils/formatters'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '../utils/qrPlatba'
@@ -41,10 +42,23 @@ const RegisteredBadge = styled.span`
   font-weight: 400;
 `
 
+const GuestBadge = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 400;
+`
+
 const PaidBadge = styled.span`
   color: ${({ theme }) => theme.colors.positive};
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 500;
+`
+
+const HostingNote = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.xs};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  color: ${({ theme }) => theme.colors.textDim};
+  font-style: italic;
 `
 
 const PaymentOverlay = styled.button<{ $confirmed: boolean }>`
@@ -131,6 +145,12 @@ interface PersonCardProps {
   showCopyQr?: boolean
   paymentConfirmed?: boolean
   onTogglePayment?: () => void
+  // Guest / host props
+  hostedByName?: string | null
+  hostedGuestNames?: string[]
+  chargeableAmount?: number | null
+  hostOptions?: HostOption[]
+  onChangeHost?: (hostUserId: string) => void
 }
 
 export function PersonCard({
@@ -161,6 +181,11 @@ export function PersonCard({
   showCopyQr,
   paymentConfirmed,
   onTogglePayment,
+  hostedByName,
+  hostedGuestNames,
+  chargeableAmount,
+  hostOptions,
+  onChangeHost,
 }: PersonCardProps) {
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
@@ -194,13 +219,17 @@ export function PersonCard({
         .map(item => ({ item, owner: p }))
     )
 
+  const isGuestPerson = !!hostedByName
+  const qrAmount = chargeableAmount ?? summary?.withFees ?? 0
+
   // QR Platba: show when order is closed, bank account is set, not creator's own card, amount > 0
+  // Guests never show their own QR — their host covers them.
   // Creator/admin sees QR on all participant cards; participants see only their own
   const showQr = orderStatus === 'CLOSED'
     && !!bankAccountNumber
     && person.id !== creatorPersonId
-    && !!summary
-    && summary.withFees > 0
+    && !isGuestPerson
+    && qrAmount > 0
     && !!orderId
     && (isCreator || currentUserPersonId === person.id)
 
@@ -211,7 +240,7 @@ export function PersonCard({
       const variableSymbol = generateVariableSymbol(orderId, person.id)
       spdString = buildSpdString({
         iban,
-        amount: summary!.withFees,
+        amount: qrAmount,
         variableSymbol,
         message: restaurantName ?? '',
       })
@@ -246,6 +275,7 @@ export function PersonCard({
           >
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
+            {isGuestPerson && <GuestBadge> (guest — hosted by {hostedByName})</GuestBadge>}
             {paymentConfirmed && <PaidBadge> (paid)</PaidBadge>}
           </CardTitle>
         )}
@@ -315,12 +345,32 @@ export function PersonCard({
               <SubtotalItem $final>With fees: {formatCurrency(summary.withFees)}</SubtotalItem>
             </PersonSubtotals>
           )}
+          {hostedGuestNames && hostedGuestNames.length > 0 && chargeableAmount !== null && chargeableAmount !== undefined && (
+            <HostingNote>
+              Hosting {hostedGuestNames.join(', ')} — total to pay {formatCurrency(chargeableAmount)}
+            </HostingNote>
+          )}
+          {isGuestPerson && (
+            <HostingNote>
+              Covered by {hostedByName}
+              {canEditItems && onChangeHost && hostOptions && person.hostUserId && (
+                <span style={{ marginLeft: 8 }}>
+                  <HostPicker
+                    value={person.hostUserId}
+                    onChange={onChangeHost}
+                    options={hostOptions}
+                    label="Change host"
+                  />
+                </span>
+              )}
+            </HostingNote>
+          )}
         </CardMainContent>
 
         {spdString && (
           <QrPlatba
             spdString={spdString}
-            amount={summary!.withFees}
+            amount={qrAmount}
             showCopyButton={showCopyQr}
             overlay={isCreator && onTogglePayment ? (
               <PaymentOverlay

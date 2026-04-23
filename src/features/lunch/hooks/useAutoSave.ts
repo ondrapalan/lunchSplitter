@@ -7,6 +7,8 @@ import {
   addPersonToOrder,
   removePersonFromOrder,
   updatePersonInOrder,
+  addGuestToOrder,
+  updatePersonHostInOrder,
 } from '~/actions/orderItems'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -171,6 +173,19 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     execSave(() => updatePersonInOrder(orderId, personId, name))
   }, [orderId, execSave])
 
+  const saveAddGuest = useCallback((personId: string, params: {
+    name: string
+    hostUserId: string
+    guestId?: string
+    newGuest?: { name: string; defaultHostUserId: string }
+  }) => {
+    execSave(() => addGuestToOrder(orderId, personId, params))
+  }, [orderId, execSave])
+
+  const saveUpdatePersonHost = useCallback((personId: string, hostUserId: string) => {
+    execSave(() => updatePersonHostInOrder(orderId, personId, hostUserId))
+  }, [orderId, execSave])
+
   return {
     saveStatus,
     saveAddItem,
@@ -181,5 +196,7 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     saveAddPerson,
     saveRemovePerson,
     saveUpdatePersonName,
+    saveAddGuest,
+    saveUpdatePersonHost,
   }
 }

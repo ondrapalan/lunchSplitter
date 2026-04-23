@@ -4,7 +4,7 @@ import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
-import type { StatPeriod, SpendingEntry, PersonalStats, FunStat } from '~/features/stats/types'
+import type { StatPeriod, SpendingEntry, PersonalStats, FunStat, HospitalityEntry, VisitorEntry } from '~/features/stats/types'
 
 function getPeriodStart(period: StatPeriod): Date | null {
   if (period === 'all') return null
@@ -30,6 +30,7 @@ const fullOrderInclude = {
     orderBy: { sortOrder: 'asc' as const },
     include: {
       user: { select: { displayName: true } },
+      guest: { select: { name: true } },
       items: {
         orderBy: { sortOrder: 'asc' as const },
         include: {
@@ -39,6 +40,12 @@ const fullOrderInclude = {
       },
     },
   },
+}
+
+// Guests are tracked separately — their consumption belongs to their host, so we
+// skip them in per-person consumption leaderboards.
+function isGuestRow(person: { guestId: string | null }): boolean {
+  return person.guestId !== null
 }
 
 async function fetchClosedOrders(period: StatPeriod) {
@@ -68,19 +75,26 @@ function aggregateSpending(orders: Awaited<ReturnType<typeof fetchClosedOrders>>
     const summaries = calculatePersonSummaries(session)
 
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       const summary = summaries.find(s => s.personId === person.id)
       if (!summary || summary.withFees <= 0) continue
 
-      const key = person.userId ?? `guest:${person.name}`
+      // Hosts absorb any guests they covered in this order
+      const hostedGuestsTotal = order.people
+        .filter(g => g.hostUserId === person.userId && isGuestRow(g))
+        .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+      const chargeable = summary.withFees + hostedGuestsTotal
+
+      const key = person.userId ?? `legacy:${person.name}`
       const existing = map.get(key)
       if (existing) {
-        existing.totalSpent += summary.withFees
+        existing.totalSpent += chargeable
         existing.orderCount += 1
       } else {
         map.set(key, {
           name: person.user?.displayName ?? person.name,
           userId: person.userId,
-          totalSpent: summary.withFees,
+          totalSpent: chargeable,
           orderCount: 1,
         })
       }
@@ -132,12 +146,18 @@ export async function getPersonalStats(): Promise<PersonalStats> {
     const mySummary = summaries.find(s => s.personId === myPerson.id)
     if (!mySummary || mySummary.withFees <= 0) continue
 
-    totalOrders += 1
-    allTimeSpent += mySummary.withFees
+    // Include amounts from any guests I hosted in this order — I actually paid for them.
+    const hostedTotal = order.people
+      .filter(p => isGuestRow(p) && p.hostUserId === session.user.id)
+      .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+    const chargeable = mySummary.withFees + hostedTotal
 
-    if (order.createdAt >= weekStart) weekSpent += mySummary.withFees
-    if (order.createdAt >= monthStart) monthSpent += mySummary.withFees
-    if (order.createdAt >= yearStart) yearSpent += mySummary.withFees
+    totalOrders += 1
+    allTimeSpent += chargeable
+
+    if (order.createdAt >= weekStart) weekSpent += chargeable
+    if (order.createdAt >= monthStart) monthSpent += chargeable
+    if (order.createdAt >= yearStart) yearSpent += chargeable
   }
 
   const avgPerOrder = totalOrders > 0 ? allTimeSpent / totalOrders : 0
@@ -183,6 +203,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   for (const order of orders) {
     const restaurantName = order.restaurant.name
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       const name = person.user?.displayName ?? person.name
       for (const item of person.items) {
         const key = `${person.userId ?? person.name}|${item.name.toLowerCase()}|${restaurantName.toLowerCase()}`
@@ -212,7 +233,8 @@ export async function getFunStats(): Promise<FunStat[]> {
   const personItems = new Map<string, { name: string; uniqueItems: Set<string>; totalItems: number }>()
   for (const order of orders) {
     for (const person of order.people) {
-      const key = person.userId ?? `guest:${person.name}`
+      if (isGuestRow(person)) continue
+      const key = person.userId ?? `legacy:${person.name}`
       const existing = personItems.get(key)
       if (existing) {
         for (const item of person.items) {
@@ -246,7 +268,8 @@ export async function getFunStats(): Promise<FunStat[]> {
   const shareCount = new Map<string, { name: string; count: number }>()
   for (const order of orders) {
     for (const person of order.people) {
-      const key = person.userId ?? `guest:${person.name}`
+      if (isGuestRow(person)) continue
+      const key = person.userId ?? `legacy:${person.name}`
       for (const item of person.items) {
         if (item.sharedWith.length > 0) {
           const existing = shareCount.get(key)
@@ -280,6 +303,7 @@ export async function getFunStats(): Promise<FunStat[]> {
     const lunchSession = prismaOrderToLunchSession(order)
     const summaries = calculatePersonSummaries(lunchSession)
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       const summary = summaries.find(s => s.personId === person.id)
       if (summary && (!biggestOrder || summary.withFees > biggestOrder.amount)) {
         biggestOrder = {
@@ -304,7 +328,8 @@ export async function getFunStats(): Promise<FunStat[]> {
   const participationCount = new Map<string, { name: string; count: number }>()
   for (const order of orders) {
     for (const person of order.people) {
-      const key = person.userId ?? `guest:${person.name}`
+      if (isGuestRow(person)) continue
+      const key = person.userId ?? `legacy:${person.name}`
       const existing = participationCount.get(key)
       if (existing) {
         existing.count += 1
@@ -332,7 +357,8 @@ export async function getFunStats(): Promise<FunStat[]> {
   const personAvgPrice = new Map<string, { name: string; totalPrice: number; itemCount: number }>()
   for (const order of orders) {
     for (const person of order.people) {
-      const key = person.userId ?? `guest:${person.name}`
+      if (isGuestRow(person)) continue
+      const key = person.userId ?? `legacy:${person.name}`
       const existing = personAvgPrice.get(key)
       if (existing) {
         for (const item of person.items) {
@@ -398,6 +424,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   const personRestaurant = new Map<string, { name: string; restaurantName: string; count: number }>()
   for (const order of orders) {
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       const key = `${person.userId ?? person.name}|${order.restaurant.name}`
       const existing = personRestaurant.get(key)
       if (existing) {
@@ -428,6 +455,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   let mostItems: { name: string; count: number; restaurantName: string } | null = null
   for (const order of orders) {
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       if (!mostItems || person.items.length > mostItems.count) {
         mostItems = {
           name: person.user?.displayName ?? person.name,
@@ -479,6 +507,7 @@ export async function getFunStats(): Promise<FunStat[]> {
   const itemPopularity = new Map<string, number>()
   for (const order of orders) {
     for (const person of order.people) {
+      if (isGuestRow(person)) continue
       for (const item of person.items) {
         const key = item.name.toLowerCase()
         itemPopularity.set(key, (itemPopularity.get(key) ?? 0) + 1)
@@ -499,5 +528,116 @@ export async function getFunStats(): Promise<FunStat[]> {
     })
   }
 
+  // --- The Host: most guests hosted ---
+  const hostCount = new Map<string, { name: string; guests: Set<string>; lunches: number }>()
+  for (const order of orders) {
+    for (const person of order.people) {
+      if (!isGuestRow(person) || !person.hostUserId) continue
+      const host = order.people.find(p => p.userId === person.hostUserId)
+      const hostName = host?.user?.displayName ?? host?.name ?? 'Unknown'
+      const entry = hostCount.get(person.hostUserId)
+      if (entry) {
+        entry.lunches += 1
+        if (person.guestId) entry.guests.add(person.guestId)
+      } else {
+        hostCount.set(person.hostUserId, {
+          name: hostName,
+          guests: new Set(person.guestId ? [person.guestId] : []),
+          lunches: 1,
+        })
+      }
+    }
+  }
+  const topHost = Array.from(hostCount.values()).sort((a, b) => b.lunches - a.lunches)[0]
+  if (topHost) {
+    stats.push({
+      title: 'The Host',
+      description: 'Picks up the tab for visitors',
+      subtitle: `Hosted ${topHost.guests.size} different guest${topHost.guests.size === 1 ? '' : 's'}`,
+      personName: topHost.name,
+      value: `${topHost.lunches} guest lunch${topHost.lunches === 1 ? '' : 'es'}`,
+    })
+  }
+
   return stats
+}
+
+export async function getHospitalityLeaderboard(period: StatPeriod): Promise<HospitalityEntry[]> {
+  const authSession = await auth()
+  if (!authSession?.user) throw new Error('Unauthorized')
+
+  const orders = await fetchClosedOrders(period)
+  const map = new Map<string, HospitalityEntry & { guests: Set<string> }>()
+
+  for (const order of orders) {
+    const lunchSession = prismaOrderToLunchSession(order)
+    const summaries = calculatePersonSummaries(lunchSession)
+    for (const person of order.people) {
+      if (!isGuestRow(person) || !person.hostUserId) continue
+      const host = order.people.find(p => p.userId === person.hostUserId)
+      const hostName = host?.user?.displayName ?? host?.name ?? 'Unknown'
+      const covered = summaries.find(s => s.personId === person.id)?.withFees ?? 0
+      const existing = map.get(person.hostUserId)
+      if (existing) {
+        existing.guestLunchCount += 1
+        existing.totalCovered += covered
+        if (person.guestId) existing.guests.add(person.guestId)
+      } else {
+        map.set(person.hostUserId, {
+          hostUserId: person.hostUserId,
+          hostName,
+          guestLunchCount: 1,
+          distinctGuestCount: 0,
+          totalCovered: covered,
+          guests: new Set(person.guestId ? [person.guestId] : []),
+        })
+      }
+    }
+  }
+
+  return Array.from(map.values())
+    .map(e => ({
+      hostUserId: e.hostUserId,
+      hostName: e.hostName,
+      guestLunchCount: e.guestLunchCount,
+      distinctGuestCount: e.guests.size,
+      totalCovered: e.totalCovered,
+    }))
+    .sort((a, b) => b.guestLunchCount - a.guestLunchCount)
+}
+
+export async function getVisitors(): Promise<VisitorEntry[]> {
+  const authSession = await auth()
+  if (!authSession?.user) throw new Error('Unauthorized')
+
+  const guests = await prisma.guest.findMany({
+    select: {
+      id: true,
+      name: true,
+      defaultHostUserId: true,
+      defaultHost: { select: { displayName: true } },
+      orderPersons: {
+        select: {
+          order: { select: { createdAt: true, status: true } },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+  })
+
+  return guests.map(g => {
+    const closedVisits = g.orderPersons.filter(op => op.order.status === 'CLOSED')
+    const lastVisit = closedVisits.reduce<Date | null>((latest, op) => {
+      const d = op.order.createdAt
+      return !latest || d > latest ? d : latest
+    }, null)
+    return {
+      guestId: g.id,
+      name: g.name,
+      defaultHostUserId: g.defaultHostUserId,
+      defaultHostName: g.defaultHost.displayName,
+      visitCount: closedVisits.length,
+      lastVisit: lastVisit?.toISOString() ?? null,
+    }
+  })
 }

@@ -268,3 +268,95 @@ export async function updatePersonInOrder(
 
   return { success: true, updatedAt: orderResult.updatedAt.toISOString() }
 }
+
+export async function addGuestToOrder(
+  orderId: string,
+  personId: string,
+  params: {
+    name: string
+    hostUserId: string
+    guestId?: string
+    newGuest?: { name: string; defaultHostUserId: string }
+  },
+) {
+  const { order } = await getCreatorOrAdmin(orderId)
+
+  const host = await prisma.user.findUnique({ where: { id: params.hostUserId }, select: { id: true } })
+  if (!host) throw new Error('Host not found')
+
+  let guestId = params.guestId
+  if (!guestId && params.newGuest) {
+    const defaultHost = await prisma.user.findUnique({
+      where: { id: params.newGuest.defaultHostUserId },
+      select: { id: true },
+    })
+    if (!defaultHost) throw new Error('Default host not found')
+    const created = await prisma.guest.create({
+      data: {
+        name: params.newGuest.name.trim() || params.name,
+        defaultHostUserId: params.newGuest.defaultHostUserId,
+      },
+      select: { id: true },
+    })
+    guestId = created.id
+  }
+  if (!guestId) throw new Error('Either guestId or newGuest is required')
+
+  const maxSortOrder = order.people.reduce((max, p) => Math.max(max, p.sortOrder), -1)
+
+  const [, orderResult] = await prisma.$transaction([
+    prisma.orderPerson.create({
+      data: {
+        id: personId,
+        name: params.name,
+        sortOrder: maxSortOrder + 1,
+        orderId,
+        guestId,
+        hostUserId: params.hostUserId,
+      },
+    }),
+    prisma.order.update({
+      where: { id: orderId },
+      data: { updatedAt: new Date() },
+      select: { updatedAt: true },
+    }),
+  ])
+
+  return { success: true, personId, guestId, updatedAt: orderResult.updatedAt.toISOString() }
+}
+
+export async function updatePersonHostInOrder(
+  orderId: string,
+  personId: string,
+  hostUserId: string,
+) {
+  const { order } = await getCreatorOrAdmin(orderId)
+
+  const person = await prisma.orderPerson.findUnique({
+    where: { id: personId },
+    select: { guestId: true, orderId: true },
+  })
+  if (!person || person.orderId !== orderId) throw new Error('Person not found in order')
+  if (!person.guestId) throw new Error('Only guest entries can have their host changed')
+
+  const host = await prisma.user.findUnique({ where: { id: hostUserId }, select: { id: true } })
+  if (!host) throw new Error('Host not found')
+
+  if (!order.people.some(p => p.id === personId)) {
+    throw new Error('Person not found in order')
+  }
+
+  const [, orderResult] = await prisma.$transaction([
+    prisma.orderPerson.update({
+      where: { id: personId },
+      data: { hostUserId },
+    }),
+    prisma.order.update({
+      where: { id: orderId },
+      data: { updatedAt: new Date() },
+      select: { updatedAt: true },
+    }),
+  ])
+
+  return { success: true, updatedAt: orderResult.updatedAt.toISOString() }
+}

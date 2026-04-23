@@ -56,6 +56,37 @@ export function useLunchSession(initialSession?: LunchSession) {
     }))
   }, [])
 
+  const addGuest = useCallback((options: {
+    name: string
+    hostUserId: string
+    guestId?: string
+    newGuest?: { name: string; defaultHostUserId: string }
+    id?: string
+  }) => {
+    const person: Person = {
+      id: options.id ?? generateId(),
+      name: options.name,
+      userId: null,
+      guestId: options.guestId ?? null,
+      hostUserId: options.hostUserId,
+      newGuest: options.newGuest ?? null,
+      items: [],
+    }
+    setSession(prev => ({
+      ...prev,
+      people: [...prev.people, person],
+    }))
+  }, [])
+
+  const updatePersonHost = useCallback((personId: string, hostUserId: string) => {
+    setSession(prev => ({
+      ...prev,
+      people: prev.people.map(p =>
+        p.id === personId && (p.guestId || p.newGuest) ? { ...p, hostUserId } : p
+      ),
+    }))
+  }, [])
+
   const removePerson = useCallback((personId: string) => {
     setSession(prev => ({
       ...prev,
@@ -137,6 +168,8 @@ export function useLunchSession(initialSession?: LunchSession) {
     updateFeeAdjustment,
     removeFeeAdjustment,
     addPerson,
+    addGuest,
+    updatePersonHost,
     removePerson,
     updatePersonName,
     addItem,

@@ -25,3 +25,20 @@ export interface FunStat {
   personName: string
   value: string
 }
+
+export interface HospitalityEntry {
+  hostUserId: string
+  hostName: string
+  guestLunchCount: number
+  distinctGuestCount: number
+  totalCovered: number
+}
+
+export interface VisitorEntry {
+  guestId: string
+  name: string
+  defaultHostUserId: string
+  defaultHostName: string
+  visitCount: number
+  lastVisit: string | null
+}

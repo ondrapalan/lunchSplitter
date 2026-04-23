@@ -7,12 +7,15 @@ import { PersonSuggest } from './PersonSuggest'
 import type { UserSuggestion } from './PersonSuggest'
 import type { Person, Item, PersonSummary } from '../types'
 import type { ItemSuggestion } from './ItemSuggest'
+import type { GuestSuggestion } from '~/actions/guests'
+import { isGuest } from '../utils/calculations'
 
 interface PeopleSectionProps {
   people: Person[]
   summaries: PersonSummary[]
   globalDiscountPercent: number
   registeredUsers?: UserSuggestion[]
+  guestSuggestions?: GuestSuggestion[]
   historicalItemSuggestions?: ItemSuggestion[]
   canAddPerson?: boolean
   canEditItems?: boolean
@@ -23,6 +26,13 @@ interface PeopleSectionProps {
   showEditMyItemsForPersonId?: string | null
   onEditMyItems?: () => void
   onAddPerson: (name: string, userId?: string) => void
+  onAddGuest?: (options: {
+    name: string
+    hostUserId: string
+    guestId?: string
+    newGuest?: { name: string; defaultHostUserId: string }
+  }) => void
+  onUpdatePersonHost?: (personId: string, hostUserId: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
   onAddItem: (personId: string, name: string, price: number) => void
@@ -46,6 +56,7 @@ export function PeopleSection({
   summaries,
   globalDiscountPercent,
   registeredUsers = [],
+  guestSuggestions = [],
   historicalItemSuggestions,
   canAddPerson = false,
   canEditItems = false,
@@ -56,6 +67,8 @@ export function PeopleSection({
   showEditMyItemsForPersonId = null,
   onEditMyItems,
   onAddPerson,
+  onAddGuest,
+  onUpdatePersonHost,
   onRemovePerson,
   onUpdatePersonName,
   onAddItem,
@@ -89,6 +102,31 @@ export function PeopleSection({
     [people],
   )
 
+  const excludeGuestIds = useMemo(
+    () => people.filter(p => p.guestId).map(p => p.guestId!),
+    [people],
+  )
+
+  // Build lookup for host display name and host -> guest list
+  const userDisplayNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const u of registeredUsers) map.set(u.id, u.displayName)
+    // Also include any people already in the order (covers the session creator too)
+    for (const p of people) if (p.userId) map.set(p.userId, p.name)
+    return map
+  }, [registeredUsers, people])
+
+  const hostedGuestsByHostId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const p of people) {
+      if (!isGuest(p) || !p.hostUserId) continue
+      const arr = map.get(p.hostUserId) ?? []
+      arr.push(p.name)
+      map.set(p.hostUserId, arr)
+    }
+    return map
+  }, [people])
+
   return (
     <div>
       <SectionTitle>People & Orders</SectionTitle>
@@ -97,6 +135,26 @@ export function PeopleSection({
         const isEditablePerson = editablePersonId
           ? person.id === editablePersonId
           : canEditItems
+
+        const personIsGuest = isGuest(person)
+        const hostedByName = personIsGuest && person.hostUserId
+          ? userDisplayNameById.get(person.hostUserId) ?? null
+          : null
+        const hostedGuestNames = !personIsGuest && person.userId
+          ? hostedGuestsByHostId.get(person.userId) ?? []
+          : []
+
+        // Chargeable amount: guests owe 0, hosts owe their own + hosted guests' withFees
+        let chargeableAmount: number | null = null
+        if (personIsGuest) {
+          chargeableAmount = 0
+        } else if (hostedGuestNames.length > 0) {
+          const ownWithFees = summaries.find(s => s.personId === person.id)?.withFees ?? 0
+          const guestsTotal = people
+            .filter(p => isGuest(p) && p.hostUserId === person.userId)
+            .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+          chargeableAmount = ownWithFees + guestsTotal
+        }
 
         return (
           <PersonCard
@@ -128,6 +186,11 @@ export function PeopleSection({
             showCopyQr={isCreator}
             paymentConfirmed={paymentConfirmations?.[person.id]?.confirmed}
             onTogglePayment={onTogglePayment ? () => onTogglePayment(person.id) : undefined}
+            hostedByName={hostedByName}
+            hostedGuestNames={hostedGuestNames}
+            chargeableAmount={chargeableAmount}
+            hostOptions={registeredUsers.map(u => ({ id: u.id, displayName: u.displayName }))}
+            onChangeHost={onUpdatePersonHost ? (hostUserId: string) => onUpdatePersonHost(person.id, hostUserId) : undefined}
           />
         )
       })}
@@ -135,8 +198,12 @@ export function PeopleSection({
       {canAddPerson && (
         <PersonSuggest
           onAddPerson={onAddPerson}
+          onAddGuest={onAddGuest}
           users={registeredUsers}
+          guests={guestSuggestions}
           excludeUserIds={excludeUserIds}
+          excludeGuestIds={excludeGuestIds}
+          hostOptions={registeredUsers.map(u => ({ id: u.id, displayName: u.displayName }))}
         />
       )}
     </div>

@@ -100,7 +100,36 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
     throw new Error('Order was modified by someone else. Please refresh and try again.')
   }
 
-  const input = lunchSessionToPrismaInput(lunchSession)
+  // Validate person invariants and resolve any new guest records.
+  const resolvedPeople: LunchSession['people'] = []
+  for (const p of lunchSession.people) {
+    const hasUser = !!p.userId
+    const hasGuest = !!p.guestId || !!p.newGuest
+    if (hasUser && hasGuest) {
+      throw new Error(`Person "${p.name}" has both a user and a guest assignment.`)
+    }
+    if (hasGuest && !p.hostUserId) {
+      throw new Error(`Guest "${p.name}" must have a host.`)
+    }
+    if (p.newGuest) {
+      const created = await prisma.guest.create({
+        data: {
+          name: p.newGuest.name.trim() || p.name,
+          defaultHostUserId: p.newGuest.defaultHostUserId,
+        },
+        select: { id: true },
+      })
+      resolvedPeople.push({
+        ...p,
+        guestId: created.id,
+        newGuest: null,
+      })
+    } else {
+      resolvedPeople.push(p)
+    }
+  }
+
+  const input = lunchSessionToPrismaInput({ ...lunchSession, people: resolvedPeople })
 
   // Delete all children, then recreate from current client state
   await prisma.$transaction(async (tx) => {
@@ -162,6 +191,7 @@ export async function getOrder(orderId: string) {
         orderBy: { sortOrder: 'asc' },
         include: {
           user: { select: { displayName: true } },
+          guest: { select: { name: true } },
           items: {
             orderBy: { sortOrder: 'asc' },
             include: {
@@ -225,6 +255,7 @@ export async function listOrders() {
         orderBy: { sortOrder: 'asc' },
         include: {
           user: { select: { displayName: true } },
+          guest: { select: { name: true } },
           paymentConfirmation: { select: { confirmedVia: true } },
           items: {
             orderBy: { sortOrder: 'asc' },

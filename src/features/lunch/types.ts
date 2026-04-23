@@ -17,6 +17,9 @@ export interface Person {
   id: string
   name: string
   userId?: string | null
+  guestId?: string | null
+  hostUserId?: string | null
+  newGuest?: { name: string; defaultHostUserId: string } | null
   items: Item[]
 }
 

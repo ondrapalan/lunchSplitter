@@ -60,6 +60,7 @@ const fullOrderInclude = {
     orderBy: { sortOrder: 'asc' as const },
     include: {
       user: { select: { displayName: true, discordId: true } },
+      guest: { select: { name: true } },
       items: {
         orderBy: { sortOrder: 'asc' as const },
         include: {
@@ -115,6 +116,9 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
     // Skip creator — they're the one collecting payment
     if (person.id === creatorPersonId) continue
 
+    // Guests never receive a DM — their host covers them.
+    if (person.guestId !== null) continue
+
     // Skip people without Discord linked
     if (!person.user?.discordId) {
       result.skipped.push(personName)
@@ -124,11 +128,17 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
     const summary = summaries.find(s => s.personId === person.id)
     if (!summary || summary.withFees <= 0) continue
 
+    // Host covers any guests assigned to them in this order — roll those into the DM amount.
+    const hostedGuestsTotal = order.people
+      .filter(g => g.guestId !== null && g.hostUserId === person.userId)
+      .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+    const amountDue = summary.withFees + hostedGuestsTotal
+
     try {
       const variableSymbol = generateVariableSymbol(orderId, person.id)
       const spdString = buildSpdString({
         iban,
-        amount: summary.withFees,
+        amount: amountDue,
         variableSymbol,
         message: order.restaurant.name,
       })
@@ -142,7 +152,7 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
 
       const { messageId } = await sendPaymentDm(person.user.discordId, {
         restaurantName: order.restaurant.name,
-        amount: summary.withFees,
+        amount: amountDue,
         orderPersonId: person.id,
         qrPngBuffer,
         orderDate,
@@ -187,6 +197,9 @@ export async function togglePaymentConfirmation(orderPersonId: string): Promise<
     },
   })
   if (!orderPerson) throw new Error('Person not found')
+  if (orderPerson.guestId !== null) {
+    throw new Error('Guests do not have their own payment — confirm their host instead')
+  }
 
   const isCreator = orderPerson.order.createdById === session.user.id
   const isAdmin = session.user.role === 'ADMIN'

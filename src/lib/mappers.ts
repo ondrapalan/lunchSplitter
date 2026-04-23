@@ -11,6 +11,7 @@ type PrismaOrderWithRelations = Prisma.OrderGetPayload<{
       orderBy: { sortOrder: 'asc' }
       include: {
         user: { select: { displayName: true } }
+        guest: { select: { name: true } }
         items: {
           orderBy: { sortOrder: 'asc' }
           include: {
@@ -33,27 +34,31 @@ export function prismaOrderToLunchSession(order: PrismaOrderWithRelations): Lunc
     amount: f.amount,
   }))
 
-  const people: Person[] = order.people.map(p => ({
-    id: p.id,
-    name: p.user?.displayName ?? p.name,
-    userId: p.userId ?? null,
-    items: p.items.map(i => {
-      const sharedWith = i.sharedWith.map(link => link.personId)
-      const customShareEntries = i.customShares.map(cs => [cs.personId, cs.amount] as const)
-      const customShares = customShareEntries.length > 0
-        ? Object.fromEntries(customShareEntries)
-        : null
+  const people: Person[] = order.people.map(p => {
+    return {
+      id: p.id,
+      name: p.user?.displayName ?? p.guest?.name ?? p.name,
+      userId: p.userId ?? null,
+      guestId: p.guestId ?? null,
+      hostUserId: p.hostUserId ?? null,
+      items: p.items.map(i => {
+        const sharedWith = i.sharedWith.map(link => link.personId)
+        const customShareEntries = i.customShares.map(cs => [cs.personId, cs.amount] as const)
+        const customShares = customShareEntries.length > 0
+          ? Object.fromEntries(customShareEntries)
+          : null
 
-      return {
-        id: i.id,
-        name: i.name,
-        price: i.price,
-        discountPercent: i.discountPercent,
-        sharedWith,
-        customShares,
-      } satisfies Item
-    }),
-  }))
+        return {
+          id: i.id,
+          name: i.name,
+          price: i.price,
+          discountPercent: i.discountPercent,
+          sharedWith,
+          customShares,
+        } satisfies Item
+      }),
+    }
+  })
 
   return {
     globalDiscountPercent: order.globalDiscountPercent,
@@ -83,6 +88,8 @@ export function lunchSessionToPrismaInput(session: LunchSession) {
         name: p.name,
         sortOrder: personIndex,
         userId: p.userId ?? undefined,
+        guestId: p.guestId ?? undefined,
+        hostUserId: p.hostUserId ?? undefined,
         items: {
           create: p.items.map((item, itemIndex) => ({
             id: item.id,

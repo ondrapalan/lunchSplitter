@@ -18,6 +18,8 @@ import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, leaveOrder } from '~/actions/orders'
 import { getRegisteredUsers } from '~/actions/users'
+import { listGuests } from '~/actions/guests'
+import type { GuestSuggestion } from '~/actions/guests'
 import { getPaymentConfirmations, togglePaymentConfirmation } from '~/actions/discord'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
@@ -103,6 +105,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
   const [loaded, setLoaded] = useState(false)
   const [orderData, setOrderData] = useState<OrderData | null>(null)
   const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
+  const [guestSuggestions, setGuestSuggestions] = useState<GuestSuggestion[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [isEditingMyItems, setIsEditingMyItems] = useState(false)
   const [contentKey, setContentKey] = useState(0)
@@ -110,8 +113,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
 
   const load = useCallback(async () => {
     try {
-      const [result, users] = await Promise.all([getOrder(orderId), getRegisteredUsers()])
+      const [result, users, guests] = await Promise.all([getOrder(orderId), getRegisteredUsers(), listGuests()])
       setRegisteredUsers(users)
+      setGuestSuggestions(guests)
       if (!result) {
         toast.error('Order not found')
         router.push('/orders')
@@ -142,6 +146,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
       orderId={orderId}
       orderData={orderData}
       registeredUsers={registeredUsers}
+      guestSuggestions={guestSuggestions}
       historicalItemSuggestions={historicalItems}
       isEditing={isEditing}
       isEditingMyItems={isEditingMyItems}
@@ -170,6 +175,7 @@ function OrderContent({
   orderId,
   orderData,
   registeredUsers,
+  guestSuggestions,
   historicalItemSuggestions,
   isEditing,
   isEditingMyItems,
@@ -182,6 +188,7 @@ function OrderContent({
   orderId: string
   orderData: OrderData
   registeredUsers: UserSuggestion[]
+  guestSuggestions: GuestSuggestion[]
   historicalItemSuggestions: ItemSuggestion[]
   isEditing: boolean
   isEditingMyItems: boolean
@@ -240,6 +247,8 @@ function OrderContent({
     updateFeeAdjustment,
     removeFeeAdjustment,
     addPerson,
+    addGuest,
+    updatePersonHost,
     removePerson,
     updatePersonName,
     addItem,
@@ -284,6 +293,22 @@ function OrderContent({
     updatePersonName(personId, name)
     autoSave.saveUpdatePersonName(personId, name)
   }, [updatePersonName, autoSave])
+
+  const handleAutoSaveAddGuest = useCallback((options: {
+    name: string
+    hostUserId: string
+    guestId?: string
+    newGuest?: { name: string; defaultHostUserId: string }
+  }) => {
+    const personId = crypto.randomUUID()
+    addGuest({ ...options, id: personId })
+    autoSave.saveAddGuest(personId, options)
+  }, [addGuest, autoSave])
+
+  const handleAutoSaveUpdatePersonHost = useCallback((personId: string, hostUserId: string) => {
+    updatePersonHost(personId, hostUserId)
+    autoSave.saveUpdatePersonHost(personId, hostUserId)
+  }, [updatePersonHost, autoSave])
 
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
 
@@ -454,6 +479,7 @@ function OrderContent({
         summaries={summaries}
         globalDiscountPercent={session.globalDiscountPercent}
         registeredUsers={registeredUsers}
+        guestSuggestions={guestSuggestions}
         historicalItemSuggestions={historicalItemSuggestions}
         canAddPerson={isEditing}
         canEditItems={isEditing}
@@ -464,6 +490,8 @@ function OrderContent({
         showEditMyItemsForPersonId={showEditMyItemsForPersonId}
         onEditMyItems={onEditMyItems}
         onAddPerson={isEditing ? handleAutoSaveAddPerson : addPerson}
+        onAddGuest={isEditing ? handleAutoSaveAddGuest : undefined}
+        onUpdatePersonHost={isEditing ? handleAutoSaveUpdatePersonHost : updatePersonHost}
         onRemovePerson={isEditing ? handleAutoSaveRemovePerson : removePerson}
         onUpdatePersonName={isEditing ? handleAutoSaveUpdatePersonName : updatePersonName}
         onAddItem={isEditing || isEditingMyItems ? handleAutoSaveAddItem : addItem}
