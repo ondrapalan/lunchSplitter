@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import Link from 'next/link'
 import { toast } from 'react-toastify'
 import { listItemNameUsage, bulkMarkPackaging, type ItemNameUsage } from '~/actions/items'
 import { Button } from '~/features/ui/components/Button'
@@ -133,7 +132,6 @@ export default function AdminItemsPage() {
   return (
     <div>
       <SectionTitle>Packaging backfill</SectionTitle>
-      <Link href="/admin/guests">← Back to admin</Link>
 
       <Card style={{ marginTop: 16 }}>
         <CardTitle>Mark items as packaging</CardTitle>
