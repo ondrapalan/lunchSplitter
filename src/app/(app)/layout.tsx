@@ -158,18 +158,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLabel>Invite</NavLabel>
           </NavLink>
           {session?.user?.role === 'ADMIN' && (
-            <NavLink
-              $active={pathname.startsWith('/admin')}
-              onClick={() => router.push('/admin/users')}
-              title="Users"
-            >
-              <NavIcon>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-              </NavIcon>
-              <NavLabel>Users</NavLabel>
-            </NavLink>
+            <>
+              <NavLink
+                $active={pathname.startsWith('/admin/users')}
+                onClick={() => router.push('/admin/users')}
+                title="Users"
+              >
+                <NavIcon>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </NavIcon>
+                <NavLabel>Users</NavLabel>
+              </NavLink>
+              <NavLink
+                $active={pathname.startsWith('/admin/guests')}
+                onClick={() => router.push('/admin/guests')}
+                title="Guests"
+              >
+                <NavIcon>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 11h-6" /><path d="M19 8v6" />
+                  </svg>
+                </NavIcon>
+                <NavLabel>Guests</NavLabel>
+              </NavLink>
+              <NavLink
+                $active={pathname.startsWith('/admin/items')}
+                onClick={() => router.push('/admin/items')}
+                title="Items"
+              >
+                <NavIcon>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+                  </svg>
+                </NavIcon>
+                <NavLabel>Items</NavLabel>
+              </NavLink>
+            </>
           )}
         </NavLinks>
         <NavLink
