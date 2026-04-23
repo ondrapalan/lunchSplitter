@@ -131,15 +131,14 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
 
   const input = lunchSessionToPrismaInput({ ...lunchSession, people: resolvedPeople })
 
-  // Delete all children, then recreate from current client state
+  // Delete all children, then recreate from current client state.
+  // OrderPerson -> OrderItem -> (SharedItemLink, CustomShare) all cascade on delete,
+  // so we only need to drop OrderPerson + FeeAdjustment explicitly.
   await prisma.$transaction(async (tx) => {
     // Re-check status inside transaction to prevent race with closeOrder
     const fresh = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
     if (fresh?.status === 'CLOSED') throw new Error('Cannot modify a closed order')
 
-    await tx.customShare.deleteMany({ where: { item: { person: { orderId } } } })
-    await tx.sharedItemLink.deleteMany({ where: { item: { person: { orderId } } } })
-    await tx.orderItem.deleteMany({ where: { person: { orderId } } })
     await tx.orderPerson.deleteMany({ where: { orderId } })
     await tx.feeAdjustment.deleteMany({ where: { orderId } })
     await tx.order.update({
@@ -151,7 +150,7 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
         ...(bankAccountNumber !== undefined ? { bankAccountNumber } : {}),
       },
     })
-  })
+  }, { timeout: 20_000 })
 
   return { success: true }
 }
