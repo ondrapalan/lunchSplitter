@@ -75,9 +75,12 @@ export default function NewOrderPage() {
           onChange={e => setBankAccountNumber(e.target.value)}
           placeholder="Bank account (e.g. 123456789/0800)"
         />
-        <div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Button variant="primary" onClick={handleOpen} disabled={creating}>
             {creating ? 'Opening...' : 'Open Order'}
+          </Button>
+          <Button variant="secondary" onClick={() => router.push('/orders/new/sekacka')}>
+            🥩 Nová Sekačka
           </Button>
         </div>
       </Form>

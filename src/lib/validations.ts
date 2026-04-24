@@ -17,6 +17,12 @@ export const createUserSchema = z.object({
   username: z.string().min(1, 'Username is required').regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores'),
   displayName: z.string().min(1, 'Display name is required'),
   role: z.enum(['ADMIN', 'USER']),
+  discordId: z
+    .string()
+    .optional()
+    .refine(v => !v || /^\d{17,20}$/.test(v.trim()), {
+      message: 'Discord User ID must be 17-20 digits',
+    }),
 })
 
 export const registerSchema = z.object({

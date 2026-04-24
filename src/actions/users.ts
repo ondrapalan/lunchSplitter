@@ -78,3 +78,29 @@ export async function getRegisteredUsers() {
 
   return users
 }
+
+export async function setUserDiscordId(userId: string, discordId: string | null) {
+  const session = await auth()
+  if (!session?.user || session.user.role !== 'ADMIN') {
+    return { error: 'Unauthorized' }
+  }
+
+  const cleaned = discordId?.trim() || null
+  if (cleaned !== null && !/^\d{17,20}$/.test(cleaned)) {
+    return { error: 'Discord User ID must be 17-20 digits' }
+  }
+
+  if (cleaned) {
+    const existing = await prisma.user.findUnique({ where: { discordId: cleaned } })
+    if (existing && existing.id !== userId) {
+      return { error: 'This Discord ID is already linked to another account' }
+    }
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { discordId: cleaned },
+  })
+
+  return { success: true }
+}

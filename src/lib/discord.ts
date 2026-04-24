@@ -158,6 +158,38 @@ export async function sendPaymentDm(
 }
 
 /**
+ * Send a DM to an admin about an unresolved Discord→User linkage that was
+ * created when an unlinked Discord account clicked Popiči on a Sekačka.
+ */
+export async function sendPendingLinkDm(
+  adminDiscordId: string,
+  opts: {
+    pendingLinkId: string
+    discordDisplayName: string
+    discordUsername: string
+    orderId: string
+    adminPageUrl: string
+  },
+): Promise<string> {
+  const channelId = await createDmChannel(adminDiscordId)
+
+  const message = await sendChannelMessage(channelId, {
+    embeds: [
+      {
+        title: 'Nepropojený Discord uživatel',
+        description:
+          `**${opts.discordDisplayName}** (\`@${opts.discordUsername}\`) klikl Popiči na Sekačce, ` +
+          `ale jeho Discord není propojený s žádným uživatelem.\n\n` +
+          `Vyřešit můžeš zde: ${opts.adminPageUrl}`,
+        color: 0xC47415,
+      },
+    ],
+  })
+
+  return message.id
+}
+
+/**
  * Send a DM to an admin about a new access request.
  */
 export async function sendAccessRequestDm(

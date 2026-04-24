@@ -17,6 +17,32 @@ enum OrderStatus {
   CLOSED
 }
 
+enum OrderType {
+  NORMAL
+  SEKACKA
+}
+
+enum OrderActivityAction {
+  CREATED
+  PUBLISHED_TO_DISCORD
+  ITEM_ADDED
+  ITEM_EDITED
+  ITEM_REMOVED
+  JOINED
+  LEFT
+  MANUAL_ADDED
+  MANUAL_REMOVED
+  PENDING_LINK_CREATED
+  CLOSED
+  REOPENED
+}
+
+enum ActivitySource {
+  DISCORD
+  WEB
+  ADMIN
+}
+
 model Restaurant {
   id        String   @id @default(cuid())
   name      String   @unique
@@ -25,51 +51,60 @@ model Restaurant {
 }
 
 model User {
-  id                String        @id @default(cuid())
-  username          String        @unique
-  passwordHash      String
-  displayName       String
-  aliases           String[]      @default([])
-  bankAccountNumber String?
-  discordId         String?       @unique
-  role              Role          @default(USER)
-  isFirstLogin      Boolean       @default(true)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  orders                 Order[]
-  orderPersons           OrderPerson[]
-  invitationsSent        Invitation[]  @relation("InvitedByUser")
-  invitationUsed         Invitation?   @relation("UsedByUser")
-  guestsAsDefaultHost    Guest[]       @relation("GuestDefaultHost")
-  orderPersonsHosted     OrderPerson[] @relation("OrderPersonHost")
+  id                   String               @id @default(cuid())
+  username             String               @unique
+  passwordHash         String
+  displayName          String
+  aliases              String[]             @default([])
+  bankAccountNumber    String?
+  discordId            String?              @unique
+  role                 Role                 @default(USER)
+  isFirstLogin         Boolean              @default(true)
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  orders               Order[]
+  orderPersons         OrderPerson[]
+  invitationsSent      Invitation[]         @relation("InvitedByUser")
+  invitationUsed       Invitation?          @relation("UsedByUser")
+  guestsAsDefaultHost  Guest[]              @relation("GuestDefaultHost")
+  orderPersonsHosted   OrderPerson[]        @relation("OrderPersonHost")
+  activityActedOn      OrderActivityLog[]   @relation("ActivityActor")
+  activityTargetedBy   OrderActivityLog[]   @relation("ActivityTargetUser")
+  pendingLinksResolved PendingDiscordLink[] @relation("PendingLinkResolver")
 }
 
 model Guest {
-  id                String        @id @default(cuid())
-  name              String
-  aliases           String[]      @default([])
-  defaultHostUserId String
-  defaultHost       User          @relation("GuestDefaultHost", fields: [defaultHostUserId], references: [id])
-  orderPersons      OrderPerson[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                 String             @id @default(cuid())
+  name               String
+  aliases            String[]           @default([])
+  defaultHostUserId  String
+  defaultHost        User               @relation("GuestDefaultHost", fields: [defaultHostUserId], references: [id])
+  orderPersons       OrderPerson[]
+  activityTargetedBy OrderActivityLog[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([defaultHostUserId])
 }
 
 model Order {
-  id                    String          @id @default(cuid())
-  restaurant            Restaurant      @relation(fields: [restaurantId], references: [id])
-  restaurantId          String
-  globalDiscountPercent Float           @default(0)
-  bankAccountNumber     String?
-  createdBy             User            @relation(fields: [createdById], references: [id])
-  createdById           String
-  status                OrderStatus     @default(OPEN)
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-  feeAdjustments        FeeAdjustment[]
-  people                OrderPerson[]
+  id                       String               @id @default(cuid())
+  restaurant               Restaurant           @relation(fields: [restaurantId], references: [id])
+  restaurantId             String
+  globalDiscountPercent    Float                @default(0)
+  bankAccountNumber        String?
+  createdBy                User                 @relation(fields: [createdById], references: [id])
+  createdById              String
+  status                   OrderStatus          @default(OPEN)
+  type                     OrderType            @default(NORMAL)
+  discordAnnounceChannelId String?
+  discordAnnounceMessageId String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  feeAdjustments           FeeAdjustment[]
+  people                   OrderPerson[]
+  activityLog              OrderActivityLog[]
+  pendingLinks             PendingDiscordLink[]
 }
 
 model FeeAdjustment {
@@ -165,4 +200,36 @@ model Invitation {
   usedAt      DateTime?
   usedBy      User?     @relation("UsedByUser", fields: [usedById], references: [id])
   usedById    String?   @unique
+}
+
+model OrderActivityLog {
+  id            String              @id @default(cuid())
+  order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String
+  action        OrderActivityAction
+  actorUserId   String?
+  actor         User?               @relation("ActivityActor", fields: [actorUserId], references: [id])
+  targetUserId  String?
+  targetUser    User?               @relation("ActivityTargetUser", fields: [targetUserId], references: [id])
+  targetGuestId String?
+  targetGuest   Guest?              @relation(fields: [targetGuestId], references: [id])
+  source        ActivitySource
+  note          String?
+  createdAt     DateTime            @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model PendingDiscordLink {
+  id                 String    @id @default(cuid())
+  discordId          String    @unique
+  discordUsername    String
+  discordGlobalName  String?
+  discordNick        String?
+  triggeredByOrderId String?
+  triggeredByOrder   Order?    @relation(fields: [triggeredByOrderId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+  resolvedAt         DateTime?
+  resolvedByUserId   String?
+  resolvedByUser     User?     @relation("PendingLinkResolver", fields: [resolvedByUserId], references: [id])
 }

@@ -7,7 +7,7 @@ import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { createUserSchema, type CreateUserInput } from '~/lib/validations'
 import { createUser, resetUserPassword } from '~/actions/auth'
-import { listUsers, deleteUser, updateUserAliases } from '~/actions/users'
+import { listUsers, deleteUser, updateUserAliases, setUserDiscordId } from '~/actions/users'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
@@ -220,6 +220,17 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleSetDiscordId = async (userId: string, discordId: string | null) => {
+    const cleaned = discordId?.trim() || null
+    const result = await setUserDiscordId(userId, cleaned)
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      return
+    }
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, discordId: cleaned } : u))
+    toast.success(cleaned ? 'Discord ID linked' : 'Discord ID cleared')
+  }
+
   const handleDelete = async (userId: string, displayName: string) => {
     if (!confirm(`Delete user "${displayName}"? Their order participations will be kept as guest entries.`)) return
     try {
@@ -275,6 +286,10 @@ export default function AdminUsersPage() {
           <div>
             <Input {...register('displayName')} placeholder="Display name" />
             {errors.displayName && <ErrorText>{errors.displayName.message}</ErrorText>}
+          </div>
+          <div>
+            <Input {...register('discordId')} placeholder="Discord User ID (optional, 17-20 digits)" />
+            {errors.discordId && <ErrorText>{errors.discordId.message}</ErrorText>}
           </div>
           <div>
             <Select {...register('role')}>
@@ -337,6 +352,24 @@ export default function AdminUsersPage() {
                     }
                   }}
                 />
+              </AliasRow>
+              <AliasRow>
+                {user.discordId ? (
+                  <AliasTag title="Discord ID">
+                    discord: {user.discordId}
+                    <RemoveAlias onClick={() => handleSetDiscordId(user.id, null)} title="Unlink Discord">&times;</RemoveAlias>
+                  </AliasTag>
+                ) : (
+                  <AliasInput
+                    placeholder="+ discord id"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        handleSetDiscordId(user.id, e.currentTarget.value)
+                        e.currentTarget.value = ''
+                      }
+                    }}
+                  />
+                )}
               </AliasRow>
               {resetPassword?.userId === user.id && (
                 <TempPasswordBox>

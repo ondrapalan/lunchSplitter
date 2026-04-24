@@ -7,6 +7,7 @@ import type { LunchSession, Item } from '~/features/lunch/types'
 import { getOrderAccess } from '~/lib/orderAccess'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { sendOrderQrCodes } from '~/actions/discord'
+import { refreshSekackaDiscordMessage } from '~/lib/sekackaCore'
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number; isPackaging: boolean }[]> {
   const session = await auth()
@@ -223,6 +224,8 @@ export async function getOrder(orderId: string) {
     updatedAt: order.updatedAt.toISOString(),
     creatorName: order.createdBy.displayName,
     status: order.status as 'OPEN' | 'CLOSED',
+    type: order.type as 'NORMAL' | 'SEKACKA',
+    discordAnnounceMessageId: order.discordAnnounceMessageId,
     bankAccountNumber: order.bankAccountNumber,
     creatorBankAccount: order.createdBy.bankAccountNumber,
     createdById: order.createdById,
@@ -356,7 +359,7 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { createdById: true },
+    select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
   const isCreator = order.createdById === session.user.id
@@ -365,15 +368,31 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
     throw new Error('Unauthorized')
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { status: 'CLOSED' },
-  })
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'CLOSED' },
+    }),
+    prisma.orderActivityLog.create({
+      data: {
+        orderId,
+        action: 'CLOSED',
+        actorUserId: session.user.id,
+        source: 'WEB',
+      },
+    }),
+  ])
 
   const sendDiscord = options?.sendDiscord ?? true
   const discordResult = sendDiscord
     ? await sendOrderQrCodes(orderId).catch(() => null)
     : null
+
+  if (order.type === 'SEKACKA') {
+    await refreshSekackaDiscordMessage(orderId).catch(err => {
+      console.error('Failed to refresh closed Sekačka message:', err)
+    })
+  }
 
   return { success: true, discord: discordResult }
 }
@@ -384,7 +403,7 @@ export async function reopenOrder(orderId: string) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { createdById: true },
+    select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
   const isCreator = order.createdById === session.user.id
@@ -393,10 +412,26 @@ export async function reopenOrder(orderId: string) {
     throw new Error('Unauthorized')
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { status: 'OPEN' },
-  })
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'OPEN' },
+    }),
+    prisma.orderActivityLog.create({
+      data: {
+        orderId,
+        action: 'REOPENED',
+        actorUserId: session.user.id,
+        source: 'WEB',
+      },
+    }),
+  ])
+
+  if (order.type === 'SEKACKA') {
+    await refreshSekackaDiscordMessage(orderId).catch(err => {
+      console.error('Failed to refresh reopened Sekačka message:', err)
+    })
+  }
 
   return { success: true }
 }

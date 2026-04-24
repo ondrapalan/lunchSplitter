@@ -58,10 +58,20 @@ export async function createUser(data: {
   username: string
   displayName: string
   role: 'ADMIN' | 'USER'
+  discordId?: string
 }) {
   const session = await auth()
   if (!session?.user || session.user.role !== 'ADMIN') {
     return { error: 'Unauthorized' }
+  }
+
+  const discordId = data.discordId?.trim() || undefined
+  if (discordId && !/^\d{17,20}$/.test(discordId)) {
+    return { error: 'Discord User ID must be 17-20 digits' }
+  }
+  if (discordId) {
+    const existing = await prisma.user.findUnique({ where: { discordId } })
+    if (existing) return { error: 'This Discord ID is already linked to another account' }
   }
 
   const tempPassword = randomBytes(8).toString('hex')
@@ -73,6 +83,7 @@ export async function createUser(data: {
         username: data.username,
         displayName: data.displayName,
         role: data.role,
+        discordId: discordId ?? null,
         passwordHash,
         isFirstLogin: true,
       },

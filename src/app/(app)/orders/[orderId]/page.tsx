@@ -21,6 +21,7 @@ import { getRegisteredUsers } from '~/actions/users'
 import { listGuests } from '~/actions/guests'
 import type { GuestSuggestion } from '~/actions/guests'
 import { getPaymentConfirmations, togglePaymentConfirmation } from '~/actions/discord'
+import { SekackaOrderDetail } from '~/features/lunch/components/SekackaOrderDetail'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
@@ -136,6 +137,8 @@ interface OrderData {
   updatedAt: string
   creatorName: string
   status: 'OPEN' | 'CLOSED'
+  type: 'NORMAL' | 'SEKACKA'
+  discordAnnounceMessageId: string | null
   bankAccountNumber: string | null
   creatorBankAccount: string | null
   createdById: string
@@ -181,6 +184,31 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
 
   if (!loaded || !orderData) {
     return <SectionTitle>Loading order...</SectionTitle>
+  }
+
+  if (orderData.type === 'SEKACKA') {
+    return (
+      <SekackaOrderDetail
+        orderId={orderId}
+        creatorName={orderData.creatorName}
+        session={orderData.session}
+        status={orderData.status}
+        createdById={orderData.createdById}
+        discordAnnounceMessageId={orderData.discordAnnounceMessageId}
+        access={{
+          isCreator: orderData.access.isCreator,
+          isAdminView: orderData.access.isAdminView,
+          canEdit: orderData.access.canEdit,
+          canClose: orderData.access.canClose,
+          canReopen: orderData.access.canReopen,
+          canDelete: orderData.access.canDelete,
+        }}
+        onReload={() => {
+          load()
+          setContentKey(k => k + 1)
+        }}
+      />
+    )
   }
 
   return (

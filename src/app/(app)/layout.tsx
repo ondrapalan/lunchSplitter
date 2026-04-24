@@ -1,10 +1,13 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { useThemeMode } from '~/features/ui/theme/ThemeContext'
 import { media } from '~/features/ui/theme'
+import { AdminBadge } from '~/features/ui/components/AdminBadge'
+import { getPendingDiscordLinkCount } from '~/actions/pendingDiscordLinks'
 
 const Nav = styled.nav`
   display: flex;
@@ -100,6 +103,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { mode, toggleTheme } = useThemeMode()
   const themeTitle = mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
 
+  const [pendingLinkCount, setPendingLinkCount] = useState(0)
+  useEffect(() => {
+    if (session?.user?.role !== 'ADMIN') return
+    getPendingDiscordLinkCount().then(setPendingLinkCount).catch(() => {})
+  }, [session?.user?.role, pathname])
+
   const handleLogout = async () => {
     await signOut({ redirect: false })
     router.push('/login')
@@ -194,6 +203,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </svg>
                 </NavIcon>
                 <NavLabel>Items</NavLabel>
+              </NavLink>
+              <NavLink
+                $active={pathname.startsWith('/admin/discord-links')}
+                onClick={() => router.push('/admin/discord-links')}
+                title="Discord links"
+              >
+                <NavIcon>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    <circle cx="9.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
+                    <circle cx="14.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
+                  </svg>
+                </NavIcon>
+                <NavLabel>Discord links</NavLabel>
+                {pendingLinkCount > 0 && <AdminBadge>{pendingLinkCount}</AdminBadge>}
               </NavLink>
             </>
           )}
