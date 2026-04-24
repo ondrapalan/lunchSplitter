@@ -17,10 +17,10 @@ describe('buildSekackaMessage', () => {
   it('renders the open-state embed with both buttons', () => {
     const payload = buildSekackaMessage(base)
     expect(payload.embeds).toHaveLength(1)
-    expect(payload.embeds[0].title).toContain('otevřeno')
-    expect(payload.embeds[0].description).toContain('Celkem: **490 Kč**')
-    expect(payload.embeds[0].description).toContain('≈ **81.67 Kč** / osobu')
-    expect(payload.embeds[0].description).toContain('**Ondra** (autor)')
+    expect(payload.embeds[0].title).toContain('open')
+    expect(payload.embeds[0].description).toContain('Total: **490 Kč**')
+    expect(payload.embeds[0].description).toContain('≈ **81.67 Kč** / person')
+    expect(payload.embeds[0].description).toContain('**Ondra** (creator)')
     expect(payload.components).toHaveLength(1)
     expect(payload.components[0].components).toHaveLength(2)
     expect(payload.components[0].components[0].custom_id).toBe('sekacka-join:order-1')
@@ -29,14 +29,14 @@ describe('buildSekackaMessage', () => {
 
   it('drops buttons and switches to closed title when CLOSED', () => {
     const payload = buildSekackaMessage({ ...base, status: 'CLOSED' })
-    expect(payload.embeds[0].title).toContain('uzavřeno')
+    expect(payload.embeds[0].title).toContain('closed')
     expect(payload.components).toHaveLength(0)
   })
 
   it('renders zero-participants placeholder gracefully', () => {
     const payload = buildSekackaMessage({ ...base, participantNames: [] })
-    expect(payload.embeds[0].description).toContain('Účastníků: **0**')
-    expect(payload.embeds[0].description).toContain('zatím nikdo')
+    expect(payload.embeds[0].description).toContain('Participants: **0**')
+    expect(payload.embeds[0].description).toContain('nobody yet')
   })
 
   it('computes per-person for a single participant', () => {
@@ -44,6 +44,6 @@ describe('buildSekackaMessage', () => {
       ...base,
       participantNames: ['Ondra'],
     })
-    expect(payload.embeds[0].description).toContain('≈ **490 Kč** / osobu')
+    expect(payload.embeds[0].description).toContain('≈ **490 Kč** / person')
   })
 })

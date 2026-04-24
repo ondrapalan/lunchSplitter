@@ -176,11 +176,11 @@ export async function sendPendingLinkDm(
   const message = await sendChannelMessage(channelId, {
     embeds: [
       {
-        title: 'Nepropojený Discord uživatel',
+        title: 'Unlinked Discord user',
         description:
-          `**${opts.discordDisplayName}** (\`@${opts.discordUsername}\`) klikl Popiči na Sekačce, ` +
-          `ale jeho Discord není propojený s žádným uživatelem.\n\n` +
-          `Vyřešit můžeš zde: ${opts.adminPageUrl}`,
+          `**${opts.discordDisplayName}** (\`@${opts.discordUsername}\`) clicked Popiči on a Sekačka, ` +
+          `but their Discord isn't linked to any user.\n\n` +
+          `Resolve here: ${opts.adminPageUrl}`,
         color: 0xC47415,
       },
     ],

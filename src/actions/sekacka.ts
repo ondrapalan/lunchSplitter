@@ -25,7 +25,7 @@ export async function createSekackaOrder(input: CreateSekackaInput) {
     .filter(i => i.name.length > 0 && Number.isFinite(i.price) && i.price > 0)
 
   if (cleanItems.length === 0) {
-    throw new Error('Musíš přidat aspoň jednu položku s kladnou cenou')
+    throw new Error('You must add at least one item with a positive price')
   }
 
   let bankAccount = input.bankAccountNumber

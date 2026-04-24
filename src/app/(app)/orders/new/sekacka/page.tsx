@@ -100,7 +100,7 @@ export default function NewSekackaPage() {
       .filter(it => it.name.length > 0 && Number.isFinite(it.price) && it.price > 0)
 
     if (cleanItems.length === 0) {
-      toast.error('Přidej aspoň jednu položku s kladnou cenou')
+      toast.error('Add at least one item with a positive price')
       return
     }
 
@@ -110,7 +110,7 @@ export default function NewSekackaPage() {
         items: cleanItems,
         bankAccountNumber: bankAccount.trim() || undefined,
       })
-      toast.success('Sekačka založena!')
+      toast.success('Sekačka created!')
       router.push(`/orders/${order.id}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create Sekačka')
@@ -121,14 +121,14 @@ export default function NewSekackaPage() {
 
   return (
     <div>
-      <SectionTitle>🥩 Nová Sekačka</SectionTitle>
+      <SectionTitle>🥩 New Sekačka</SectionTitle>
       <Hint>
-        Přidej, co jsi koupil, a cenu (celkem, ne za kus). Po uložení vypublikuješ
-        zprávu do #obědy a kolegové kliknou na 🍞 Popiči.
+        Add what you bought and the price (total, not per piece). After saving, publish
+        the message to #obědy and colleagues will click 🍞 Popiči.
       </Hint>
 
       <Card style={{ marginTop: 16 }}>
-        <CardTitle>Položky</CardTitle>
+        <CardTitle>Items</CardTitle>
         <Form>
           <ItemsList>
             {items.map((item, i) => (
@@ -136,7 +136,7 @@ export default function NewSekackaPage() {
                 <Input
                   value={item.name}
                   onChange={e => updateItem(i, { name: e.target.value })}
-                  placeholder="Položka (např. Sekaná)"
+                  placeholder="Item (e.g. Sekaná)"
                 />
                 <Input
                   type="number"
@@ -147,26 +147,26 @@ export default function NewSekackaPage() {
                   onChange={e => updateItem(i, { price: e.target.value })}
                   placeholder="Kč"
                 />
-                <Remove type="button" onClick={() => removeItem(i)} title="Odstranit položku">×</Remove>
+                <Remove type="button" onClick={() => removeItem(i)} title="Remove item">×</Remove>
               </ItemRow>
             ))}
           </ItemsList>
 
-          <Button variant="secondary" onClick={addItem}>+ Přidat položku</Button>
+          <Button variant="secondary" onClick={addItem}>+ Add item</Button>
 
           <TotalRow>
-            <span>Celkem</span>
+            <span>Total</span>
             <strong>{total.toFixed(2)} Kč</strong>
           </TotalRow>
 
           <Input
             value={bankAccount}
             onChange={e => setBankAccount(e.target.value)}
-            placeholder="Bankovní účet (např. 123456789/0800)"
+            placeholder="Bank account (e.g. 123456789/0800)"
           />
 
           <Button variant="primary" onClick={handleCreate} disabled={creating}>
-            {creating ? 'Ukládám…' : 'Založit Sekačku'}
+            {creating ? 'Saving…' : 'Create Sekačka'}
           </Button>
         </Form>
       </Card>

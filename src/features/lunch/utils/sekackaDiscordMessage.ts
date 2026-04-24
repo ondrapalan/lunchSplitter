@@ -39,13 +39,13 @@ function formatKc(amount: number): string {
 }
 
 function formatItems(items: { name: string; price: number }[]): string {
-  if (items.length === 0) return '_(žádné položky)_'
+  if (items.length === 0) return '_(no items)_'
   return items.map(i => `${i.name} **${formatKc(i.price)}**`).join(' • ')
 }
 
 function formatParticipantList(creatorName: string, participantNames: string[]): string {
-  const decorated = participantNames.map(n => n === creatorName ? `**${n}** (autor)` : n)
-  if (decorated.length === 0) return '_(zatím nikdo — klikni Popiči níže)_'
+  const decorated = participantNames.map(n => n === creatorName ? `**${n}** (creator)` : n)
+  if (decorated.length === 0) return '_(nobody yet — click Popiči below)_'
   return decorated.join(' • ')
 }
 
@@ -55,14 +55,14 @@ export function buildSekackaMessage(input: SekackaEmbedInput): SekackaMessagePay
   const perPerson = participantNames.length > 0 ? total / participantNames.length : 0
   const isOpen = status === 'OPEN'
 
-  const title = isOpen ? '🥩 Sekačka! (otevřeno)' : '✅ Sekačka (uzavřeno)'
+  const title = isOpen ? '🥩 Sekačka! (open)' : '✅ Sekačka (closed)'
   const description = [
     formatItems(items),
     '',
-    `Celkem: **${formatKc(total)}**`,
+    `Total: **${formatKc(total)}**`,
     participantNames.length > 0
-      ? `Účastníků: **${participantNames.length}** (vč. autora)  ≈ **${formatKc(perPerson)}** / osobu`
-      : 'Účastníků: **0**',
+      ? `Participants: **${participantNames.length}** (incl. creator)  ≈ **${formatKc(perPerson)}** / person`
+      : 'Participants: **0**',
     '',
     formatParticipantList(creatorName, participantNames),
   ].join('\n')

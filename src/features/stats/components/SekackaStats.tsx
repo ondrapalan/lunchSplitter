@@ -166,26 +166,26 @@ export function SekackaStats() {
 
       <SummaryGrid>
         <SummaryCell>
-          <SummaryLabel>Sekaček</SummaryLabel>
+          <SummaryLabel>Sekačkas</SummaryLabel>
           <SummaryValue>{summary.totalCount}</SummaryValue>
         </SummaryCell>
         <SummaryCell>
-          <SummaryLabel>Celkem Kč</SummaryLabel>
+          <SummaryLabel>Total Kč</SummaryLabel>
           <SummaryValue>{formatCurrency(summary.totalSpent)}</SummaryValue>
         </SummaryCell>
         <SummaryCell>
-          <SummaryLabel>Ø účastníků</SummaryLabel>
+          <SummaryLabel>Ø participants</SummaryLabel>
           <SummaryValue>{summary.avgParticipants.toFixed(1)}</SummaryValue>
         </SummaryCell>
         <SummaryCell>
-          <SummaryLabel>Ø porce</SummaryLabel>
+          <SummaryLabel>Ø per portion</SummaryLabel>
           <SummaryValue>{formatCurrency(summary.avgPerPortion)}</SummaryValue>
         </SummaryCell>
       </SummaryGrid>
 
       {isEmpty ? (
         <div style={{ textAlign: 'center', padding: 16, color: 'var(--muted)' }}>
-          Zatím žádná uzavřená Sekačka v tomto období.
+          No closed Sekačka in this period yet.
         </div>
       ) : (
         <>
@@ -194,9 +194,9 @@ export function SekackaStats() {
             <thead>
               <tr>
                 <Th>#</Th>
-                <Th>Jméno</Th>
-                <ThRight>Porcí</ThRight>
-                <ThRight>Utraceno</ThRight>
+                <Th>Name</Th>
+                <ThRight>Portions</ThRight>
+                <ThRight>Spent</ThRight>
               </tr>
             </thead>
             <tbody>
@@ -230,9 +230,9 @@ export function SekackaStats() {
             <thead>
               <tr>
                 <Th>#</Th>
-                <Th>Jméno</Th>
-                <ThRight>Přinesl</ThRight>
-                <ThRight>Celkem Kč</ThRight>
+                <Th>Name</Th>
+                <ThRight>Brought</ThRight>
+                <ThRight>Total Kč</ThRight>
               </tr>
             </thead>
             <tbody>
@@ -265,9 +265,9 @@ export function SekackaStats() {
           <Table>
             <thead>
               <tr>
-                <Th>Položka</Th>
-                <ThRight>Kolikrát</ThRight>
-                <ThRight>Celkem Kč</ThRight>
+                <Th>Item</Th>
+                <ThRight>Times</ThRight>
+                <ThRight>Total Kč</ThRight>
               </tr>
             </thead>
             <tbody>

@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       // For Sekačka custom ids we MUST NOT UPDATE_MESSAGE — that wipes the public announcement.
       // Emit an ephemeral error instead; error paths for non-Sekačka ids keep legacy behaviour.
       if (customId.startsWith('sekacka-')) {
-        return ephemeral('Něco se pokazilo, zkus to prosím znovu.')
+        return ephemeral('Something went wrong, please try again.')
       }
       return Response.json({
         type: InteractionResponseType.UPDATE_MESSAGE,
@@ -128,17 +128,17 @@ function extractDiscordIdentity(interaction: DiscordInteraction): { discordId: s
 
 async function handleSekackaJoin(interaction: DiscordInteraction, orderId: string) {
   const identity = extractDiscordIdentity(interaction)
-  if (!identity) return ephemeral('Nepodařilo se tě identifikovat.')
+  if (!identity) return ephemeral("Couldn't identify you.")
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { status: true, type: true },
   })
   if (!order || order.type !== 'SEKACKA') {
-    return ephemeral('Tahle Sekačka už neexistuje.')
+    return ephemeral("This Sekačka no longer exists.")
   }
   if (order.status !== 'OPEN') {
-    return ephemeral('Sekačka už je uzavřená.')
+    return ephemeral('Sekačka is already closed.')
   }
 
   const user = await prisma.user.findUnique({
@@ -154,8 +154,8 @@ async function handleSekackaJoin(interaction: DiscordInteraction, orderId: strin
       nick: identity.nick,
     })
     return ephemeral(
-      '⚠️ Tvůj Discord zatím není propojen s účtem v aplikaci. ' +
-      'Informoval jsem admina — jakmile tě propojí, klikni Popiči znovu.',
+      "⚠️ Your Discord isn't linked to an app account yet. " +
+      "I've notified the admin — click Popiči again once they link you.",
     )
   }
 
@@ -165,12 +165,12 @@ async function handleSekackaJoin(interaction: DiscordInteraction, orderId: strin
       actorUserId: user.id,
     })
     if (!result.added) {
-      return ephemeral('Už tě v seznamu mám. 🍞')
+      return ephemeral("You're already on the list. 🍞")
     }
-    return ephemeral('✅ Přidal jsem tě. Dobrou chuť!')
+    return ephemeral('✅ Added you. Enjoy!')
   } catch (err) {
     if (err instanceof SekackaError) {
-      if (err.code === 'CLOSED') return ephemeral('Sekačka už je uzavřená.')
+      if (err.code === 'CLOSED') return ephemeral('Sekačka is already closed.')
       return ephemeral(err.message)
     }
     throw err
@@ -179,7 +179,7 @@ async function handleSekackaJoin(interaction: DiscordInteraction, orderId: strin
 
 async function handleSekackaLeave(interaction: DiscordInteraction, orderId: string) {
   const identity = extractDiscordIdentity(interaction)
-  if (!identity) return ephemeral('Nepodařilo se tě identifikovat.')
+  if (!identity) return ephemeral("Couldn't identify you.")
 
   const user = await prisma.user.findUnique({
     where: { discordId: identity.discordId },
@@ -187,7 +187,7 @@ async function handleSekackaLeave(interaction: DiscordInteraction, orderId: stri
   })
 
   if (!user) {
-    return ephemeral('V seznamu tě nemám (Discord není propojen).')
+    return ephemeral("You're not on the list (Discord not linked).")
   }
 
   try {
@@ -196,13 +196,13 @@ async function handleSekackaLeave(interaction: DiscordInteraction, orderId: stri
       actorUserId: user.id,
     })
     if (!result.removed) {
-      return ephemeral('Nejsi v seznamu.')
+      return ephemeral("You're not on the list.")
     }
-    return ephemeral('🚪 Odhlásil jsem tě.')
+    return ephemeral('🚪 Removed you.')
   } catch (err) {
     if (err instanceof SekackaError) {
-      if (err.code === 'CLOSED') return ephemeral('Sekačka už je uzavřená.')
-      if (err.code === 'FORBIDDEN') return ephemeral('Autor se nemůže odhlásit ze své Sekačky.')
+      if (err.code === 'CLOSED') return ephemeral('Sekačka is already closed.')
+      if (err.code === 'FORBIDDEN') return ephemeral("The creator can't leave their own Sekačka.")
       return ephemeral(err.message)
     }
     throw err

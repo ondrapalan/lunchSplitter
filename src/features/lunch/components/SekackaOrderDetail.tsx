@@ -188,7 +188,7 @@ export function SekackaOrderDetail({
         toast.error(result.error || 'Failed to publish')
         return
       }
-      toast.success('Odesláno na Discord 🚀')
+      toast.success('Published to Discord 🚀')
       onReload()
       loadActivity()
     } catch (err) {
@@ -203,7 +203,7 @@ export function SekackaOrderDetail({
     setBusy('add')
     try {
       await addSekackaParticipantByUserId(orderId, selectedUserId)
-      toast.success('Přidáno')
+      toast.success('Added')
       setSelectedUserId('')
       onReload()
       loadPickerUsers()
@@ -216,11 +216,11 @@ export function SekackaOrderDetail({
   }
 
   const handleRemoveParticipant = async (userId: string) => {
-    if (!confirm('Odebrat tohoto účastníka?')) return
+    if (!confirm('Remove this participant?')) return
     setBusy(`remove-${userId}`)
     try {
       await removeSekackaParticipantByUserId(orderId, userId)
-      toast.success('Odebráno')
+      toast.success('Removed')
       onReload()
       loadPickerUsers()
       loadActivity()
@@ -232,16 +232,16 @@ export function SekackaOrderDetail({
   }
 
   const handleClose = async () => {
-    if (!confirm('Zavřít Sekačku a rozeslat QR?')) return
+    if (!confirm('Close Sekačka and send QR codes?')) return
     setBusy('close')
     try {
       const result = await closeOrder(orderId, { sendDiscord: true })
-      toast.success('Sekačka uzavřena')
+      toast.success('Sekačka closed')
       if (result.discord) {
         const { sent, skipped, failed } = result.discord
-        if (sent.length > 0) toast.info(`QR posláno: ${sent.join(', ')}`)
-        if (skipped.length > 0) toast.warn(`Discord nepropojen: ${skipped.join(', ')}`)
-        if (failed.length > 0) toast.error(`Selhalo: ${failed.join(', ')}`)
+        if (sent.length > 0) toast.info(`QR sent to: ${sent.join(', ')}`)
+        if (skipped.length > 0) toast.warn(`No Discord linked: ${skipped.join(', ')}`)
+        if (failed.length > 0) toast.error(`Failed for: ${failed.join(', ')}`)
       }
       onReload()
       loadActivity()
@@ -253,11 +253,11 @@ export function SekackaOrderDetail({
   }
 
   const handleReopen = async () => {
-    if (!confirm('Znovu otevřít Sekačku?')) return
+    if (!confirm('Reopen Sekačka?')) return
     setBusy('reopen')
     try {
       await reopenOrder(orderId)
-      toast.success('Znovu otevřeno')
+      toast.success('Reopened')
       onReload()
       loadActivity()
     } catch (err) {
@@ -268,11 +268,11 @@ export function SekackaOrderDetail({
   }
 
   const handleDelete = async () => {
-    if (!confirm('Opravdu smazat tuto Sekačku? Tohle nejde vzít zpátky.')) return
+    if (!confirm('Really delete this Sekačka? This cannot be undone.')) return
     setBusy('delete')
     try {
       await deleteOrder(orderId)
-      toast.success('Smazáno')
+      toast.success('Deleted')
       router.push('/orders')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete')
@@ -297,7 +297,7 @@ export function SekackaOrderDetail({
     <div>
       <HeaderRow>
         <SectionTitle style={{ marginBottom: 0 }}>
-          🥩 Sekačka od {creatorName}
+          🥩 Sekačka by {creatorName}
           <StatusBadge $status={status} style={{ marginLeft: 8 }}>
             {status === 'OPEN' ? 'Open' : 'Closed'}
           </StatusBadge>
@@ -305,31 +305,31 @@ export function SekackaOrderDetail({
         <Actions>
           {status === 'OPEN' && !discordAnnounceMessageId && access.canEdit && (
             <Button variant="primary" onClick={handlePublish} loading={busy === 'publish'}>
-              📣 Odeslat na Discord
+              📣 Publish to Discord
             </Button>
           )}
           {status === 'OPEN' && access.canClose && (
             <Button variant="primary" onClick={handleClose} loading={busy === 'close'}>
-              Zavřít a rozeslat QR
+              Close & send QR
             </Button>
           )}
           {status === 'CLOSED' && access.canReopen && (
             <Button variant="secondary" onClick={handleReopen} loading={busy === 'reopen'}>
-              Znovu otevřít
+              Reopen
             </Button>
           )}
           {access.canDelete && (
             <Button variant="danger" onClick={handleDelete} loading={busy === 'delete'}>
-              Smazat
+              Delete
             </Button>
           )}
         </Actions>
       </HeaderRow>
 
       <Card>
-        <CardTitle>Položky</CardTitle>
+        <CardTitle>Items</CardTitle>
         {items.length === 0 ? (
-          <p>Zatím žádné položky.</p>
+          <p>No items yet.</p>
         ) : (
           <>
             {items.map(item => (
@@ -339,11 +339,11 @@ export function SekackaOrderDetail({
               </ItemLine>
             ))}
             <TotalLine>
-              <span>Celkem</span>
+              <span>Total</span>
               <span>{formatKc(total)}</span>
             </TotalLine>
             <TotalLine>
-              <span>{session.people.length} účastník(ů) × {formatKc(perPerson)}</span>
+              <span>{session.people.length} participant(s) × {formatKc(perPerson)}</span>
               <span>{formatKc(total)}</span>
             </TotalLine>
           </>
@@ -351,7 +351,7 @@ export function SekackaOrderDetail({
       </Card>
 
       <Card style={{ marginTop: 16 }}>
-        <CardTitle>Účastníci</CardTitle>
+        <CardTitle>Participants</CardTitle>
         {session.people.map(person => {
           const isCreatorPerson = person.userId === createdById
           const paid = paymentConfirmations[person.id]?.confirmed
@@ -359,7 +359,7 @@ export function SekackaOrderDetail({
             <ParticipantRow key={person.id}>
               <div>
                 <strong>{person.name}</strong>
-                {isCreatorPerson && <ParticipantMeta>autor</ParticipantMeta>}
+                {isCreatorPerson && <ParticipantMeta>creator</ParticipantMeta>}
                 <ParticipantMeta>{formatKc(perPerson)}</ParticipantMeta>
               </div>
               <Actions>
@@ -367,9 +367,9 @@ export function SekackaOrderDetail({
                   <PaymentPill
                     $confirmed={!!paid}
                     onClick={() => handleTogglePayment(person.id)}
-                    title={paid ? 'Zaplaceno (klikni pro zrušení)' : 'Nezaplaceno (klikni pro potvrzení)'}
+                    title={paid ? 'Paid (click to un-confirm)' : 'Unpaid (click to confirm)'}
                   >
-                    {paid ? '✓ zaplaceno' : 'nezaplaceno'}
+                    {paid ? '✓ paid' : 'unpaid'}
                   </PaymentPill>
                 )}
                 {status === 'OPEN' && !isCreatorPerson && access.canEdit && person.userId && (
@@ -379,7 +379,7 @@ export function SekackaOrderDetail({
                     onClick={() => person.userId && handleRemoveParticipant(person.userId)}
                     loading={busy === `remove-${person.userId}`}
                   >
-                    Odebrat
+                    Remove
                   </Button>
                 )}
               </Actions>
@@ -390,10 +390,10 @@ export function SekackaOrderDetail({
         {status === 'OPEN' && access.canEdit && (
           <PickerRow>
             <Select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}>
-              <option value="">— přidat účastníka —</option>
+              <option value="">— add participant —</option>
               {pickerUsers.map(u => (
                 <option key={u.id} value={u.id}>
-                  {u.displayName} {u.discordId ? '' : '(bez Discordu)'}
+                  {u.displayName} {u.discordId ? '' : '(no Discord)'}
                 </option>
               ))}
             </Select>
@@ -404,14 +404,14 @@ export function SekackaOrderDetail({
               disabled={!selectedUserId}
               loading={busy === 'add'}
             >
-              Přidat
+              Add
             </Button>
           </PickerRow>
         )}
       </Card>
 
       <Card style={{ marginTop: 16 }}>
-        <CardTitle>Aktivita</CardTitle>
+        <CardTitle>Activity</CardTitle>
         <OrderActivityTimeline entries={activity} />
       </Card>
     </div>

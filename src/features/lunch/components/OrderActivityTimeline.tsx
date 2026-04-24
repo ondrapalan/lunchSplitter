@@ -64,25 +64,25 @@ function renderEntry(entry: ActivityLogEntry): string {
   const target = entry.targetName ?? entry.note ?? '?'
   const actor = entry.actorName ?? 'System'
   switch (entry.action) {
-    case 'CREATED': return `📝 ${actor} založil Sekačku`
-    case 'PUBLISHED_TO_DISCORD': return `📣 ${actor} vypublikoval na Discord`
-    case 'JOINED': return `🍞 ${target} se přihlásil`
-    case 'LEFT': return `🚪 ${target} se odhlásil`
-    case 'MANUAL_ADDED': return `➕ ${actor} přidal ${target}`
-    case 'MANUAL_REMOVED': return `➖ ${actor} odebral ${target}`
-    case 'PENDING_LINK_CREATED': return `⚠ Nepropojený Discord: ${entry.note ?? target}`
-    case 'CLOSED': return `✅ ${actor} uzavřel Sekačku`
-    case 'REOPENED': return `🔓 ${actor} znovu otevřel`
-    case 'ITEM_ADDED': return `🧺 ${actor} přidal položku ${entry.note ?? ''}`
-    case 'ITEM_EDITED': return `✏️ ${actor} upravil položku ${entry.note ?? ''}`
-    case 'ITEM_REMOVED': return `🗑 ${actor} odebral položku ${entry.note ?? ''}`
+    case 'CREATED': return `📝 ${actor} created the Sekačka`
+    case 'PUBLISHED_TO_DISCORD': return `📣 ${actor} published to Discord`
+    case 'JOINED': return `🍞 ${target} joined`
+    case 'LEFT': return `🚪 ${target} left`
+    case 'MANUAL_ADDED': return `➕ ${actor} added ${target}`
+    case 'MANUAL_REMOVED': return `➖ ${actor} removed ${target}`
+    case 'PENDING_LINK_CREATED': return `⚠ Unlinked Discord: ${entry.note ?? target}`
+    case 'CLOSED': return `✅ ${actor} closed the Sekačka`
+    case 'REOPENED': return `🔓 ${actor} reopened`
+    case 'ITEM_ADDED': return `🧺 ${actor} added item ${entry.note ?? ''}`
+    case 'ITEM_EDITED': return `✏️ ${actor} edited item ${entry.note ?? ''}`
+    case 'ITEM_REMOVED': return `🗑 ${actor} removed item ${entry.note ?? ''}`
     default: return `• ${entry.action}`
   }
 }
 
 export function OrderActivityTimeline({ entries }: Props) {
   if (entries.length === 0) {
-    return <Empty>Žádná aktivita.</Empty>
+    return <Empty>No activity.</Empty>
   }
   return (
     <Wrapper>

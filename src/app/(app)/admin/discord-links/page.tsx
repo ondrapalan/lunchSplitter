@@ -102,7 +102,7 @@ export default function AdminDiscordLinksPage() {
   const handleLinkToExisting = async (linkId: string) => {
     const userId = selectedUserByLink[linkId]
     if (!userId) {
-      toast.error('Vyber uživatele')
+      toast.error('Pick a user')
       return
     }
     const result = await resolvePendingDiscordLinkToUser(linkId, userId)
@@ -110,13 +110,13 @@ export default function AdminDiscordLinksPage() {
       toast.error(result.error)
       return
     }
-    toast.success('Propojeno')
+    toast.success('Linked')
     load()
   }
 
   const handleCreateUser = async (linkId: string) => {
     if (!createForm.username.trim() || !createForm.displayName.trim()) {
-      toast.error('Vyplň username i displayName')
+      toast.error('Fill in username and display name')
       return
     }
     const result = await resolvePendingDiscordLinkCreateUser(linkId, createForm)
@@ -127,24 +127,24 @@ export default function AdminDiscordLinksPage() {
     if ('tempPassword' in result && result.tempPassword) {
       setTempPasswords(prev => ({ ...prev, [linkId]: result.tempPassword }))
     }
-    toast.success('Účet vytvořen a propojen')
+    toast.success('User created and linked')
     setCreatingForLink(null)
     setCreateForm({ username: '', displayName: '', role: 'USER' })
     load()
   }
 
   const handleDismiss = async (linkId: string) => {
-    if (!confirm('Opravdu zavřít bez vyřešení?')) return
+    if (!confirm('Dismiss without resolving?')) return
     await dismissPendingDiscordLink(linkId)
-    toast.success('Zavřeno')
+    toast.success('Dismissed')
     load()
   }
 
   return (
     <div>
-      <SectionTitle>Nepropojené Discord účty</SectionTitle>
+      <SectionTitle>Unlinked Discord accounts</SectionTitle>
 
-      {links.length === 0 && <Empty>Žádné nevyřešené — čisto. 🎉</Empty>}
+      {links.length === 0 && <Empty>Nothing to resolve — all clean. 🎉</Empty>}
 
       {links.map(link => {
         const displayName = link.discordNick || link.discordGlobalName || link.discordUsername
@@ -157,10 +157,10 @@ export default function AdminDiscordLinksPage() {
             </CardTitle>
             <Meta>
               Discord ID: <code>{link.discordId}</code><br />
-              Kliknul {new Date(link.createdAt).toLocaleString('cs-CZ')}
+              Clicked {new Date(link.createdAt).toLocaleString('cs-CZ')}
               {link.triggeredByOrder && (
                 <>
-                  {' '}na <a href={`/orders/${link.triggeredByOrder.id}`}>Sekačku od {link.triggeredByOrder.creatorName}</a>
+                  {' '}on <a href={`/orders/${link.triggeredByOrder.id}`}>Sekačka by {link.triggeredByOrder.creatorName}</a>
                 </>
               )}
             </Meta>
@@ -170,13 +170,13 @@ export default function AdminDiscordLinksPage() {
                 value={selectedUserByLink[link.id] || ''}
                 onChange={e => setSelectedUserByLink(prev => ({ ...prev, [link.id]: e.target.value }))}
               >
-                <option value="">— vyber existujícího uživatele —</option>
+                <option value="">— pick an existing user —</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id}>{u.displayName} (@{u.username})</option>
                 ))}
               </Select>
               <Button variant="primary" size="sm" onClick={() => handleLinkToExisting(link.id)}>
-                Propojit
+                Link
               </Button>
               <Button
                 variant="secondary"
@@ -190,10 +190,10 @@ export default function AdminDiscordLinksPage() {
                   })
                 }}
               >
-                Vytvořit nového uživatele
+                Create new user
               </Button>
               <Button variant="danger" size="sm" onClick={() => handleDismiss(link.id)}>
-                Zavřít bez vyřešení
+                Dismiss
               </Button>
             </Actions>
 
@@ -218,10 +218,10 @@ export default function AdminDiscordLinksPage() {
                 </Select>
                 <Actions>
                   <Button variant="primary" size="sm" onClick={() => handleCreateUser(link.id)}>
-                    Vytvořit & propojit
+                    Create & link
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => setCreatingForLink(null)}>
-                    Zrušit
+                    Cancel
                   </Button>
                 </Actions>
               </FormGroup>
@@ -229,7 +229,7 @@ export default function AdminDiscordLinksPage() {
 
             {tempPassword && (
               <TempPasswordBox>
-                Dočasné heslo: <code>{tempPassword}</code>
+                Temporary password: <code>{tempPassword}</code>
               </TempPasswordBox>
             )}
           </Card>

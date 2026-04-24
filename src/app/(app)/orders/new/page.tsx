@@ -80,7 +80,7 @@ export default function NewOrderPage() {
             {creating ? 'Opening...' : 'Open Order'}
           </Button>
           <Button variant="secondary" onClick={() => router.push('/orders/new/sekacka')}>
-            🥩 Nová Sekačka
+            🥩 New Sekačka
           </Button>
         </div>
       </Form>

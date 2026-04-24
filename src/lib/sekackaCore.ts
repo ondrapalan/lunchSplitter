@@ -151,7 +151,7 @@ export async function addSekackaParticipant(
   })
   if (!order) throw new SekackaError('NOT_FOUND', 'Order not found')
   if (order.type !== 'SEKACKA') throw new SekackaError('NOT_SEKACKA', 'Not a Sekačka order')
-  if (order.status !== 'OPEN') throw new SekackaError('CLOSED', 'Sekačka je už uzavřená')
+  if (order.status !== 'OPEN') throw new SekackaError('CLOSED', 'Sekačka is already closed')
 
   const existing = order.people.find(p => p.userId === userId)
   if (existing) return { added: false, personId: existing.id }
@@ -236,10 +236,10 @@ export async function removeSekackaParticipant(
   })
   if (!order) throw new SekackaError('NOT_FOUND', 'Order not found')
   if (order.type !== 'SEKACKA') throw new SekackaError('NOT_SEKACKA', 'Not a Sekačka order')
-  if (order.status !== 'OPEN') throw new SekackaError('CLOSED', 'Sekačka je už uzavřená')
+  if (order.status !== 'OPEN') throw new SekackaError('CLOSED', 'Sekačka is already closed')
 
   if (order.createdById === userId) {
-    throw new SekackaError('FORBIDDEN', 'Autor se nemůže odhlásit ze své vlastní Sekačky')
+    throw new SekackaError('FORBIDDEN', "The creator can't leave their own Sekačka")
   }
 
   const person = order.people.find(p => p.userId === userId)
