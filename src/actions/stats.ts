@@ -4,7 +4,7 @@ import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
-import type { StatPeriod, SpendingEntry, PersonalStats, FunStat, HospitalityEntry, VisitorEntry } from '~/features/stats/types'
+import type { StatPeriod, SpendingEntry, PersonalStats, FunStat, HospitalityEntry, VisitorEntry, SekackaStatsData, SekackaLeaderEntry, SekackaItemBreakdown } from '~/features/stats/types'
 
 function getPeriodStart(period: StatPeriod): Date | null {
   if (period === 'all') return null
@@ -642,4 +642,109 @@ export async function getVisitors(): Promise<VisitorEntry[]> {
       lastVisit: lastVisit?.toISOString() ?? null,
     }
   })
+}
+
+/**
+ * Sekačka-specific stats: how many ran, how much was spent in total,
+ * who ate the most portions, who brought the most sekaná, and how the
+ * item breakdown looks across all closed Sekačkas.
+ */
+export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsData> {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const periodStart = getPeriodStart(period)
+  const orders = await prisma.order.findMany({
+    where: {
+      type: 'SEKACKA',
+      status: 'CLOSED',
+      ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
+    },
+    include: {
+      createdBy: { select: { id: true, displayName: true } },
+      people: {
+        include: {
+          user: { select: { displayName: true } },
+          items: { select: { name: true, price: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  let totalSpent = 0
+  let totalParticipants = 0
+
+  const eaters = new Map<string, SekackaLeaderEntry>()
+  const providers = new Map<string, SekackaLeaderEntry>()
+  const items = new Map<string, SekackaItemBreakdown>()
+
+  for (const order of orders) {
+    const orderItems = order.people.flatMap(p => p.items)
+    const orderTotal = orderItems.reduce((sum, it) => sum + it.price, 0)
+    const participants = order.people.length
+    if (participants === 0) continue
+
+    totalSpent += orderTotal
+    totalParticipants += participants
+    const perPerson = orderTotal / participants
+
+    // Eaters — every participant (creator included) eats one portion.
+    for (const person of order.people) {
+      if (!person.userId) continue
+      const key = person.userId
+      const existing = eaters.get(key)
+      const name = person.user?.displayName ?? person.name
+      if (existing) {
+        existing.count += 1
+        existing.totalKc += perPerson
+      } else {
+        eaters.set(key, { userId: key, name, count: 1, totalKc: perPerson })
+      }
+    }
+
+    // Providers — only the creator (order.createdById).
+    const providerKey = order.createdById
+    const providerName = order.createdBy.displayName
+    const existingProvider = providers.get(providerKey)
+    if (existingProvider) {
+      existingProvider.count += 1
+      existingProvider.totalKc += orderTotal
+    } else {
+      providers.set(providerKey, {
+        userId: providerKey,
+        name: providerName,
+        count: 1,
+        totalKc: orderTotal,
+      })
+    }
+
+    // Item breakdown — aggregate by lower-cased name.
+    for (const it of orderItems) {
+      const key = it.name.trim().toLowerCase()
+      const existing = items.get(key)
+      if (existing) {
+        existing.occurrences += 1
+        existing.totalKc += it.price
+      } else {
+        items.set(key, { name: it.name.trim(), occurrences: 1, totalKc: it.price })
+      }
+    }
+  }
+
+  const totalCount = orders.length
+  const avgParticipants = totalCount > 0 ? totalParticipants / totalCount : 0
+  const avgPerPortion = totalParticipants > 0 ? totalSpent / totalParticipants : 0
+
+  return {
+    summary: {
+      totalCount,
+      totalSpent,
+      avgParticipants,
+      avgPerPortion,
+    },
+    topEaters: Array.from(eaters.values()).sort((a, b) => b.count - a.count || b.totalKc - a.totalKc),
+    topProviders: Array.from(providers.values()).sort((a, b) => b.count - a.count || b.totalKc - a.totalKc),
+    items: Array.from(items.values()).sort((a, b) => b.totalKc - a.totalKc),
+  }
 }

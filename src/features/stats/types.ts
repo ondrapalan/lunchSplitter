@@ -42,3 +42,30 @@ export interface VisitorEntry {
   visitCount: number
   lastVisit: string | null
 }
+
+export interface SekackaSummary {
+  totalCount: number
+  totalSpent: number
+  avgParticipants: number
+  avgPerPortion: number
+}
+
+export interface SekackaLeaderEntry {
+  userId: string | null
+  name: string
+  count: number
+  totalKc: number
+}
+
+export interface SekackaItemBreakdown {
+  name: string
+  occurrences: number
+  totalKc: number
+}
+
+export interface SekackaStatsData {
+  summary: SekackaSummary
+  topEaters: SekackaLeaderEntry[]
+  topProviders: SekackaLeaderEntry[]
+  items: SekackaItemBreakdown[]
+}
