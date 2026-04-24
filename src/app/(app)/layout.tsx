@@ -6,7 +6,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { useThemeMode } from '~/features/ui/theme/ThemeContext'
 import { media } from '~/features/ui/theme'
-import { AdminBadge } from '~/features/ui/components/AdminBadge'
+import { NavLink, NavLabel, NavIcon } from '~/features/ui/components/NavLink'
+import { AdminNavMenu } from '~/features/ui/components/AdminNavMenu'
 import { getPendingDiscordLinkCount } from '~/actions/pendingDiscordLinks'
 
 const Nav = styled.nav`
@@ -31,42 +32,6 @@ const NavLinks = styled.div`
   ${media.mobile} {
     gap: ${({ theme }) => theme.spacing.xs};
   }
-`
-
-const NavLink = styled.button<{ $active: boolean }>`
-  background: ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
-  color: ${({ $active, theme }) => ($active ? theme.colors.background : theme.colors.text)};
-  border: 1px solid ${({ $active, theme }) => ($active ? theme.colors.primary : theme.colors.border)};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.md};
-  cursor: pointer;
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 500;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.xs};
-
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
-
-  ${media.mobile} {
-    min-height: 44px;
-    padding: ${({ theme }) => theme.spacing.sm};
-    justify-content: center;
-  }
-`
-
-const NavLabel = styled.span`
-  ${media.mobile} {
-    display: none;
-  }
-`
-
-const NavIcon = styled.span`
-  display: inline-flex;
-  line-height: 0;
 `
 
 const MainContent = styled.main`
@@ -167,59 +132,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLabel>Invite</NavLabel>
           </NavLink>
           {session?.user?.role === 'ADMIN' && (
-            <>
-              <NavLink
-                $active={pathname.startsWith('/admin/users')}
-                onClick={() => router.push('/admin/users')}
-                title="Users"
-              >
-                <NavIcon>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                </NavIcon>
-                <NavLabel>Users</NavLabel>
-              </NavLink>
-              <NavLink
-                $active={pathname.startsWith('/admin/guests')}
-                onClick={() => router.push('/admin/guests')}
-                title="Guests"
-              >
-                <NavIcon>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 11h-6" /><path d="M19 8v6" />
-                  </svg>
-                </NavIcon>
-                <NavLabel>Guests</NavLabel>
-              </NavLink>
-              <NavLink
-                $active={pathname.startsWith('/admin/items')}
-                onClick={() => router.push('/admin/items')}
-                title="Items"
-              >
-                <NavIcon>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
-                  </svg>
-                </NavIcon>
-                <NavLabel>Items</NavLabel>
-              </NavLink>
-              <NavLink
-                $active={pathname.startsWith('/admin/discord-links')}
-                onClick={() => router.push('/admin/discord-links')}
-                title="Discord links"
-              >
-                <NavIcon>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    <circle cx="9.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
-                    <circle cx="14.5" cy="10" r="1.5" fill="currentColor" stroke="none" />
-                  </svg>
-                </NavIcon>
-                <NavLabel>Discord links</NavLabel>
-                {pendingLinkCount > 0 && <AdminBadge>{pendingLinkCount}</AdminBadge>}
-              </NavLink>
-            </>
+            <AdminNavMenu pendingLinkCount={pendingLinkCount} />
           )}
         </NavLinks>
         <NavLink
