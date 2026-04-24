@@ -1,7 +1,38 @@
 'use server'
 
+import { revalidateTag } from 'next/cache'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { cached, ORDER_TAGS } from '~/lib/cache'
+
+function invalidateGuests() {
+  revalidateTag(ORDER_TAGS.guests)
+}
+
+const listGuestsCached = cached(
+  async (): Promise<GuestSuggestion[]> => {
+    const guests = await prisma.guest.findMany({
+      select: {
+        id: true,
+        name: true,
+        aliases: true,
+        defaultHostUserId: true,
+        defaultHost: { select: { displayName: true } },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return guests.map(g => ({
+      id: g.id,
+      name: g.name,
+      aliases: g.aliases,
+      defaultHostUserId: g.defaultHostUserId,
+      defaultHostDisplayName: g.defaultHost.displayName,
+    }))
+  },
+  ['guests-list'],
+  { tags: [ORDER_TAGS.guests], revalidate: 300 },
+)
 
 export interface GuestSuggestion {
   id: string
@@ -14,25 +45,7 @@ export interface GuestSuggestion {
 export async function listGuests(): Promise<GuestSuggestion[]> {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const guests = await prisma.guest.findMany({
-    select: {
-      id: true,
-      name: true,
-      aliases: true,
-      defaultHostUserId: true,
-      defaultHost: { select: { displayName: true } },
-    },
-    orderBy: { name: 'asc' },
-  })
-
-  return guests.map(g => ({
-    id: g.id,
-    name: g.name,
-    aliases: g.aliases,
-    defaultHostUserId: g.defaultHostUserId,
-    defaultHostDisplayName: g.defaultHost.displayName,
-  }))
+  return listGuestsCached()
 }
 
 export async function listGuestsWithStats() {
@@ -102,6 +115,7 @@ export async function createGuest(input: { name: string; defaultHostUserId: stri
     },
   })
 
+  invalidateGuests()
   return {
     id: guest.id,
     name: guest.name,
@@ -133,6 +147,7 @@ export async function updateGuest(id: string, input: { name?: string; defaultHos
   }
 
   await prisma.guest.update({ where: { id }, data })
+  invalidateGuests()
   return { success: true }
 }
 
@@ -148,6 +163,7 @@ export async function deleteGuest(id: string) {
   }
 
   await prisma.guest.delete({ where: { id } })
+  invalidateGuests()
   return { success: true }
 }
 
@@ -209,5 +225,6 @@ export async function backfillLegacyGuest(input: {
     data: { guestId: input.guestId, hostUserId: input.hostUserId },
   })
 
+  invalidateGuests()
   return { updated: result.count }
 }

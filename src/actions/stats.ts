@@ -4,6 +4,7 @@ import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
+import { cached, ORDER_TAGS } from '~/lib/cache'
 import type { StatPeriod, SpendingEntry, PersonalStats, FunStat, HospitalityEntry, VisitorEntry, SekackaStatsData, SekackaLeaderEntry, SekackaItemBreakdown } from '~/features/stats/types'
 
 function getPeriodStart(period: StatPeriod): Date | null {
@@ -48,17 +49,21 @@ function isGuestRow(person: { guestId: string | null }): boolean {
   return person.guestId !== null
 }
 
-async function fetchClosedOrders(period: StatPeriod) {
-  const periodStart = getPeriodStart(period)
-  return prisma.order.findMany({
-    where: {
-      status: 'CLOSED',
-      ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
-    },
-    include: fullOrderInclude,
-    orderBy: { createdAt: 'desc' },
-  })
-}
+const fetchClosedOrders = cached(
+  async (period: StatPeriod) => {
+    const periodStart = getPeriodStart(period)
+    return prisma.order.findMany({
+      where: {
+        status: 'CLOSED',
+        ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
+      },
+      include: fullOrderInclude,
+      orderBy: { createdAt: 'desc' },
+    })
+  },
+  ['closed-orders'],
+  { tags: [ORDER_TAGS.closed], revalidate: 60 },
+)
 
 type PersonSpending = {
   name: string
@@ -608,41 +613,73 @@ export async function getHospitalityLeaderboard(period: StatPeriod): Promise<Hos
     .sort((a, b) => b.guestLunchCount - a.guestLunchCount)
 }
 
+const getVisitorsCached = cached(
+  async (): Promise<VisitorEntry[]> => {
+    const guests = await prisma.guest.findMany({
+      select: {
+        id: true,
+        name: true,
+        defaultHostUserId: true,
+        defaultHost: { select: { displayName: true } },
+        orderPersons: {
+          select: {
+            order: { select: { createdAt: true, status: true } },
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return guests.map(g => {
+      const closedVisits = g.orderPersons.filter(op => op.order.status === 'CLOSED')
+      const lastVisit = closedVisits.reduce<Date | null>((latest, op) => {
+        const d = op.order.createdAt
+        return !latest || d > latest ? d : latest
+      }, null)
+      return {
+        guestId: g.id,
+        name: g.name,
+        defaultHostUserId: g.defaultHostUserId,
+        defaultHostName: g.defaultHost.displayName,
+        visitCount: closedVisits.length,
+        lastVisit: lastVisit?.toISOString() ?? null,
+      }
+    })
+  },
+  ['visitors'],
+  { tags: [ORDER_TAGS.guests, ORDER_TAGS.closed], revalidate: 60 },
+)
+
 export async function getVisitors(): Promise<VisitorEntry[]> {
   const authSession = await auth()
   if (!authSession?.user) throw new Error('Unauthorized')
+  return getVisitorsCached()
+}
 
-  const guests = await prisma.guest.findMany({
-    select: {
-      id: true,
-      name: true,
-      defaultHostUserId: true,
-      defaultHost: { select: { displayName: true } },
-      orderPersons: {
-        select: {
-          order: { select: { createdAt: true, status: true } },
+const fetchSekackaOrders = cached(
+  async (period: StatPeriod) => {
+    const periodStart = getPeriodStart(period)
+    return prisma.order.findMany({
+      where: {
+        type: 'SEKACKA',
+        status: 'CLOSED',
+        ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
+      },
+      include: {
+        createdBy: { select: { id: true, displayName: true } },
+        people: {
+          include: {
+            user: { select: { displayName: true } },
+            items: { select: { name: true, price: true } },
+          },
         },
       },
-    },
-    orderBy: { name: 'asc' },
-  })
-
-  return guests.map(g => {
-    const closedVisits = g.orderPersons.filter(op => op.order.status === 'CLOSED')
-    const lastVisit = closedVisits.reduce<Date | null>((latest, op) => {
-      const d = op.order.createdAt
-      return !latest || d > latest ? d : latest
-    }, null)
-    return {
-      guestId: g.id,
-      name: g.name,
-      defaultHostUserId: g.defaultHostUserId,
-      defaultHostName: g.defaultHost.displayName,
-      visitCount: closedVisits.length,
-      lastVisit: lastVisit?.toISOString() ?? null,
-    }
-  })
-}
+      orderBy: { createdAt: 'desc' },
+    })
+  },
+  ['sekacka-orders'],
+  { tags: [ORDER_TAGS.closed], revalidate: 60 },
+)
 
 /**
  * Sekačka-specific stats: how many ran, how much was spent in total,
@@ -653,24 +690,7 @@ export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsD
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
 
-  const periodStart = getPeriodStart(period)
-  const orders = await prisma.order.findMany({
-    where: {
-      type: 'SEKACKA',
-      status: 'CLOSED',
-      ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
-    },
-    include: {
-      createdBy: { select: { id: true, displayName: true } },
-      people: {
-        include: {
-          user: { select: { displayName: true } },
-          items: { select: { name: true, price: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  })
+  const orders = await fetchSekackaOrders(period)
 
   let totalSpent = 0
   let totalParticipants = 0
@@ -747,4 +767,37 @@ export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsD
     topProviders: Array.from(providers.values()).sort((a, b) => b.count - a.count || b.totalKc - a.totalKc),
     items: Array.from(items.values()).sort((a, b) => b.totalKc - a.totalKc),
   }
+}
+
+export type StatsBundle = {
+  spending: SpendingEntry[]
+  frequency: SpendingEntry[]
+  hospitality: HospitalityEntry[]
+  sekacka: SekackaStatsData
+  personal: PersonalStats
+  fun: FunStat[]
+  visitors: VisitorEntry[]
+}
+
+/**
+ * Fetch every /stats card in a single server round-trip. The underlying
+ * Prisma queries (fetchClosedOrders / fetchSekackaOrders / getVisitors) are
+ * each wrapped in unstable_cache, so concurrent aggregations share DB scans
+ * and repeat visits within the TTL hit cache entirely.
+ */
+export async function getStatsBundle(period: StatPeriod): Promise<StatsBundle> {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const [spending, frequency, hospitality, sekacka, personal, fun, visitors] = await Promise.all([
+    getSpendingLeaderboard(period),
+    getOrderFrequency(period),
+    getHospitalityLeaderboard(period),
+    getSekackaStats(period),
+    getPersonalStats(),
+    getFunStats(),
+    getVisitors(),
+  ])
+
+  return { spending, frequency, hospitality, sekacka, personal, fun, visitors }
 }

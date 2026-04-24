@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
-import { getPersonalStats } from '~/actions/stats'
+import { useStatsBundle } from '~/lib/queries/stats'
 import { formatCurrency } from '~/features/lunch/utils/formatters'
-import type { PersonalStats } from '../types'
 import { media } from '~/features/ui/theme'
 
 const Grid = styled.div`
@@ -72,14 +70,7 @@ const EmptyState = styled.div`
 `
 
 export function PersonalPrediction() {
-  const [stats, setStats] = useState<PersonalStats | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getPersonalStats()
-      .then(setStats)
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: stats, isPending: loading } = useStatsBundle('month', b => b.personal)
 
   if (loading) {
     return (

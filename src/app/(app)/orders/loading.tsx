@@ -1,36 +1,27 @@
 'use client'
 
-import styled, { keyframes } from 'styled-components'
+import styled from 'styled-components'
+import { Skeleton, SkeletonTitle } from '~/features/ui/components/Skeleton'
 
-const pulse = keyframes`
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+const List = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
 `
 
-const Skeleton = styled.div`
-  background: ${({ theme }) => theme.colors.surface};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  animation: ${pulse} 1.5s ease-in-out infinite;
-`
-
-const TitleSkeleton = styled(Skeleton)`
-  height: 28px;
-  width: 180px;
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-`
-
-const RowSkeleton = styled(Skeleton)`
-  height: 60px;
-  margin-bottom: ${({ theme }) => theme.spacing.sm};
+const Row = styled(Skeleton).attrs({ $height: '72px' })`
+  margin-bottom: 0;
 `
 
 export default function Loading() {
   return (
     <div>
-      <TitleSkeleton />
-      <RowSkeleton />
-      <RowSkeleton />
-      <RowSkeleton />
+      <SkeletonTitle />
+      <List>
+        <Row />
+        <Row />
+        <Row />
+      </List>
     </div>
   )
 }

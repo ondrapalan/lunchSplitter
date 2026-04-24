@@ -1,29 +1,56 @@
 'use server'
 
+import { revalidateTag } from 'next/cache'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { cached, ORDER_TAGS } from '~/lib/cache'
+
+const listUsersCached = cached(
+  async () => {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        role: true,
+        isFirstLogin: true,
+        aliases: true,
+        bankAccountNumber: true,
+        discordId: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+  },
+  ['users-all'],
+  { tags: [ORDER_TAGS.usersAll], revalidate: 300 },
+)
+
+const getRegisteredUsersCached = cached(
+  async () => {
+    return prisma.user.findMany({
+      select: {
+        id: true,
+        displayName: true,
+        aliases: true,
+      },
+      orderBy: { displayName: 'asc' },
+    })
+  },
+  ['users-registered'],
+  { tags: [ORDER_TAGS.users], revalidate: 300 },
+)
+
+function invalidateUsers() {
+  revalidateTag(ORDER_TAGS.users)
+  revalidateTag(ORDER_TAGS.usersAll)
+}
 
 export async function listUsers() {
   const session = await auth()
   if (!session?.user || session.user.role !== 'ADMIN') {
     throw new Error('Unauthorized')
   }
-
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      role: true,
-      isFirstLogin: true,
-      aliases: true,
-      bankAccountNumber: true,
-      discordId: true,
-    },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  return users
+  return listUsersCached()
 }
 
 export async function deleteUser(userId: string) {
@@ -44,6 +71,7 @@ export async function deleteUser(userId: string) {
 
   await prisma.user.delete({ where: { id: userId } })
 
+  invalidateUsers()
   return { success: true }
 }
 
@@ -60,23 +88,14 @@ export async function updateUserAliases(userId: string, aliases: string[]) {
     data: { aliases: trimmed },
   })
 
+  invalidateUsers()
   return { success: true }
 }
 
 export async function getRegisteredUsers() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      displayName: true,
-      aliases: true,
-    },
-    orderBy: { displayName: 'asc' },
-  })
-
-  return users
+  return getRegisteredUsersCached()
 }
 
 export async function setUserDiscordId(userId: string, discordId: string | null) {
@@ -102,5 +121,6 @@ export async function setUserDiscordId(userId: string, discordId: string | null)
     data: { discordId: cleaned },
   })
 
+  invalidateUsers()
   return { success: true }
 }

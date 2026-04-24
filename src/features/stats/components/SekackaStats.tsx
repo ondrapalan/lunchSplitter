@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { Button } from '~/features/ui/components/Button'
-import { getSekackaStats } from '~/actions/stats'
+import { useStatsBundle } from '~/lib/queries/stats'
 import { formatCurrency } from '~/features/lunch/utils/formatters'
 import type { SekackaStatsData, StatPeriod } from '../types'
 import { media } from '~/features/ui/theme'
@@ -128,23 +128,8 @@ function emptyData(): SekackaStatsData {
 
 export function SekackaStats() {
   const [period, setPeriod] = useState<StatPeriod>('all')
-  const [data, setData] = useState<SekackaStatsData>(emptyData())
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async (p: StatPeriod) => {
-    setLoading(true)
-    try {
-      const result = await getSekackaStats(p)
-      setData(result)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load(period)
-  }, [period, load])
-
+  const { data: sekacka, isPending: loading } = useStatsBundle(period, b => b.sekacka)
+  const data: SekackaStatsData = sekacka ?? emptyData()
   const { summary, topEaters, topProviders, items } = data
   const isEmpty = !loading && summary.totalCount === 0
 

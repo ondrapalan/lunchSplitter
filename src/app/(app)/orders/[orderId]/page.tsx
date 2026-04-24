@@ -14,16 +14,26 @@ import { Summary } from '~/features/lunch/components/Summary'
 
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import { SkeletonCard, SkeletonTitle } from '~/features/ui/components/Skeleton'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
-import { getOrder, saveOrder, deleteOrder, getItemsByRestaurant, closeOrder, reopenOrder, joinOrder, leaveOrder } from '~/actions/orders'
-import { getRegisteredUsers } from '~/actions/users'
-import { listGuests } from '~/actions/guests'
+import {
+  useCloseOrder,
+  useDeleteOrder,
+  useItemsByRestaurant,
+  useJoinOrder,
+  useLeaveOrder,
+  useOrder,
+  useReopenOrder,
+  useSaveOrder,
+} from '~/lib/queries/orders'
+import { useRegisteredUsers } from '~/lib/queries/users'
+import { useGuests } from '~/lib/queries/guests'
 import type { GuestSuggestion } from '~/actions/guests'
+import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import { getPaymentConfirmations, togglePaymentConfirmation } from '~/actions/discord'
 import { SekackaOrderDetail } from '~/features/lunch/components/SekackaOrderDetail'
 import { wasEdited } from '~/features/lunch/utils/formatters'
-import type { UserSuggestion } from '~/features/lunch/components/PersonSuggest'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
 import type { LunchSession, Item } from '~/features/lunch/types'
 
@@ -148,42 +158,53 @@ interface OrderData {
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const router = useRouter()
-  const [loaded, setLoaded] = useState(false)
-  const [orderData, setOrderData] = useState<OrderData | null>(null)
-  const [registeredUsers, setRegisteredUsers] = useState<UserSuggestion[]>([])
-  const [guestSuggestions, setGuestSuggestions] = useState<GuestSuggestion[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [isEditingMyItems, setIsEditingMyItems] = useState(false)
   const [contentKey, setContentKey] = useState(0)
-  const [historicalItems, setHistoricalItems] = useState<ItemSuggestion[]>([])
+
+  const orderQuery = useOrder(orderId)
+  const usersQuery = useRegisteredUsers()
+  const guestsQuery = useGuests()
+  const orderData = orderQuery.data as OrderData | null | undefined
+  const itemsQuery = useItemsByRestaurant(orderData?.restaurantName)
+
+  const registeredUsers = usersQuery.data ?? []
+  const guestSuggestions = guestsQuery.data ?? []
+  const historicalItems: ItemSuggestion[] = itemsQuery.data ?? []
 
   const load = useCallback(async () => {
-    try {
-      const [result, users, guests] = await Promise.all([getOrder(orderId), getRegisteredUsers(), listGuests()])
-      setRegisteredUsers(users)
-      setGuestSuggestions(guests)
-      if (!result) {
-        toast.error('Order not found')
-        router.push('/orders')
-        return
-      }
-      setOrderData(result)
-      getItemsByRestaurant(result.restaurantName).then(setHistoricalItems)
-      setLoaded(true)
-      if (result.session.people.length === 0 && result.access.isCreator) {
-        setIsEditing(true)
-      }
-    } catch {
-      toast.error('Failed to load order')
+    await Promise.all([orderQuery.refetch(), usersQuery.refetch(), guestsQuery.refetch()])
+  }, [orderQuery, usersQuery, guestsQuery])
+
+  const notFound = orderQuery.isSuccess && orderData === null
+  useEffect(() => {
+    if (notFound) {
+      toast.error('Order not found')
+      router.push('/orders')
     }
-  }, [orderId, router])
+  }, [notFound, router])
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (orderQuery.error) toast.error('Failed to load order')
+  }, [orderQuery.error])
 
-  if (!loaded || !orderData) {
-    return <SectionTitle>Loading order...</SectionTitle>
+  const autoEditedRef = useRef(false)
+  useEffect(() => {
+    if (orderData && !autoEditedRef.current && orderData.session.people.length === 0 && orderData.access.isCreator) {
+      autoEditedRef.current = true
+      setIsEditing(true)
+    }
+  }, [orderData])
+
+  if (!orderData) {
+    return (
+      <div>
+        <SkeletonTitle />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+      </div>
+    )
   }
 
   if (orderData.type === 'SEKACKA') {
@@ -384,11 +405,18 @@ function OrderContent({
 
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
 
+  const closeMutation = useCloseOrder()
+  const reopenMutation = useReopenOrder()
+  const joinMutation = useJoinOrder()
+  const leaveMutation = useLeaveOrder()
+  const deleteMutation = useDeleteOrder()
+  const saveMutation = useSaveOrder()
+
   const handleClose = async (sendDiscord: boolean) => {
     setCloseDialogOpen(false)
     setIsClosing(true)
     try {
-      const result = await closeOrder(orderId, { sendDiscord })
+      const result = await closeMutation.mutateAsync({ orderId, sendDiscord })
       toast.success(sendDiscord ? 'Order closed' : 'Order closed (no DMs sent)')
       if (result.discord) {
         const { sent, skipped, failed } = result.discord
@@ -413,7 +441,7 @@ function OrderContent({
   const handleReopen = async () => {
     setIsReopening(true)
     try {
-      await reopenOrder(orderId)
+      await reopenMutation.mutateAsync(orderId)
       toast.success('Order reopened')
       await onStatusChange()
     } catch {
@@ -426,7 +454,7 @@ function OrderContent({
   const handleJoin = async () => {
     setIsJoining(true)
     try {
-      await joinOrder(orderId)
+      await joinMutation.mutateAsync(orderId)
       toast.success('Joined order!')
       await onJoined()
     } catch (err) {
@@ -448,7 +476,7 @@ function OrderContent({
 
     setIsLeaving(true)
     try {
-      await leaveOrder(orderId)
+      await leaveMutation.mutateAsync(orderId)
       toast.success('Left order')
       router.push('/orders')
     } catch (err) {
@@ -462,7 +490,7 @@ function OrderContent({
     if (!confirm('Delete this order?')) return
     setIsDeleting(true)
     try {
-      await deleteOrder(orderId)
+      await deleteMutation.mutateAsync(orderId)
       toast.success('Order deleted')
       router.push('/orders')
     } catch {
@@ -597,7 +625,7 @@ function OrderContent({
             try {
               await autoSave.flushAll()
               if (isEditing) {
-                await saveOrder(orderId, session, latestUpdatedAt.current, bankAccountNumber || null)
+                await saveMutation.mutateAsync([orderId, session, latestUpdatedAt.current, bankAccountNumber || null])
               }
               await onSaved()
             } catch (err) {

@@ -1,11 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
-import { getVisitors, getHospitalityLeaderboard } from '~/actions/stats'
+import { useStatsBundle } from '~/lib/queries/stats'
 import { formatCurrency } from '~/features/lunch/utils/formatters'
-import type { VisitorEntry, HospitalityEntry, StatPeriod } from '../types'
 import { media } from '~/features/ui/theme'
 
 const Table = styled.table`
@@ -54,19 +52,9 @@ const CardGap = styled.div`
 `
 
 export function VisitorsSection() {
-  const [visitors, setVisitors] = useState<VisitorEntry[]>([])
-  const [hospitality, setHospitality] = useState<HospitalityEntry[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const period: StatPeriod = 'all'
-    Promise.all([getVisitors(), getHospitalityLeaderboard(period)])
-      .then(([v, h]) => {
-        setVisitors(v)
-        setHospitality(h)
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: bundle, isPending: loading } = useStatsBundle('all')
+  const visitors = bundle?.visitors ?? []
+  const hospitality = bundle?.hospitality ?? []
 
   return (
     <div>

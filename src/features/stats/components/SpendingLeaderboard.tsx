@@ -1,12 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { Button } from '~/features/ui/components/Button'
-import { getSpendingLeaderboard } from '~/actions/stats'
+import { useStatsBundle } from '~/lib/queries/stats'
 import { formatCurrency } from '~/features/lunch/utils/formatters'
-import type { SpendingEntry, StatPeriod } from '../types'
+import type { StatPeriod } from '../types'
 import { media } from '~/features/ui/theme'
 
 const PeriodBar = styled.div`
@@ -86,22 +86,7 @@ const PERIODS: { value: StatPeriod; label: string }[] = [
 
 export function SpendingLeaderboard() {
   const [period, setPeriod] = useState<StatPeriod>('month')
-  const [entries, setEntries] = useState<SpendingEntry[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async (p: StatPeriod) => {
-    setLoading(true)
-    try {
-      const data = await getSpendingLeaderboard(p)
-      setEntries(data)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load(period)
-  }, [period, load])
+  const { data: entries = [], isPending: loading } = useStatsBundle(period, b => b.spending)
 
   return (
     <Card>

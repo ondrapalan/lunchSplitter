@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidateTag } from 'next/cache'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
@@ -8,45 +9,63 @@ import { getOrderAccess } from '~/lib/orderAccess'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { sendOrderQrCodes } from '~/actions/discord'
 import { refreshSekackaDiscordMessage } from '~/lib/sekackaCore'
+import { cached, ORDER_TAGS, allOrderReadTags } from '~/lib/cache'
+
+function invalidateOrder(orderId: string) {
+  revalidateTag(ORDER_TAGS.byId(orderId))
+  for (const tag of allOrderReadTags()) revalidateTag(tag)
+}
+
+const getItemsByRestaurantCached = cached(
+  async (restaurantName: string) => {
+    const items = await prisma.orderItem.findMany({
+      where: {
+        person: {
+          order: {
+            restaurant: { name: restaurantName },
+          },
+        },
+      },
+      select: { name: true, price: true, isPackaging: true },
+      orderBy: { person: { order: { createdAt: 'desc' } } },
+      take: 500,
+    })
+
+    const seen = new Map<string, { name: string; price: number; isPackaging: boolean }>()
+    for (const item of items) {
+      const key = item.name.toLowerCase()
+      if (!seen.has(key)) {
+        seen.set(key, { name: item.name, price: item.price, isPackaging: item.isPackaging })
+      }
+    }
+    return [...seen.values()]
+  },
+  ['items-by-restaurant'],
+  (name) => ({ tags: [ORDER_TAGS.itemsByRestaurant(name), ORDER_TAGS.itemsAll], revalidate: 300 }),
+)
+
+const getRestaurantNamesCached = cached(
+  async () => {
+    const restaurants = await prisma.restaurant.findMany({
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    })
+    return restaurants.map(r => r.name)
+  },
+  ['restaurant-names'],
+  { tags: [ORDER_TAGS.restaurantNames], revalidate: 300 },
+)
 
 export async function getItemsByRestaurant(restaurantName: string): Promise<{ name: string; price: number; isPackaging: boolean }[]> {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const items = await prisma.orderItem.findMany({
-    where: {
-      person: {
-        order: {
-          restaurant: { name: restaurantName },
-        },
-      },
-    },
-    select: { name: true, price: true, isPackaging: true },
-    orderBy: { person: { order: { createdAt: 'desc' } } },
-    take: 500,
-  })
-
-  const seen = new Map<string, { name: string; price: number; isPackaging: boolean }>()
-  for (const item of items) {
-    const key = item.name.toLowerCase()
-    if (!seen.has(key)) {
-      seen.set(key, { name: item.name, price: item.price, isPackaging: item.isPackaging })
-    }
-  }
-
-  return [...seen.values()]
+  return getItemsByRestaurantCached(restaurantName)
 }
 
 export async function getRestaurantNames() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
-
-  const restaurants = await prisma.restaurant.findMany({
-    select: { name: true },
-    orderBy: { name: 'asc' },
-  })
-
-  return restaurants.map(r => r.name)
+  return getRestaurantNamesCached()
 }
 
 export async function createOrder(restaurantName: string, bankAccountNumber?: string) {
@@ -77,6 +96,8 @@ export async function createOrder(restaurantName: string, bankAccountNumber?: st
     },
   })
 
+  revalidateTag(ORDER_TAGS.open)
+  revalidateTag(ORDER_TAGS.restaurantNames)
   return { id: order.id }
 }
 
@@ -153,6 +174,7 @@ export async function saveOrder(orderId: string, lunchSession: LunchSession, exp
     })
   }, { timeout: 20_000 })
 
+  invalidateOrder(orderId)
   return { success: true }
 }
 
@@ -174,6 +196,7 @@ export async function deleteOrder(orderId: string) {
   // Cascade deletes handle children
   await prisma.order.delete({ where: { id: orderId } })
 
+  invalidateOrder(orderId)
   return { success: true }
 }
 
@@ -394,6 +417,7 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
     })
   }
 
+  invalidateOrder(orderId)
   return { success: true, discord: discordResult }
 }
 
@@ -433,6 +457,7 @@ export async function reopenOrder(orderId: string) {
     })
   }
 
+  invalidateOrder(orderId)
   return { success: true }
 }
 
@@ -480,6 +505,7 @@ export async function joinOrder(orderId: string) {
     return { personId: person.id }
   })
 
+  invalidateOrder(orderId)
   return result
 }
 
@@ -510,6 +536,7 @@ export async function leaveOrder(orderId: string) {
     })
   })
 
+  invalidateOrder(orderId)
   return { success: true }
 }
 
@@ -607,5 +634,7 @@ export async function saveMyItems(
     })
   })
 
+  invalidateOrder(orderId)
+  revalidateTag(ORDER_TAGS.itemsAll)
   return { success: true }
 }

@@ -1,17 +1,27 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
-import { listOrders, listOpenOrders, deleteOrder, closeOrder, reopenOrder, joinOrder, listAdminOrders } from '~/actions/orders'
+import {
+  useAdminOrders,
+  useCloseOrder,
+  useDeleteOrder,
+  useJoinOrder,
+  useMyOrders,
+  useOpenOrders,
+  useReopenOrder,
+} from '~/lib/queries/orders'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import { QrPlatba } from '~/features/lunch/components/QrPlatba'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
+import { Skeleton, SkeletonTitle } from '~/features/ui/components/Skeleton'
 
 interface BaseOrderListItem {
   id: string
@@ -30,9 +40,6 @@ interface OrderListItem extends BaseOrderListItem {
   paymentStatus: { paid: number; total: number } | null
 }
 
-interface OpenOrderListItem extends BaseOrderListItem {
-  isParticipant: boolean
-}
 
 const OrderList = styled.div`
   display: flex;
@@ -117,45 +124,41 @@ function OrderQrCode({ order }: { order: OrderListItem }) {
   }
 }
 
+const OrderListRow = styled(Skeleton).attrs({ $height: '72px' })`
+  margin-bottom: 0;
+`
+
 export default function OrdersPage() {
   const router = useRouter()
-  const [openOrders, setOpenOrders] = useState<OpenOrderListItem[]>([])
-  const [closedOrders, setClosedOrders] = useState<OrderListItem[]>([])
-  const [adminOrders, setAdminOrders] = useState<BaseOrderListItem[]>([])
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'ADMIN'
 
-  const loadOrders = useCallback(async () => {
-    try {
-      const [open, closed, adminResult] = await Promise.all([
-        listOpenOrders(),
-        listOrders(),
-        listAdminOrders().catch(() => null),
-      ])
-      setOpenOrders(open)
-      setClosedOrders(closed)
-      if (adminResult) {
-        setAdminOrders(adminResult)
-        setIsAdmin(true)
-      }
-    } catch {
-      toast.error('Failed to load orders')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const openQuery = useOpenOrders()
+  const myQuery = useMyOrders()
+  const adminQuery = useAdminOrders(isAdmin)
 
+  const deleteMutation = useDeleteOrder()
+  const closeMutation = useCloseOrder()
+  const reopenMutation = useReopenOrder()
+  const joinMutation = useJoinOrder()
+
+  const openOrders = openQuery.data ?? []
+  const closedOrders = myQuery.data ?? []
+  const adminOrders = adminQuery.data ?? []
+
+  const anyError = openQuery.error || myQuery.error
   useEffect(() => {
-    loadOrders()
-  }, [loadOrders])
+    if (anyError) toast.error('Failed to load orders')
+  }, [anyError])
+
+  const isPending = openQuery.isPending || myQuery.isPending || (isAdmin && adminQuery.isPending)
 
   const handleDelete = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()
     if (!confirm('Delete this order?')) return
     try {
-      await deleteOrder(orderId)
+      await deleteMutation.mutateAsync(orderId)
       toast.success('Order deleted')
-      loadOrders()
     } catch {
       toast.error('Failed to delete order')
     }
@@ -164,9 +167,8 @@ export default function OrdersPage() {
   const handleClose = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()
     try {
-      await closeOrder(orderId)
+      await closeMutation.mutateAsync({ orderId })
       toast.success('Order closed')
-      loadOrders()
     } catch {
       toast.error('Failed to close order')
     }
@@ -175,9 +177,8 @@ export default function OrdersPage() {
   const handleReopen = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()
     try {
-      await reopenOrder(orderId)
+      await reopenMutation.mutateAsync(orderId)
       toast.success('Order reopened')
-      loadOrders()
     } catch {
       toast.error('Failed to reopen order')
     }
@@ -186,7 +187,7 @@ export default function OrdersPage() {
   const handleJoin = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()
     try {
-      await joinOrder(orderId)
+      await joinMutation.mutateAsync(orderId)
       toast.success('Joined order!')
       router.push(`/orders/${orderId}`)
     } catch (err) {
@@ -194,8 +195,17 @@ export default function OrdersPage() {
     }
   }
 
-  if (loading) {
-    return <SectionTitle>Loading orders...</SectionTitle>
+  if (isPending) {
+    return (
+      <div>
+        <SkeletonTitle />
+        <OrderList>
+          <OrderListRow />
+          <OrderListRow />
+          <OrderListRow />
+        </OrderList>
+      </div>
+    )
   }
 
   const isEmpty = openOrders.length === 0 && closedOrders.length === 0 && adminOrders.length === 0

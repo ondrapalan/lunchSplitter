@@ -7,8 +7,9 @@ export default function Loading() {
     <div>
       <SkeletonTitle />
       <SkeletonCard lines={4} />
+      <SkeletonCard lines={5} />
       <SkeletonCard lines={4} />
-      <SkeletonCard lines={4} />
+      <SkeletonCard lines={5} />
     </div>
   )
 }

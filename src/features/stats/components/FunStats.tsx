@@ -1,10 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
-import { getFunStats } from '~/actions/stats'
-import type { FunStat } from '../types'
+import { useStatsBundle } from '~/lib/queries/stats'
 import { media } from '~/features/ui/theme'
 
 const Grid = styled.div`
@@ -66,14 +64,7 @@ const EmptyState = styled.div`
 `
 
 export function FunStats() {
-  const [stats, setStats] = useState<FunStat[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getFunStats()
-      .then(setStats)
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: stats = [], isPending: loading } = useStatsBundle('month', b => b.fun)
 
   return (
     <Card>

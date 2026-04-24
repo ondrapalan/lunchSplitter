@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { Button } from '~/features/ui/components/Button'
-import { getOrderFrequency } from '~/actions/stats'
-import type { SpendingEntry, StatPeriod } from '../types'
+import { useStatsBundle } from '~/lib/queries/stats'
+import type { StatPeriod } from '../types'
 
 const PeriodBar = styled.div`
   display: flex;
@@ -67,22 +67,7 @@ const PERIODS: { value: StatPeriod; label: string }[] = [
 
 export function OrderFrequency() {
   const [period, setPeriod] = useState<StatPeriod>('month')
-  const [entries, setEntries] = useState<SpendingEntry[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const load = useCallback(async (p: StatPeriod) => {
-    setLoading(true)
-    try {
-      const data = await getOrderFrequency(p)
-      setEntries(data)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    load(period)
-  }, [period, load])
+  const { data: entries = [], isPending: loading } = useStatsBundle(period, b => b.frequency)
 
   const maxCount = entries.length > 0 ? entries[0].orderCount : 1
 
