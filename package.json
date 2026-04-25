@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run sandbox:guard && npm run sandbox:up && dotenv -e .env.local -e .env -- npx prisma db push --skip-generate && dotenv -e .env.local -e .env -- npx prisma db seed && dotenv -e .env.local -e .env -- next dev -p 3100",
+    "dev:clean": "npm run sandbox:guard && docker compose down -v && docker compose up -d --wait && dotenv -e .env.local -e .env -- npx prisma db push --skip-generate && dotenv -e .env.local -e .env -- npx tsx prisma/seed.dev.ts && dotenv -e .env.local -e .env -- next dev -p 3100",
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sandbox:guard": "node scripts/sandbox-guard.mjs",
+    "sandbox:up": "docker compose up -d --wait",
+    "sandbox:down": "docker compose down"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -18,6 +22,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/styled-components": "^5.1.36",
+    "dotenv-cli": "^11.0.0",
     "jsdom": "^28.1.0",
     "prisma": "^6.9.0",
     "sharp": "^0.34.5",

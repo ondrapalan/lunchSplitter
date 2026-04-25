@@ -1,5 +1,9 @@
 const DISCORD_API = 'https://discord.com/api/v10'
 
+function isDryRun(): boolean {
+  return process.env.DISCORD_DRY_RUN === '1'
+}
+
 function getHeaders() {
   const token = process.env.DISCORD_BOT_TOKEN
   if (!token) throw new Error('DISCORD_BOT_TOKEN not configured')
@@ -37,6 +41,10 @@ interface SendMessageOptions {
 }
 
 async function discordFetch(path: string, options: RequestInit = {}) {
+  if (isDryRun()) {
+    console.info('[discord:dry-run]', options.method ?? 'GET', path)
+    return { id: 'dry-run' }
+  }
   const res = await fetch(`${DISCORD_API}${path}`, {
     ...options,
     headers: { ...getHeaders(), ...(options.headers as Record<string, string> ?? {}) },
@@ -73,6 +81,11 @@ export async function sendChannelMessage(
       method: 'POST',
       body: JSON.stringify(message),
     }) as Promise<{ id: string }>
+  }
+
+  if (isDryRun()) {
+    console.info('[discord:dry-run] POST', `/channels/${channelId}/messages`, `(${files.length} file(s))`)
+    return { id: 'dry-run' }
   }
 
   // Multipart form-data for file attachments
