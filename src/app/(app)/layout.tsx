@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { useThemeMode } from '~/features/ui/theme/ThemeContext'
 import { media } from '~/features/ui/theme'
-import { NavLink, NavLabel, NavIcon } from '~/features/ui/components/NavLink'
+import { NavLink, NavButton, NavLabel, NavIcon } from '~/features/ui/components/NavLink'
 import { AdminNavMenu } from '~/features/ui/components/AdminNavMenu'
 import { getPendingDiscordLinkCount } from '~/actions/pendingDiscordLinks'
 
@@ -84,8 +84,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Nav>
         <NavLinks>
           <NavLink
+            href="/orders/new"
             $active={pathname === '/orders/new'}
-            onClick={() => router.push('/orders/new')}
             title="New Order"
           >
             <NavIcon>
@@ -96,8 +96,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLabel>New Order</NavLabel>
           </NavLink>
           <NavLink
+            href="/orders"
             $active={pathname === '/orders'}
-            onClick={() => router.push('/orders')}
             title="All Orders"
           >
             <NavIcon>
@@ -108,8 +108,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLabel>All Orders</NavLabel>
           </NavLink>
           <NavLink
+            href="/stats"
             $active={pathname === '/stats'}
-            onClick={() => router.push('/stats')}
             title="Stats"
           >
             <NavIcon>
@@ -120,8 +120,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <NavLabel>Stats</NavLabel>
           </NavLink>
           <NavLink
+            href="/invite"
             $active={pathname === '/invite'}
-            onClick={() => router.push('/invite')}
             title="Invite"
           >
             <NavIcon>
@@ -136,8 +136,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </NavLinks>
         <NavLink
+          href="/settings"
           $active={pathname === '/settings'}
-          onClick={() => router.push('/settings')}
           title={session?.user?.name || 'Settings'}
         >
           <NavIcon>
@@ -147,7 +147,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </NavIcon>
           <NavLabel>{session?.user?.name || 'Settings'}</NavLabel>
         </NavLink>
-        <NavLink $active={false} onClick={toggleTheme} title={themeTitle} aria-label={themeTitle}>
+        <NavButton $active={false} onClick={toggleTheme} title={themeTitle} aria-label={themeTitle}>
           <NavIcon>
             {mode === 'light' && (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -168,15 +168,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </svg>
             )}
           </NavIcon>
-        </NavLink>
-        <NavLink $active={false} onClick={handleLogout} title="Logout">
+        </NavButton>
+        <NavButton $active={false} onClick={handleLogout} title="Logout">
           <NavIcon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
             </svg>
           </NavIcon>
           <NavLabel>Logout</NavLabel>
-        </NavLink>
+        </NavButton>
       </Nav>
       <MainContent>{children}</MainContent>
       <Footer>

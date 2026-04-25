@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import styled from 'styled-components'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
-import { NavIcon, NavLabel, NavLink } from '~/features/ui/components/NavLink'
+import { NavIcon, NavLabel, NavButton } from '~/features/ui/components/NavLink'
 
 const Wrapper = styled.div`
   position: relative;
@@ -35,7 +36,7 @@ const Dropdown = styled.div`
   z-index: 10;
 `
 
-const MenuItem = styled.button<{ $active: boolean }>`
+const MenuItem = styled(Link)<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
@@ -49,6 +50,7 @@ const MenuItem = styled.button<{ $active: boolean }>`
   cursor: pointer;
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 500;
+  text-decoration: none;
   transition: background 0.15s ease, color 0.15s ease;
 
   &:hover {
@@ -62,7 +64,6 @@ interface AdminNavMenuProps {
 }
 
 export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
-  const router = useRouter()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -87,16 +88,12 @@ export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
     setOpen(false)
   }, [pathname])
 
-  const navigate = (href: string) => {
-    setOpen(false)
-    router.push(href)
-  }
-
+  const closeMenu = () => setOpen(false)
   const triggerActive = pathname.startsWith('/admin/')
 
   return (
     <Wrapper ref={wrapperRef}>
-      <NavLink
+      <NavButton
         $active={triggerActive}
         onClick={() => setOpen((v) => !v)}
         title="Admin"
@@ -110,13 +107,14 @@ export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
           </svg>
         </NavIcon>
         {pendingLinkCount > 0 && <TriggerBadge>{pendingLinkCount}</TriggerBadge>}
-      </NavLink>
+      </NavButton>
       {open && (
         <Dropdown role="menu">
           <MenuItem
             role="menuitem"
+            href="/admin/users"
             $active={pathname.startsWith('/admin/users')}
-            onClick={() => navigate('/admin/users')}
+            onClick={closeMenu}
           >
             <NavIcon>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -127,8 +125,9 @@ export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
           </MenuItem>
           <MenuItem
             role="menuitem"
+            href="/admin/guests"
             $active={pathname.startsWith('/admin/guests')}
-            onClick={() => navigate('/admin/guests')}
+            onClick={closeMenu}
           >
             <NavIcon>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -139,8 +138,9 @@ export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
           </MenuItem>
           <MenuItem
             role="menuitem"
+            href="/admin/items"
             $active={pathname.startsWith('/admin/items')}
-            onClick={() => navigate('/admin/items')}
+            onClick={closeMenu}
           >
             <NavIcon>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -151,8 +151,9 @@ export function AdminNavMenu({ pendingLinkCount }: AdminNavMenuProps) {
           </MenuItem>
           <MenuItem
             role="menuitem"
+            href="/admin/discord-links"
             $active={pathname.startsWith('/admin/discord-links')}
-            onClick={() => navigate('/admin/discord-links')}
+            onClick={closeMenu}
           >
             <NavIcon>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
