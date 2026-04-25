@@ -11,31 +11,47 @@ export interface ItemNameUsage {
   allPackaging: boolean
 }
 
+// Bound on how many distinct (name, isPackaging) groups we pull back from Postgres.
+// Even at 5000 unique item names, this remains a small payload — well below
+// what the previous unbounded `findMany` could pull on a busy table.
+const ITEM_NAME_GROUP_LIMIT = 5000
+
 export async function listItemNameUsage(): Promise<ItemNameUsage[]> {
   const session = await auth()
   if (!session?.user || session.user.role !== 'ADMIN') {
     throw new Error('Admin only')
   }
 
-  const rows = await prisma.orderItem.findMany({
-    select: { name: true, price: true, isPackaging: true },
+  // Push count + avg(price) into Postgres. groupBy is case-sensitive, so we
+  // still need a tiny JS pass to merge case-equivalent names (e.g. "Pizza"
+  // and "pizza"). Reconstruct totalPrice = avg * count so the merge preserves
+  // a correct weighted average across case variants.
+  const grouped = await prisma.orderItem.groupBy({
+    by: ['name', 'isPackaging'],
+    _count: { _all: true },
+    _avg: { price: true },
+    orderBy: { _count: { name: 'desc' } },
+    take: ITEM_NAME_GROUP_LIMIT,
   })
 
   const map = new Map<string, { displayName: string; count: number; totalPrice: number; packagingCount: number }>()
-  for (const row of rows) {
-    const key = row.name.trim().toLowerCase()
+  for (const row of grouped) {
+    const trimmed = row.name.trim()
+    const key = trimmed.toLowerCase()
     if (!key) continue
+    const groupCount = row._count._all
+    const groupTotal = (row._avg.price ?? 0) * groupCount
     const entry = map.get(key)
     if (entry) {
-      entry.count += 1
-      entry.totalPrice += row.price
-      if (row.isPackaging) entry.packagingCount += 1
+      entry.count += groupCount
+      entry.totalPrice += groupTotal
+      if (row.isPackaging) entry.packagingCount += groupCount
     } else {
       map.set(key, {
-        displayName: row.name.trim(),
-        count: 1,
-        totalPrice: row.price,
-        packagingCount: row.isPackaging ? 1 : 0,
+        displayName: trimmed,
+        count: groupCount,
+        totalPrice: groupTotal,
+        packagingCount: row.isPackaging ? groupCount : 0,
       })
     }
   }

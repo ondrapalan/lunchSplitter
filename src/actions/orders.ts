@@ -193,121 +193,142 @@ export async function getOrder(orderId: string) {
   }
 }
 
-export async function listOrders() {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+// Hard cap on list size — keeps Neon transfer bounded and matches how this UI
+// is consumed (list view, no pagination). If a user genuinely accumulates >100
+// closed orders, we'll surface oldest-cut and revisit (cursor pagination).
+const ORDER_LIST_LIMIT = 100
 
-  const orders = await prisma.order.findMany({
-    where: {
-      status: 'CLOSED',
-      OR: [
-        { createdById: session.user.id },
-        { people: { some: { userId: session.user.id } } },
-      ],
-    },
-    include: {
-      restaurant: true,
-      createdBy: { select: { displayName: true } },
-      _count: { select: { people: true } },
-      feeAdjustments: { orderBy: { sortOrder: 'asc' } },
-      people: {
-        orderBy: { sortOrder: 'asc' },
-        include: {
-          user: { select: { displayName: true } },
-          guest: { select: { name: true } },
-          paymentConfirmation: { select: { confirmedVia: true } },
-          items: {
-            orderBy: { sortOrder: 'asc' },
-            include: {
-              sharedWith: true,
-              customShares: true,
+const listOrdersForUserCached = cached(
+  async (userId: string) => {
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'CLOSED',
+        OR: [
+          { createdById: userId },
+          { people: { some: { userId } } },
+        ],
+      },
+      include: {
+        restaurant: true,
+        createdBy: { select: { displayName: true } },
+        _count: { select: { people: true } },
+        feeAdjustments: { orderBy: { sortOrder: 'asc' } },
+        people: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            user: { select: { displayName: true } },
+            guest: { select: { name: true } },
+            paymentConfirmation: { select: { confirmedVia: true } },
+            items: {
+              orderBy: { sortOrder: 'asc' },
+              include: {
+                sharedWith: true,
+                customShares: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
+      orderBy: { updatedAt: 'desc' },
+      take: ORDER_LIST_LIMIT,
+    })
 
-  return orders.map(order => {
-    const isCreator = order.createdById === session.user.id
-    let bankAccountNumber: string | null = null
-    let myPersonId: string | null = null
-    let myAmount: number | null = null
-    let paymentStatus: { paid: number; total: number } | null = null
+    return orders.map(order => {
+      const isCreator = order.createdById === userId
+      let bankAccountNumber: string | null = null
+      let myPersonId: string | null = null
+      let myAmount: number | null = null
+      let paymentStatus: { paid: number; total: number } | null = null
 
-    if (!isCreator && order.bankAccountNumber) {
-      const lunchSession = prismaOrderToLunchSession(order)
-      const summaries = calculatePersonSummaries(lunchSession)
-      const myPerson = order.people.find(p => p.userId === session.user.id)
-      if (myPerson) {
-        const mySummary = summaries.find(s => s.personId === myPerson.id)
-        if (mySummary && mySummary.withFees > 0) {
-          bankAccountNumber = order.bankAccountNumber
-          myPersonId = myPerson.id
-          myAmount = mySummary.withFees
+      if (!isCreator && order.bankAccountNumber) {
+        const lunchSession = prismaOrderToLunchSession(order)
+        const summaries = calculatePersonSummaries(lunchSession)
+        const myPerson = order.people.find(p => p.userId === userId)
+        if (myPerson) {
+          const mySummary = summaries.find(s => s.personId === myPerson.id)
+          if (mySummary && mySummary.withFees > 0) {
+            bankAccountNumber = order.bankAccountNumber
+            myPersonId = myPerson.id
+            myAmount = mySummary.withFees
+          }
         }
       }
-    }
 
-    // For creator's orders: count how many participants (excluding creator) have confirmed payment
-    if (isCreator) {
-      const creatorPersonId = order.people.find(p => p.userId === order.createdById)?.id
-      const participants = order.people.filter(p => p.id !== creatorPersonId)
-      const paid = participants.filter(p =>
-        p.paymentConfirmation && p.paymentConfirmation.confirmedVia !== 'pending'
-      ).length
-      paymentStatus = { paid, total: participants.length }
-    }
+      // For creator's orders: count how many participants (excluding creator) have confirmed payment
+      if (isCreator) {
+        const creatorPersonId = order.people.find(p => p.userId === order.createdById)?.id
+        const participants = order.people.filter(p => p.id !== creatorPersonId)
+        const paid = participants.filter(p =>
+          p.paymentConfirmation && p.paymentConfirmation.confirmedVia !== 'pending'
+        ).length
+        paymentStatus = { paid, total: participants.length }
+      }
 
-    return {
+      return {
+        id: order.id,
+        restaurantName: order.restaurant.name,
+        createdAt: order.createdAt.toISOString(),
+        updatedAt: order.updatedAt.toISOString(),
+        isCreator,
+        creatorName: order.createdBy.displayName,
+        peopleCount: order._count.people,
+        bankAccountNumber,
+        myPersonId,
+        myAmount,
+        paymentStatus,
+      }
+    })
+  },
+  ['orders-list-for-user'],
+  { tags: [ORDER_TAGS.list], revalidate: 60 },
+)
+
+export async function listOrders() {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+  return listOrdersForUserCached(session.user.id)
+}
+
+const listAdminOrdersExcludingUserCached = cached(
+  async (excludeUserId: string) => {
+    const orders = await prisma.order.findMany({
+      where: {
+        status: 'CLOSED',
+        NOT: {
+          OR: [
+            { createdById: excludeUserId },
+            { people: { some: { userId: excludeUserId } } },
+          ],
+        },
+      },
+      include: {
+        restaurant: true,
+        createdBy: { select: { displayName: true } },
+        _count: { select: { people: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: ORDER_LIST_LIMIT,
+    })
+
+    return orders.map(order => ({
       id: order.id,
       restaurantName: order.restaurant.name,
       createdAt: order.createdAt.toISOString(),
       updatedAt: order.updatedAt.toISOString(),
-      isCreator,
+      isCreator: false,
       creatorName: order.createdBy.displayName,
       peopleCount: order._count.people,
-      bankAccountNumber,
-      myPersonId,
-      myAmount,
-      paymentStatus,
-    }
-  })
-}
+    }))
+  },
+  ['orders-admin-list'],
+  { tags: [ORDER_TAGS.admin], revalidate: 60 },
+)
 
 export async function listAdminOrders() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
   if (session.user.role !== 'ADMIN') throw new Error('Admin only')
-
-  const orders = await prisma.order.findMany({
-    where: {
-      status: 'CLOSED',
-      NOT: {
-        OR: [
-          { createdById: session.user.id },
-          { people: { some: { userId: session.user.id } } },
-        ],
-      },
-    },
-    include: {
-      restaurant: true,
-      createdBy: { select: { displayName: true } },
-      _count: { select: { people: true } },
-    },
-    orderBy: { updatedAt: 'desc' },
-  })
-
-  return orders.map(order => ({
-    id: order.id,
-    restaurantName: order.restaurant.name,
-    createdAt: order.createdAt.toISOString(),
-    updatedAt: order.updatedAt.toISOString(),
-    isCreator: false,
-    creatorName: order.createdBy.displayName,
-    peopleCount: order._count.people,
-  }))
+  return listAdminOrdersExcludingUserCached(session.user.id)
 }
 
 export async function closeOrder(orderId: string, options?: { sendDiscord?: boolean }) {
