@@ -220,6 +220,11 @@ model OrderActivityLog {
   @@index([orderId, createdAt])
 }
 
+model Housekeeping {
+  id        String   @id @default(cuid())
+  lastRunAt DateTime
+}
+
 model PendingDiscordLink {
   id                 String    @id @default(cuid())
   discordId          String    @unique

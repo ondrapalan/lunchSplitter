@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
+import { runHousekeeping } from './housekeeping'
 import { authConfig } from './auth.config'
 
 // Dummy hash for timing-safe comparison when user not found
@@ -15,6 +16,7 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
         token.id = user.id!
         token.role = user.role
         token.isFirstLogin = user.isFirstLogin
+        void runHousekeeping()
       }
       if (trigger === 'update' && typeof token.id === 'string') {
         const dbUser = await prisma.user.findUnique({

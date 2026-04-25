@@ -3,6 +3,7 @@
 import { revalidateTag } from 'next/cache'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { runHousekeeping } from '~/lib/housekeeping'
 import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
 import type { LunchSession, Item } from '~/features/lunch/types'
 import { getOrderAccess } from '~/lib/orderAccess'
@@ -543,6 +544,8 @@ export async function leaveOrder(orderId: string) {
 export async function listOpenOrders() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  void runHousekeeping()
 
   const orders = await prisma.order.findMany({
     where: { status: 'OPEN' },

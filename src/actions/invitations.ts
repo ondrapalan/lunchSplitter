@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { runHousekeeping } from '~/lib/housekeeping'
 import { registerSchema } from '~/lib/validations'
 
 const MAX_ACTIVE_INVITATIONS = 5
@@ -30,13 +31,7 @@ export async function createInvitation() {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS)
 
-  // Opportunistic cleanup: delete expired unused invitations globally
-  await prisma.invitation.deleteMany({
-    where: {
-      expiresAt: { lt: new Date() },
-      usedAt: null,
-    },
-  })
+  void runHousekeeping()
 
   const invitation = await prisma.invitation.create({
     data: {
