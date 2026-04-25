@@ -18,6 +18,7 @@ import {
 } from '~/lib/queries/guests'
 import { useRegisteredUsers } from '~/lib/queries/users'
 import { createGuestSchema, type CreateGuestInput } from '~/lib/validations'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 
 const Form = styled.form`
   display: flex;
@@ -143,6 +144,7 @@ export default function AdminGuestsPage() {
   const createMutation = useCreateGuest()
   const updateMutation = useUpdateGuest()
   const deleteMutation = useDeleteGuest()
+  const confirm = useConfirm()
 
   const guests = guestsQuery.data ?? []
   const users = (usersQuery.data ?? []).map(u => ({ id: u.id, displayName: u.displayName }))
@@ -222,7 +224,7 @@ export default function AdminGuestsPage() {
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete guest "${name}"?`)) return
+    if (!await confirm({ title: `Delete guest "${name}"?`, variant: 'danger', confirmLabel: 'Delete' })) return
     try {
       await deleteMutation.mutateAsync(id)
       toast.success('Guest deleted')

@@ -22,6 +22,7 @@ import { wasEdited } from '~/features/lunch/utils/formatters'
 import { QrPlatba } from '~/features/lunch/components/QrPlatba'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
 import { Skeleton, SkeletonTitle } from '~/features/ui/components/Skeleton'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 
 interface BaseOrderListItem {
   id: string
@@ -141,6 +142,7 @@ export default function OrdersPage() {
   const closeMutation = useCloseOrder()
   const reopenMutation = useReopenOrder()
   const joinMutation = useJoinOrder()
+  const confirm = useConfirm()
 
   const openOrders = openQuery.data ?? []
   const closedOrders = myQuery.data ?? []
@@ -155,7 +157,7 @@ export default function OrdersPage() {
 
   const handleDelete = async (e: React.MouseEvent, orderId: string) => {
     e.stopPropagation()
-    if (!confirm('Delete this order?')) return
+    if (!await confirm({ title: 'Delete this order?', variant: 'danger', confirmLabel: 'Delete' })) return
     try {
       await deleteMutation.mutateAsync(orderId)
       toast.success('Order deleted')

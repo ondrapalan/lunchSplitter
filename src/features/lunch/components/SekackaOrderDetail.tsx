@@ -20,6 +20,7 @@ import {
 import { getPaymentConfirmations, togglePaymentConfirmation } from '~/actions/discord'
 import { OrderActivityTimeline, type ActivityLogEntry } from './OrderActivityTimeline'
 import type { LunchSession } from '~/features/lunch/types'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 
 interface SekackaAccess {
   isCreator: boolean
@@ -139,6 +140,7 @@ export function SekackaOrderDetail({
   onReload,
 }: Props) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [pickerUsers, setPickerUsers] = useState<PickerUser[]>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [activity, setActivity] = useState<ActivityLogEntry[]>([])
@@ -216,7 +218,7 @@ export function SekackaOrderDetail({
   }
 
   const handleRemoveParticipant = async (userId: string) => {
-    if (!confirm('Remove this participant?')) return
+    if (!await confirm({ title: 'Remove this participant?', variant: 'danger', confirmLabel: 'Remove' })) return
     setBusy(`remove-${userId}`)
     try {
       await removeSekackaParticipantByUserId(orderId, userId)
@@ -232,7 +234,7 @@ export function SekackaOrderDetail({
   }
 
   const handleClose = async () => {
-    if (!confirm('Close Sekačka and send QR codes?')) return
+    if (!await confirm({ title: 'Close Sekačka and send QR codes?', confirmLabel: 'Close & send' })) return
     setBusy('close')
     try {
       const result = await closeOrder(orderId, { sendDiscord: true })
@@ -253,7 +255,7 @@ export function SekackaOrderDetail({
   }
 
   const handleReopen = async () => {
-    if (!confirm('Reopen Sekačka?')) return
+    if (!await confirm({ title: 'Reopen Sekačka?', confirmLabel: 'Reopen' })) return
     setBusy('reopen')
     try {
       await reopenOrder(orderId)
@@ -268,7 +270,13 @@ export function SekackaOrderDetail({
   }
 
   const handleDelete = async () => {
-    if (!confirm('Really delete this Sekačka? This cannot be undone.')) return
+    const ok = await confirm({
+      title: 'Delete this Sekačka?',
+      message: 'This cannot be undone.',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     setBusy('delete')
     try {
       await deleteOrder(orderId)

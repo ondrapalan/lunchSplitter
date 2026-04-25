@@ -19,6 +19,7 @@ import {
   useUpdateUserAliases,
 } from '~/lib/queries/users'
 import { qk } from '~/lib/queries/keys'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 
 const Form = styled.form`
   display: flex;
@@ -176,6 +177,7 @@ export default function AdminUsersPage() {
   const updateAliasesMutation = useUpdateUserAliases()
   const setDiscordMutation = useSetUserDiscordId()
   const deleteMutation = useDeleteUser()
+  const confirm = useConfirm()
 
   const {
     register,
@@ -225,7 +227,13 @@ export default function AdminUsersPage() {
   }
 
   const handleDelete = async (userId: string, displayName: string) => {
-    if (!confirm(`Delete user "${displayName}"? Their order participations will be kept as guest entries.`)) return
+    const ok = await confirm({
+      title: `Delete user "${displayName}"?`,
+      message: 'Their order participations will be kept as guest entries.',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
     try {
       await deleteMutation.mutateAsync(userId)
       toast.success('User deleted')
@@ -235,7 +243,12 @@ export default function AdminUsersPage() {
   }
 
   const handleReset = async (userId: string) => {
-    if (!confirm('Reset this user\'s password? They will need to set a new one on next login.')) return
+    const ok = await confirm({
+      title: 'Reset this user\'s password?',
+      message: 'They will need to set a new one on next login.',
+      confirmLabel: 'Reset',
+    })
+    if (!ok) return
     setResetPassword(null)
     const result = await resetUserPassword(userId)
     if ('error' in result && result.error) {

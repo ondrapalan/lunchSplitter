@@ -7,6 +7,7 @@ import { ThemeProvider } from 'styled-components'
 import { ToastContainer } from 'react-toastify'
 import { GlobalStyles } from '~/GlobalStyles'
 import { ThemeModeProvider, useThemeMode } from '~/features/ui/theme/ThemeContext'
+import { ConfirmDialogProvider } from '~/features/ui/components/ConfirmDialog'
 
 function ThemedApp({ children }: { children: React.ReactNode }) {
   const { theme, mode } = useThemeMode()
@@ -15,7 +16,7 @@ function ThemedApp({ children }: { children: React.ReactNode }) {
     <ThemeProvider theme={theme}>
       <GlobalStyles />
       <ToastContainer position="bottom-right" theme={mode} />
-      {children}
+      <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
     </ThemeProvider>
   )
 }

@@ -44,6 +44,7 @@ import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
 import type { LunchSession, Item } from '~/features/lunch/types'
 import type { OrderAccess as OrderAccessPolicy } from '~/lib/orderAccess'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 
 const Header = styled.div`
   display: flex;
@@ -340,6 +341,7 @@ function OrderContent({
   const joinMutation = useJoinOrder()
   const leaveMutation = useLeaveOrder()
   const deleteMutation = useDeleteOrder()
+  const confirm = useConfirm()
 
   const handleClose = async (sendDiscord: boolean) => {
     setCloseDialogOpen(false)
@@ -410,9 +412,13 @@ function OrderContent({
     const itemCount = person?.items.length ?? 0
 
     if (itemCount > 0) {
-      if (!confirm(`You have ${itemCount} item${itemCount > 1 ? 's' : ''}. Leaving will remove them. Are you sure?`)) {
-        return
-      }
+      const ok = await confirm({
+        title: 'Leave the order?',
+        message: `You have ${itemCount} item${itemCount > 1 ? 's' : ''}. Leaving will remove them.`,
+        variant: 'danger',
+        confirmLabel: 'Leave',
+      })
+      if (!ok) return
     }
 
     setIsLeaving(true)
@@ -428,7 +434,7 @@ function OrderContent({
   }
 
   const handleDelete = async () => {
-    if (!confirm('Delete this order?')) return
+    if (!await confirm({ title: 'Delete this order?', variant: 'danger', confirmLabel: 'Delete' })) return
     setIsDeleting(true)
     try {
       await deleteMutation.mutateAsync(orderId)

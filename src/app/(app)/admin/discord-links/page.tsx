@@ -17,6 +17,7 @@ import {
   useResolvePendingLinkToUser,
   useUsersWithoutDiscordLink,
 } from '~/lib/queries/discordLinks'
+import { useConfirm } from '~/features/ui/components/ConfirmDialog'
 import {
   resolveDiscordLinkCreateUserSchema,
   type ResolveDiscordLinkCreateUserInput,
@@ -134,6 +135,7 @@ export default function AdminDiscordLinksPage() {
   const usersQuery = useUsersWithoutDiscordLink()
   const linkToUserMutation = useResolvePendingLinkToUser()
   const dismissMutation = useDismissPendingLink()
+  const confirm = useConfirm()
 
   const links = linksQuery.data ?? []
   const users = usersQuery.data ?? []
@@ -157,7 +159,7 @@ export default function AdminDiscordLinksPage() {
   }
 
   const handleDismiss = async (linkId: string) => {
-    if (!confirm('Dismiss without resolving?')) return
+    if (!await confirm({ title: 'Dismiss without resolving?', variant: 'danger', confirmLabel: 'Dismiss' })) return
     await dismissMutation.mutateAsync(linkId)
     toast.success('Dismissed')
   }
