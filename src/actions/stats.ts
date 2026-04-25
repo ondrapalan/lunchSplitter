@@ -49,7 +49,7 @@ function isGuestRow(person: { guestId: string | null }): boolean {
   return person.guestId !== null
 }
 
-const fetchClosedOrders = cached(
+const fetchClosedOrdersCached = cached(
   async (period: StatPeriod) => {
     const periodStart = getPeriodStart(period)
     return prisma.order.findMany({
@@ -64,6 +64,13 @@ const fetchClosedOrders = cached(
   ['closed-orders'],
   { tags: [ORDER_TAGS.closed], revalidate: 60 },
 )
+
+// `unstable_cache` round-trips through JSON, which turns Date objects into ISO
+// strings. Rehydrate `createdAt` so downstream consumers can treat it as a Date.
+async function fetchClosedOrders(period: StatPeriod) {
+  const orders = await fetchClosedOrdersCached(period)
+  return orders.map(o => ({ ...o, createdAt: new Date(o.createdAt) }))
+}
 
 type PersonSpending = {
   name: string
