@@ -47,7 +47,9 @@ export default function Error({
       <Card>
         <CardTitle>Something went wrong</CardTitle>
         <ErrorMessage>
-          {error.message || 'An unexpected error occurred.'}
+          {process.env.NODE_ENV === 'development' && error.message
+            ? error.message
+            : 'An unexpected error occurred.'}
         </ErrorMessage>
         {error.digest && (
           <>

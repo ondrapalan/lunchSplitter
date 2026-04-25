@@ -2,9 +2,14 @@
 
 import { randomBytes } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { addSekackaParticipant } from '~/lib/sekackaCore'
+
+function isUniqueConstraintError(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002'
+}
 
 const BCRYPT_ROUNDS = 12
 
@@ -98,10 +103,19 @@ export async function resolvePendingDiscordLinkToUser(pendingLinkId: string, tar
     return { error: 'Discord ID is already linked to another user' }
   }
 
-  await prisma.user.update({
-    where: { id: targetUserId },
-    data: { discordId: link.discordId },
-  })
+  try {
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { discordId: link.discordId },
+    })
+  } catch (err) {
+    // Catches the race window between the conflict check above and the update —
+    // a concurrent admin call could link the same discordId in between.
+    if (isUniqueConstraintError(err)) {
+      return { error: 'Discord ID is already linked to another user' }
+    }
+    throw err
+  }
 
   await finalizeResolution(pendingLinkId, admin.id, targetUserId)
   return { success: true }
@@ -133,16 +147,24 @@ export async function resolvePendingDiscordLinkCreateUser(
   const tempPassword = randomBytes(8).toString('hex')
   const passwordHash = await bcrypt.hash(tempPassword, BCRYPT_ROUNDS)
 
-  const created = await prisma.user.create({
-    data: {
-      username: data.username,
-      displayName: data.displayName.trim(),
-      role: data.role,
-      discordId: link.discordId,
-      passwordHash,
-      isFirstLogin: true,
-    },
-  })
+  let created
+  try {
+    created = await prisma.user.create({
+      data: {
+        username: data.username,
+        displayName: data.displayName.trim(),
+        role: data.role,
+        discordId: link.discordId,
+        passwordHash,
+        isFirstLogin: true,
+      },
+    })
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      return { error: 'Username or Discord ID was just taken — please try again' }
+    }
+    throw err
+  }
 
   await finalizeResolution(pendingLinkId, admin.id, created.id)
   return { success: true, userId: created.id, tempPassword }

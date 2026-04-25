@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidateTag } from 'next/cache'
+import { z } from 'zod'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { runHousekeeping } from '~/lib/housekeeping'
@@ -354,11 +355,19 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
   return { success: true, discord: discordResult }
 }
 
-interface CloseOrderDraft {
-  globalDiscountPercent: number
-  feeAdjustments: { id: string; name: string; amount: number }[]
-  bankAccountNumber: string | null
-}
+const closeOrderDraftSchema = z.object({
+  globalDiscountPercent: z.number().finite().min(0).max(100),
+  feeAdjustments: z.array(
+    z.object({
+      id: z.string().cuid(),
+      name: z.string().min(1).max(100),
+      amount: z.number().finite(),
+    }),
+  ),
+  bankAccountNumber: z.string().nullable(),
+})
+
+export type CloseOrderDraft = z.infer<typeof closeOrderDraftSchema>
 
 export async function closeOrderWithDraft(
   orderId: string,
@@ -367,6 +376,12 @@ export async function closeOrderWithDraft(
 ) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
+
+  const parsed = closeOrderDraftSchema.safeParse(draft)
+  if (!parsed.success) {
+    throw new Error('Invalid order draft input')
+  }
+  const validDraft = parsed.data
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -394,10 +409,10 @@ export async function closeOrderWithDraft(
       where: { id: orderId },
       data: {
         status: 'CLOSED',
-        globalDiscountPercent: draft.globalDiscountPercent,
-        bankAccountNumber: draft.bankAccountNumber,
+        globalDiscountPercent: validDraft.globalDiscountPercent,
+        bankAccountNumber: validDraft.bankAccountNumber,
         feeAdjustments: {
-          create: draft.feeAdjustments.map((f, sortOrder) => ({
+          create: validDraft.feeAdjustments.map((f, sortOrder) => ({
             id: f.id,
             name: f.name,
             amount: f.amount,

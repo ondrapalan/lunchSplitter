@@ -43,7 +43,9 @@ export default function GlobalError({
             Something went wrong
           </h1>
           <p style={{ margin: '0 0 8px', color: '#8D847A' }}>
-            {error.message || 'An unexpected error occurred.'}
+            {process.env.NODE_ENV === 'development' && error.message
+              ? error.message
+              : 'An unexpected error occurred.'}
           </p>
           {error.digest && (
             <>

@@ -6,6 +6,7 @@ import {
   recordPendingDiscordLink,
   SekackaError,
 } from '~/lib/sekackaCore'
+import { requireDiscordAdmin } from '~/lib/discordAuth'
 
 const EPHEMERAL = 64
 
@@ -74,13 +75,17 @@ export async function POST(request: Request) {
         return await handlePaymentConfirmation(interaction, customId.replace('confirm-payment:', ''))
       }
 
-      // --- Access request approval ---
-      if (customId.startsWith('approve-access:')) {
-        return await handleAccessRequest(customId.replace('approve-access:', ''), true)
-      }
-
-      // --- Access request denial ---
-      if (customId.startsWith('deny-access:')) {
+      // Access-request buttons mutate user accounts, so they require an admin clicker.
+      // The Ed25519 verification above only proves the payload came from Discord — not who clicked.
+      if (customId.startsWith('approve-access:') || customId.startsWith('deny-access:')) {
+        const clickerDiscordId = interaction.member?.user?.id ?? interaction.user?.id
+        const adminCheck = await requireDiscordAdmin(clickerDiscordId)
+        if (!adminCheck.ok) {
+          return ephemeral('You are not authorized to perform this action.')
+        }
+        if (customId.startsWith('approve-access:')) {
+          return await handleAccessRequest(customId.replace('approve-access:', ''), true)
+        }
         return await handleAccessRequest(customId.replace('deny-access:', ''), false)
       }
 
