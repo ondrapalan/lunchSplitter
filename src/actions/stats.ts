@@ -1,7 +1,7 @@
 'use server'
 
-import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { requireSession } from '~/lib/actionAuth'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { cached, ORDER_TAGS } from '~/lib/cache'
@@ -97,27 +97,30 @@ function aggregateSpending(orders: Awaited<ReturnType<typeof fetchClosedOrders>>
   return Array.from(map.values()).sort((a, b) => b.totalSpent - a.totalSpent)
 }
 
-export async function getSpendingLeaderboard(period: StatPeriod): Promise<SpendingEntry[]> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
+// Internal aggregators skip auth so getStatsBundle can resolve the session
+// once and call them in parallel. Public wrappers add the auth check.
+async function _spendingLeaderboard(period: StatPeriod): Promise<SpendingEntry[]> {
   const orders = await fetchClosedOrders(period)
   return aggregateSpending(orders)
 }
 
-export async function getOrderFrequency(period: StatPeriod): Promise<SpendingEntry[]> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
+async function _orderFrequency(period: StatPeriod): Promise<SpendingEntry[]> {
   const orders = await fetchClosedOrders(period)
   const entries = aggregateSpending(orders)
   return entries.sort((a, b) => b.orderCount - a.orderCount)
 }
 
-export async function getPersonalStats(): Promise<PersonalStats> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+export async function getSpendingLeaderboard(period: StatPeriod): Promise<SpendingEntry[]> {
+  await requireSession()
+  return _spendingLeaderboard(period)
+}
 
+export async function getOrderFrequency(period: StatPeriod): Promise<SpendingEntry[]> {
+  await requireSession()
+  return _orderFrequency(period)
+}
+
+async function _personalStats(userId: string): Promise<PersonalStats> {
   const allOrders = await fetchClosedOrders('all')
 
   let allTimeSpent = 0
@@ -133,7 +136,7 @@ export async function getPersonalStats(): Promise<PersonalStats> {
   for (const order of allOrders) {
     const lunchSession = prismaOrderToLunchSession(order)
     const summaries = calculatePersonSummaries(lunchSession)
-    const myPerson = order.people.find(p => p.userId === session.user.id)
+    const myPerson = order.people.find(p => p.userId === userId)
     if (!myPerson) continue
 
     const mySummary = summaries.find(s => s.personId === myPerson.id)
@@ -141,7 +144,7 @@ export async function getPersonalStats(): Promise<PersonalStats> {
 
     // Include amounts from any guests I hosted in this order — I actually paid for them.
     const hostedTotal = order.people
-      .filter(p => isGuestRow(p) && p.hostUserId === session.user.id)
+      .filter(p => isGuestRow(p) && p.hostUserId === userId)
       .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
     const chargeable = mySummary.withFees + hostedTotal
 
@@ -157,7 +160,7 @@ export async function getPersonalStats(): Promise<PersonalStats> {
 
   // Calculate orders per month based on first order date
   const firstOrder = allOrders
-    .filter(o => o.people.some(p => p.userId === session.user.id))
+    .filter(o => o.people.some(p => p.userId === userId))
     .at(-1)
   let ordersPerMonth = 0
   if (firstOrder && totalOrders > 0) {
@@ -184,10 +187,12 @@ export async function getPersonalStats(): Promise<PersonalStats> {
   }
 }
 
-export async function getFunStats(): Promise<FunStat[]> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+export async function getPersonalStats(): Promise<PersonalStats> {
+  const session = await requireSession()
+  return _personalStats(session.user.id)
+}
 
+async function _funStats(): Promise<FunStat[]> {
   const orders = await fetchClosedOrders('all')
   const stats: FunStat[] = []
 
@@ -561,10 +566,12 @@ export async function getFunStats(): Promise<FunStat[]> {
   return stats
 }
 
-export async function getHospitalityLeaderboard(period: StatPeriod): Promise<HospitalityEntry[]> {
-  const authSession = await auth()
-  if (!authSession?.user) throw new Error('Unauthorized')
+export async function getFunStats(): Promise<FunStat[]> {
+  await requireSession()
+  return _funStats()
+}
 
+async function _hospitalityLeaderboard(period: StatPeriod): Promise<HospitalityEntry[]> {
   const orders = await fetchClosedOrders(period)
   const map = new Map<string, HospitalityEntry & { guests: Set<string> }>()
 
@@ -605,6 +612,11 @@ export async function getHospitalityLeaderboard(period: StatPeriod): Promise<Hos
     .sort((a, b) => b.guestLunchCount - a.guestLunchCount)
 }
 
+export async function getHospitalityLeaderboard(period: StatPeriod): Promise<HospitalityEntry[]> {
+  await requireSession()
+  return _hospitalityLeaderboard(period)
+}
+
 const getVisitorsCached = cached(
   async (): Promise<VisitorEntry[]> => {
     const guests = await prisma.guest.findMany({
@@ -643,8 +655,7 @@ const getVisitorsCached = cached(
 )
 
 export async function getVisitors(): Promise<VisitorEntry[]> {
-  const authSession = await auth()
-  if (!authSession?.user) throw new Error('Unauthorized')
+  await requireSession()
   return getVisitorsCached()
 }
 
@@ -678,10 +689,7 @@ const fetchSekackaOrders = cached(
  * who ate the most portions, who brought the most sekaná, and how the
  * item breakdown looks across all closed Sekačkas.
  */
-export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsData> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
+async function _sekackaStats(period: StatPeriod): Promise<SekackaStatsData> {
   const orders = await fetchSekackaOrders(period)
 
   let totalSpent = 0
@@ -761,6 +769,11 @@ export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsD
   }
 }
 
+export async function getSekackaStats(period: StatPeriod): Promise<SekackaStatsData> {
+  await requireSession()
+  return _sekackaStats(period)
+}
+
 export type StatsBundle = {
   spending: SpendingEntry[]
   frequency: SpendingEntry[]
@@ -778,17 +791,18 @@ export type StatsBundle = {
  * and repeat visits within the TTL hit cache entirely.
  */
 export async function getStatsBundle(period: StatPeriod): Promise<StatsBundle> {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
+  const session = await requireSession()
 
+  // Inner aggregators are auth-free so the bundle resolves the session once
+  // and shares it across all 7 parallel computations.
   const [spending, frequency, hospitality, sekacka, personal, fun, visitors] = await Promise.all([
-    getSpendingLeaderboard(period),
-    getOrderFrequency(period),
-    getHospitalityLeaderboard(period),
-    getSekackaStats(period),
-    getPersonalStats(),
-    getFunStats(),
-    getVisitors(),
+    _spendingLeaderboard(period),
+    _orderFrequency(period),
+    _hospitalityLeaderboard(period),
+    _sekackaStats(period),
+    _personalStats(session.user.id),
+    _funStats(),
+    getVisitorsCached(),
   ])
 
   return { spending, frequency, hospitality, sekacka, personal, fun, visitors }

@@ -504,6 +504,7 @@ function OrderContent({
         feePerPerson={feePerPerson}
         peopleCount={session.people.length}
         editable={isCreatorEditing}
+        isCreator={access.isCreator}
         bankAccountNumber={bankAccountNumber}
         onBankAccountChange={setBankAccountNumber}
         onSetGlobalDiscount={setGlobalDiscount}

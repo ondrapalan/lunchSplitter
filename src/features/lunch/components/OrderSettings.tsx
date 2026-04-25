@@ -56,6 +56,12 @@ const NetFeesDisplay = styled.div`
   font-weight: 500;
 `
 
+const CreatorShareNote = styled.div`
+  margin-top: ${({ theme }) => theme.spacing.xs};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+`
+
 const WarningText = styled.span`
   color: ${({ theme }) => theme.colors.warning};
   font-size: ${({ theme }) => theme.fontSizes.xs};
@@ -68,6 +74,8 @@ interface OrderSettingsProps {
   feePerPerson: number
   peopleCount: number
   editable?: boolean
+  /** When true, surface the "you absorb X CZK of the fee yourself" note. */
+  isCreator?: boolean
   bankAccountNumber?: string | null
   onBankAccountChange?: (value: string) => void
   onSetGlobalDiscount: (percent: number) => void
@@ -83,6 +91,7 @@ export function OrderSettings({
   feePerPerson,
   peopleCount,
   editable = true,
+  isCreator = false,
   bankAccountNumber,
   onBankAccountChange,
   onSetGlobalDiscount,
@@ -201,10 +210,17 @@ export function OrderSettings({
       )}
 
       {feeAdjustments.some(f => f.amount !== 0) && (
-        <NetFeesDisplay>
-          Net Fees: {formatCurrency(netFees)} CZK
-          {peopleCount > 0 && ` (${formatCurrency(feePerPerson)} / person)`}
-        </NetFeesDisplay>
+        <>
+          <NetFeesDisplay>
+            Net Fees: {formatCurrency(netFees)} CZK
+            {peopleCount > 0 && ` (${formatCurrency(feePerPerson)} / person)`}
+          </NetFeesDisplay>
+          {isCreator && feePerPerson > 0 && (
+            <CreatorShareNote>
+              Fees split evenly across all {peopleCount} people — you absorb {formatCurrency(feePerPerson)} CZK of the fee yourself.
+            </CreatorShareNote>
+          )}
+        </>
       )}
     </Card>
   )
