@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { calculatePersonSummaries, calculateNetFees, calculateFeePerPerson } from './calculations'
+import {
+  calculatePersonSummaries,
+  calculateNetFees,
+  calculateFeePerPerson,
+  calculateChargeableAmount,
+} from './calculations'
 import type { LunchSession } from '../types'
 
 describe('calculateNetFees', () => {
@@ -187,5 +192,135 @@ describe('calculatePersonSummaries', () => {
     expect(summaries[0].subtotal).toBe(200)
     expect(summaries[0].afterDiscount).toBe(200)
     expect(summaries[0].withFees).toBe(200)
+  })
+
+  // Pins the M1 product decision: fees are split evenly across ALL people,
+  // creator included. The creator pays their own meal + fees/N share; QR DMs
+  // skip the creator because they pay themselves. A future "creator excluded
+  // from denominator" refactor would break this expectation deliberately.
+  it('splits fees evenly across all people including the creator', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [{ id: 'f1', name: 'Delivery', amount: 100 }],
+      people: [
+        { id: 'creator', name: 'Creator', userId: 'u1', items: [] },
+        { id: 'p2', name: 'P2', userId: 'u2', items: [] },
+        { id: 'p3', name: 'P3', userId: 'u3', items: [] },
+        { id: 'p4', name: 'P4', userId: 'u4', items: [] },
+        { id: 'p5', name: 'P5', userId: 'u5', items: [] },
+      ],
+    }
+
+    const summaries = calculatePersonSummaries(session)
+    for (const summary of summaries) {
+      expect(summary.withFees).toBeCloseTo(20)
+    }
+  })
+})
+
+describe('calculateChargeableAmount', () => {
+  it('returns 0 for a guest person', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'guest1', name: 'Guest', guestId: 'g1', hostUserId: 'host-user',
+          items: [{ id: 'i1', name: 'Soup', price: 100, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+      ],
+    }
+
+    expect(calculateChargeableAmount('guest1', session)).toBe(0)
+  })
+
+  it('returns own withFees for a registered user with no hosted guests', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'p1', name: 'Alice', userId: 'user-1',
+          items: [{ id: 'i1', name: 'Salad', price: 150, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+      ],
+    }
+
+    expect(calculateChargeableAmount('p1', session)).toBeCloseTo(150)
+  })
+
+  it('adds the share of one hosted guest', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'host-person', name: 'Host', userId: 'user-1',
+          items: [{ id: 'i1', name: 'Pizza', price: 200, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+        {
+          id: 'guest-person', name: 'Guest', guestId: 'g1', hostUserId: 'user-1',
+          items: [{ id: 'i2', name: 'Burger', price: 180, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+      ],
+    }
+
+    // Host pays for own (200) + guest's (180) = 380
+    expect(calculateChargeableAmount('host-person', session)).toBeCloseTo(380)
+  })
+
+  it('adds the shares of multiple hosted guests', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'host-person', name: 'Host', userId: 'user-1',
+          items: [{ id: 'i1', name: 'Pizza', price: 200, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+        {
+          id: 'g1', name: 'Guest A', guestId: 'guest-a', hostUserId: 'user-1',
+          items: [{ id: 'i2', name: 'Burger', price: 100, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+        {
+          id: 'g2', name: 'Guest B', guestId: 'guest-b', hostUserId: 'user-1',
+          items: [{ id: 'i3', name: 'Pasta', price: 150, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+        {
+          // Different host's guest — must NOT be included in user-1's chargeable amount
+          id: 'g3', name: 'Guest C', guestId: 'guest-c', hostUserId: 'user-2',
+          items: [{ id: 'i4', name: 'Steak', price: 500, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+      ],
+    }
+
+    expect(calculateChargeableAmount('host-person', session)).toBeCloseTo(450)
+  })
+
+  it('returns 0 when personId is not in the session', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        { id: 'p1', name: 'Alice', userId: 'user-1', items: [] },
+      ],
+    }
+
+    expect(calculateChargeableAmount('does-not-exist', session)).toBe(0)
+  })
+
+  it('reuses pre-computed summaries when provided', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'p1', name: 'Alice', userId: 'user-1',
+          items: [{ id: 'i1', name: 'Lunch', price: 200, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null }],
+        },
+      ],
+    }
+    const summaries = calculatePersonSummaries(session)
+    expect(calculateChargeableAmount('p1', session, summaries)).toBeCloseTo(200)
   })
 })
