@@ -6,6 +6,7 @@ Technical documentation for the codebase. Intended audience: anyone (human or AI
 
 - **[Architecture](./architecture.md)** — tech stack, directory layout, Prisma data model, conventions. Read this first.
 - **[Caching & loading](./caching-and-loading.md)** — the two-layer cache story (server `unstable_cache` + client React Query) and how to extend it.
+- **[Storage & housekeeping](./storage-and-housekeeping.md)** — how we stay inside the Neon free-tier 500 MB budget; the throttled cleanup job and its TTLs.
 
 ## Features
 

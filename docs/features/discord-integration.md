@@ -88,3 +88,4 @@ When a stranger interacts with the bot:
 - [Sekačka](./sekacka.md) — the user-facing half of the join/leave flow
 - [Payments](./payments.md) — QR generation, SPD format, payment confirmation lifecycle
 - [Auth & access](./auth-and-access.md) — how access requests flow through admins
+- [Storage & housekeeping](../storage-and-housekeeping.md) — TTL that prunes resolved `PendingDiscordLink` rows

@@ -93,3 +93,4 @@ When someone clicks a Sekačka Join button with a Discord ID that isn't linked t
 
 - [Admin panel](./admin.md) — where admin-only actions live
 - [Discord integration](./discord-integration.md) — access-request approvals + pending Discord links
+- [Storage & housekeeping](../storage-and-housekeeping.md) — TTLs that prune resolved `AccessRequest` and expired `Invitation` rows

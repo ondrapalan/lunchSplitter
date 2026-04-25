@@ -95,6 +95,7 @@ Source: `prisma/schema.prisma`.
 | **AccessRequest** | Self-signup request pending admin approval (`status`, `username`, `displayName`, `passwordHash`) |
 | **PendingDiscordLink** | Unknown Discord user who clicked something (`discordId`, identity hints, `triggeredByOrderId`, `resolvedAt`) |
 | **OrderActivityLog** | Audit trail per order (`action`, `actorUserId`, `targetUserId/GuestId`, `source`, `note`) |
+| **Housekeeping** | Single-row marker (`lastRunAt`) used to throttle the opportunistic cleanup job. See [Storage & housekeeping](./storage-and-housekeeping.md). |
 
 ### Key relations
 
@@ -128,3 +129,4 @@ Each feature has its own doc in [`features/`](./features/):
 
 Plus cross-cutting concerns:
 - [Caching & loading](./caching-and-loading.md)
+- [Storage & housekeeping](./storage-and-housekeeping.md)
