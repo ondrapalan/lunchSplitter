@@ -75,6 +75,12 @@ const Count = styled.span`
   margin-right: auto;
 `
 
+const Description = styled.p`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  margin-top: ${({ theme }) => theme.spacing.xs};
+`
+
 export default function AdminItemsPage() {
   const [rows, setRows] = useState<ItemNameUsage[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -135,11 +141,11 @@ export default function AdminItemsPage() {
 
       <Card style={{ marginTop: 16 }}>
         <CardTitle>Mark items as packaging</CardTitle>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginTop: 4 }}>
+        <Description>
           Select item names that represent packaging (boxes, containers). Marked
           items still count toward each person&apos;s bill but are excluded from item-based
           leaderboards (Fan Favourite, Explorer, Bargain Hunter, Gourmet, Feast, Most Consistent).
-        </p>
+        </Description>
       </Card>
 
       <FilterBar style={{ marginTop: 16 }}>

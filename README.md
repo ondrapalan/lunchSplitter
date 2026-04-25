@@ -38,8 +38,8 @@ A full-stack Next.js app for splitting lunch bills among office colleagues. Hand
 
 ### Prerequisites
 
-- Node.js 18+
-- PostgreSQL database
+- Node.js 20+
+- Docker (for the local Postgres sandbox)
 
 ### Setup
 
@@ -48,27 +48,34 @@ A full-stack Next.js app for splitting lunch bills among office colleagues. Hand
 npm install
 
 # Copy environment variables and fill in your values
-cp .env.example .env
+cp .env.example .env.local
 
-# Run database migrations
-npx prisma migrate deploy
-
-# Seed the admin user (username: admin, password: admin123)
-npx prisma db seed
-
-# Start development server
+# One-shot dev: starts Postgres on :5433, applies schema, seeds admin,
+# and runs Next.js on :3100
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3100](http://localhost:3100).
+
+> **Schema management:** This project uses `prisma db push` (not `prisma migrate`).
+> There is no `prisma/migrations/` folder — schema is applied directly from
+> `prisma/schema.prisma`. The `dev` script runs `db push` automatically on every start.
+>
+> For richer test data (6 users, 4 restaurants, ~9 closed orders with varied
+> participants/discounts/fees), run `npm run dev:clean` instead — it wipes the
+> sandbox DB and reseeds from `prisma/seed.dev.ts`. All seeded users have
+> password `heslo`.
 
 ### Environment Variables
 
-| Variable          | Description                            |
-| ----------------- | -------------------------------------- |
-| `DATABASE_URL`    | PostgreSQL connection string           |
-| `NEXTAUTH_SECRET` | Random secret for session encryption   |
-| `NEXTAUTH_URL`    | App URL (e.g. `http://localhost:3000`) |
+| Variable          | Description                                       |
+| ----------------- | ------------------------------------------------- |
+| `DATABASE_URL`    | PostgreSQL connection string (sandbox: `:5433`)   |
+| `NEXTAUTH_SECRET` | Random secret for session encryption              |
+| `NEXTAUTH_URL`    | App URL (e.g. `http://localhost:3100`)            |
+| `DISCORD_BOT_TOKEN` | Optional — enables QR DMs and access-request approvals |
+| `DISCORD_PUBLIC_KEY` | Required when running the Discord interactions endpoint |
+| `DISCORD_DRY_RUN` | Set to `1` in `.env.local` to log Discord payloads instead of sending them |
 
 ## Scripts
 

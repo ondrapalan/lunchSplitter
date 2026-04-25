@@ -6,6 +6,7 @@ import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
 import { sendPaymentDm, isDiscordConfigured } from '~/lib/discord'
+import { orderIncludeWithDiscordId } from '~/lib/orderIncludes'
 import QRCode from 'qrcode'
 
 export async function linkDiscord(discordId: string) {
@@ -53,25 +54,6 @@ export async function getDiscordId(): Promise<string | null> {
   return user?.discordId ?? null
 }
 
-const fullOrderInclude = {
-  restaurant: true,
-  feeAdjustments: { orderBy: { sortOrder: 'asc' as const } },
-  people: {
-    orderBy: { sortOrder: 'asc' as const },
-    include: {
-      user: { select: { displayName: true, discordId: true } },
-      guest: { select: { name: true } },
-      items: {
-        orderBy: { sortOrder: 'asc' as const },
-        include: {
-          sharedWith: true,
-          customShares: true,
-        },
-      },
-    },
-  },
-}
-
 interface NotificationResult {
   sent: string[]
   skipped: string[]
@@ -89,7 +71,7 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: fullOrderInclude,
+    include: orderIncludeWithDiscordId,
   })
 
   if (!order || order.status !== 'CLOSED' || !order.bankAccountNumber) {

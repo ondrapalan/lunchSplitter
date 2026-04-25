@@ -84,6 +84,12 @@ const TdRight = styled(Td)`
   font-variant-numeric: tabular-nums;
 `
 
+const EmptyState = styled.div`
+  text-align: center;
+  padding: ${({ theme }) => theme.spacing.md};
+  color: ${({ theme }) => theme.colors.textMuted};
+`
+
 const Rank = styled.span<{ $rank: number }>`
   font-weight: ${({ $rank }) => ($rank <= 3 ? 600 : 400)};
   color: ${({ $rank, theme }) =>
@@ -169,9 +175,7 @@ export function SekackaStats() {
       </SummaryGrid>
 
       {isEmpty ? (
-        <div style={{ textAlign: 'center', padding: 16, color: 'var(--muted)' }}>
-          No closed Sekačka in this period yet.
-        </div>
+        <EmptyState>No closed Sekačka in this period yet.</EmptyState>
       ) : (
         <>
           <LeaderTitle>Top sekanožrouti</LeaderTitle>

@@ -5,6 +5,7 @@ import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { cached, ORDER_TAGS } from '~/lib/cache'
+import { baseOrderInclude } from '~/lib/orderIncludes'
 import type { StatPeriod, SpendingEntry, PersonalStats, FunStat, HospitalityEntry, VisitorEntry, SekackaStatsData, SekackaLeaderEntry, SekackaItemBreakdown } from '~/features/stats/types'
 
 function getPeriodStart(period: StatPeriod): Date | null {
@@ -24,31 +25,15 @@ function getPeriodStart(period: StatPeriod): Date | null {
   }
 }
 
-const fullOrderInclude = {
-  restaurant: true,
-  feeAdjustments: { orderBy: { sortOrder: 'asc' as const } },
-  people: {
-    orderBy: { sortOrder: 'asc' as const },
-    include: {
-      user: { select: { displayName: true } },
-      guest: { select: { name: true } },
-      items: {
-        orderBy: { sortOrder: 'asc' as const },
-        include: {
-          sharedWith: true,
-          customShares: true,
-        },
-      },
-    },
-  },
-}
-
 // Guests are tracked separately — their consumption belongs to their host, so we
 // skip them in per-person consumption leaderboards.
 function isGuestRow(person: { guestId: string | null }): boolean {
   return person.guestId !== null
 }
 
+// Stats leaderboards are intentionally visible to every authenticated user
+// (small-team app — colleagues already know each other's spending). Do NOT
+// add per-user scoping here without an explicit product change.
 const fetchClosedOrdersCached = cached(
   async (period: StatPeriod) => {
     const periodStart = getPeriodStart(period)
@@ -57,7 +42,7 @@ const fetchClosedOrdersCached = cached(
         status: 'CLOSED',
         ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
       },
-      include: fullOrderInclude,
+      include: baseOrderInclude,
       orderBy: { createdAt: 'desc' },
     })
   },

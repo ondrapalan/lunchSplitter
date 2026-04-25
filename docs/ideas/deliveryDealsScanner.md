@@ -42,7 +42,7 @@ Add `DeliveryService` enum (`FOODORA`, `WOLT`, `BOLT_FOOD`) and `DeliveryDeal` m
 - `originalPrice?`, `dealPrice?`, `imageUrl?`, `dealUrl?`
 - `validFrom?`, `validUntil?`, `scrapedAt`, `scrapedBy`, `batchId`
 
-Run migration: `npx prisma migrate dev --name add-delivery-deals`
+Apply schema: `npx prisma db push` (this project uses `db push`, not migrations)
 
 ### Step 2: API Route — Deal Import Endpoint
 
@@ -250,7 +250,7 @@ A fun, interactive spinner to help the indecisive team pick where to order. Popu
 
 ## Verification
 
-1. **Schema**: Run `npx prisma migrate dev` — migration succeeds
+1. **Schema**: Run `npx prisma db push` — schema applies cleanly
 2. **API route**: `curl -X POST https://lunch-splitter-black.vercel.app/api/deals/import -H "Authorization: Bearer <secret>" -H "Content-Type: application/json" -d '{"service":"FOODORA","scrapedBy":"test","deals":[{"title":"Test deal","discountText":"50% off"}]}'` — returns 200
 3. **Deals page**: Navigate to `/deals` — shows the test deal
 4. **Recommendations**: With existing order history + imported deals, "Recommended for You" section appears with matched deals and reason tags

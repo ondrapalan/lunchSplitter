@@ -10,9 +10,10 @@ interface SpdStringParams {
   message: string
 }
 
-/** Sanitize a value for SPD field — strip field separators to prevent injection. */
+/** Sanitize a value for SPD field — strip field separators (`*`, `+`) and the
+ *  key/value delimiter (`:`) to prevent injection. */
 function sanitizeSpdField(value: string): string {
-  return value.replace(/[*+]/g, ' ').trim()
+  return value.replace(/[*+:]/g, ' ').trim()
 }
 
 /** Build a QR Platba SPD string. */

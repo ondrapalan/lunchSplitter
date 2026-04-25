@@ -23,6 +23,17 @@ describe('buildSpdString', () => {
     })
     expect(result).toContain('AM:100.00')
   })
+
+  it('sanitizes message: strips field separators and key/value delimiter', () => {
+    const result = buildSpdString({
+      iban: 'CZ6508000000192000145399',
+      amount: 50,
+      variableSymbol: '1',
+      message: 'ACC:fake*injected+payload',
+    })
+    expect(result).toContain('MSG:ACC fake injected payload')
+    expect(result).not.toContain('MSG:ACC:fake')
+  })
 })
 
 describe('czechAccountToIban', () => {
