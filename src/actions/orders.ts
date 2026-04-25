@@ -4,6 +4,7 @@ import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { requireOrderCreatorOrAdmin } from '~/lib/actionAuth'
 import { runHousekeeping } from '~/lib/housekeeping'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import type { Item } from '~/features/lunch/types'
@@ -113,19 +114,12 @@ export async function createOrder(restaurantName: string, bankAccountNumber?: st
 }
 
 export async function deleteOrder(orderId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true },
   })
   if (!order) throw new Error('Order not found')
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) {
-    throw new Error('Unauthorized')
-  }
+  await requireOrderCreatorOrAdmin(order)
 
   // Cascade deletes handle children
   await prisma.order.delete({ where: { id: orderId } })
@@ -332,19 +326,12 @@ export async function listAdminOrders() {
 }
 
 export async function closeOrder(orderId: string, options?: { sendDiscord?: boolean }) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) {
-    throw new Error('Unauthorized')
-  }
+  const session = await requireOrderCreatorOrAdmin(order)
 
   await prisma.$transaction([
     prisma.order.update({
@@ -395,9 +382,6 @@ export async function closeOrderWithDraft(
   draft: CloseOrderDraft,
   options?: { sendDiscord?: boolean; expectedUpdatedAt?: string },
 ) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const parsed = closeOrderDraftSchema.safeParse(draft)
   if (!parsed.success) {
     throw new Error('Invalid order draft input')
@@ -409,11 +393,7 @@ export async function closeOrderWithDraft(
     select: { createdById: true, type: true, status: true, updatedAt: true },
   })
   if (!order) throw new Error('Order not found')
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) {
-    throw new Error('Unauthorized')
-  }
+  const session = await requireOrderCreatorOrAdmin(order)
   if (order.status === 'CLOSED') {
     throw new Error('Order is already closed')
   }
@@ -468,19 +448,12 @@ export async function closeOrderWithDraft(
 }
 
 export async function reopenOrder(orderId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) {
-    throw new Error('Unauthorized')
-  }
+  const session = await requireOrderCreatorOrAdmin(order)
 
   await prisma.$transaction([
     prisma.order.update({

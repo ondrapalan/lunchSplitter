@@ -1,17 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import { createUserSchema, type CreateUserInput } from '~/lib/validations'
 import { createUser, resetUserPassword } from '~/actions/auth'
-import { listUsers, deleteUser, updateUserAliases, setUserDiscordId } from '~/actions/users'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import {
+  useAdminUsersList,
+  useDeleteUser,
+  useSetUserDiscordId,
+  useUpdateUserAliases,
+} from '~/lib/queries/users'
+import { qk } from '~/lib/queries/keys'
 
 const Form = styled.form`
   display: flex;
@@ -157,21 +164,18 @@ const AliasInput = styled.input`
   }
 `
 
-interface UserListItem {
-  id: string
-  username: string
-  displayName: string
-  role: string
-  isFirstLogin: boolean
-  aliases: string[]
-  bankAccountNumber: string | null
-  discordId: string | null
-}
-
 export default function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState<string | null>(null)
   const [resetPassword, setResetPassword] = useState<{ userId: string; password: string } | null>(null)
-  const [users, setUsers] = useState<UserListItem[]>([])
+
+  const usersQuery = useAdminUsersList()
+  const users = usersQuery.data ?? []
+  const qc = useQueryClient()
+  const invalidateUsers = () => qc.invalidateQueries({ queryKey: qk.users.all })
+
+  const updateAliasesMutation = useUpdateUserAliases()
+  const setDiscordMutation = useSetUserDiscordId()
+  const deleteMutation = useDeleteUser()
 
   const {
     register,
@@ -183,26 +187,11 @@ export default function AdminUsersPage() {
     defaultValues: { role: 'USER' },
   })
 
-  const loadUsers = async () => {
-    try {
-      const result = await listUsers()
-      setUsers(result)
-    } catch {
-      toast.error('Failed to load users')
-    }
-  }
-
-  useEffect(() => {
-    loadUsers()
-  }, [])
-
   const handleAddAlias = async (userId: string, alias: string) => {
     const user = users.find(u => u.id === userId)
     if (!user || !alias.trim()) return
-    const newAliases = [...user.aliases, alias.trim()]
     try {
-      await updateUserAliases(userId, newAliases)
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, aliases: newAliases } : u))
+      await updateAliasesMutation.mutateAsync({ userId, aliases: [...user.aliases, alias.trim()] })
     } catch {
       toast.error('Failed to add alias')
     }
@@ -211,10 +200,11 @@ export default function AdminUsersPage() {
   const handleRemoveAlias = async (userId: string, index: number) => {
     const user = users.find(u => u.id === userId)
     if (!user) return
-    const newAliases = user.aliases.filter((_, i) => i !== index)
     try {
-      await updateUserAliases(userId, newAliases)
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, aliases: newAliases } : u))
+      await updateAliasesMutation.mutateAsync({
+        userId,
+        aliases: user.aliases.filter((_, i) => i !== index),
+      })
     } catch {
       toast.error('Failed to remove alias')
     }
@@ -222,21 +212,23 @@ export default function AdminUsersPage() {
 
   const handleSetDiscordId = async (userId: string, discordId: string | null) => {
     const cleaned = discordId?.trim() || null
-    const result = await setUserDiscordId(userId, cleaned)
-    if ('error' in result && result.error) {
-      toast.error(result.error)
-      return
+    try {
+      const result = await setDiscordMutation.mutateAsync({ userId, discordId: cleaned })
+      if ('error' in result && result.error) {
+        toast.error(result.error)
+        return
+      }
+      toast.success(cleaned ? 'Discord ID linked' : 'Discord ID cleared')
+    } catch {
+      toast.error('Failed to update Discord ID')
     }
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, discordId: cleaned } : u))
-    toast.success(cleaned ? 'Discord ID linked' : 'Discord ID cleared')
   }
 
   const handleDelete = async (userId: string, displayName: string) => {
     if (!confirm(`Delete user "${displayName}"? Their order participations will be kept as guest entries.`)) return
     try {
-      await deleteUser(userId)
+      await deleteMutation.mutateAsync(userId)
       toast.success('User deleted')
-      loadUsers()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete user')
     }
@@ -253,7 +245,7 @@ export default function AdminUsersPage() {
     if ('tempPassword' in result && result.tempPassword) {
       setResetPassword({ userId, password: result.tempPassword })
       toast.success('Password reset!')
-      loadUsers()
+      invalidateUsers()
     }
   }
 
@@ -268,7 +260,7 @@ export default function AdminUsersPage() {
       setTempPassword(result.tempPassword)
       toast.success('User created!')
       reset()
-      loadUsers()
+      invalidateUsers()
     }
   }
 

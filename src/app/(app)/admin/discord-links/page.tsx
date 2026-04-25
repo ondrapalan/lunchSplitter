@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 
@@ -9,28 +11,16 @@ import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import {
-  listPendingDiscordLinks,
-  resolvePendingDiscordLinkToUser,
-  resolvePendingDiscordLinkCreateUser,
-  dismissPendingDiscordLink,
-  getUsersWithoutDiscordLink,
-} from '~/actions/pendingDiscordLinks'
-
-interface PendingLink {
-  id: string
-  discordId: string
-  discordUsername: string
-  discordGlobalName: string | null
-  discordNick: string | null
-  createdAt: string
-  triggeredByOrder: { id: string; status: string; type: string; creatorName: string } | null
-}
-
-interface PickableUser {
-  id: string
-  displayName: string
-  username: string
-}
+  useDismissPendingLink,
+  usePendingDiscordLinks,
+  useResolvePendingLinkCreateUser,
+  useResolvePendingLinkToUser,
+  useUsersWithoutDiscordLink,
+} from '~/lib/queries/discordLinks'
+import {
+  resolveDiscordLinkCreateUserSchema,
+  type ResolveDiscordLinkCreateUserInput,
+} from '~/lib/validations'
 
 const Meta = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
@@ -60,11 +50,17 @@ const Empty = styled.p`
   margin: ${({ theme }) => theme.spacing.md} 0;
 `
 
-const FormGroup = styled.div`
+const FormGroup = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.sm};
   margin-top: ${({ theme }) => theme.spacing.sm};
+`
+
+const ErrorText = styled.p`
+  color: ${({ theme }) => theme.colors.negative};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  margin: 0;
 `
 
 const TempPasswordBox = styled.div`
@@ -75,29 +71,76 @@ const TempPasswordBox = styled.div`
   margin-top: ${({ theme }) => theme.spacing.sm};
 `
 
-export default function AdminDiscordLinksPage() {
-  const [links, setLinks] = useState<PendingLink[]>([])
-  const [users, setUsers] = useState<PickableUser[]>([])
-  const [selectedUserByLink, setSelectedUserByLink] = useState<Record<string, string>>({})
-  const [creatingForLink, setCreatingForLink] = useState<string | null>(null)
-  const [createForm, setCreateForm] = useState<{ username: string; displayName: string; role: 'ADMIN' | 'USER' }>({
-    username: '',
-    displayName: '',
-    role: 'USER',
-  })
-  const [tempPasswords, setTempPasswords] = useState<Record<string, string>>({})
+interface CreateUserSubFormProps {
+  linkId: string
+  defaultUsername: string
+  defaultDisplayName: string
+  onCancel: () => void
+  onCreated: (linkId: string, tempPassword: string | null) => void
+}
 
-  const load = async () => {
-    try {
-      const [ls, us] = await Promise.all([listPendingDiscordLinks(), getUsersWithoutDiscordLink()])
-      setLinks(ls)
-      setUsers(us)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load pending links')
+function CreateUserSubForm({
+  linkId,
+  defaultUsername,
+  defaultDisplayName,
+  onCancel,
+  onCreated,
+}: CreateUserSubFormProps) {
+  const createMutation = useResolvePendingLinkCreateUser()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ResolveDiscordLinkCreateUserInput>({
+    resolver: zodResolver(resolveDiscordLinkCreateUserSchema),
+    defaultValues: { username: defaultUsername, displayName: defaultDisplayName, role: 'USER' },
+  })
+
+  const onSubmit = async (data: ResolveDiscordLinkCreateUserInput) => {
+    const result = await createMutation.mutateAsync({ linkId, data })
+    if ('error' in result && result.error) {
+      toast.error(result.error)
+      return
     }
+    toast.success('User created and linked')
+    const password = 'tempPassword' in result ? result.tempPassword ?? null : null
+    onCreated(linkId, password)
   }
 
-  useEffect(() => { load() }, [])
+  return (
+    <FormGroup onSubmit={handleSubmit(onSubmit)}>
+      <Input {...register('username')} placeholder="username" />
+      {errors.username && <ErrorText>{errors.username.message}</ErrorText>}
+      <Input {...register('displayName')} placeholder="Display name" />
+      {errors.displayName && <ErrorText>{errors.displayName.message}</ErrorText>}
+      <Select {...register('role')}>
+        <option value="USER">User</option>
+        <option value="ADMIN">Admin</option>
+      </Select>
+      <Actions>
+        <Button type="submit" variant="primary" size="sm" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create & link'}
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </Actions>
+    </FormGroup>
+  )
+}
+
+export default function AdminDiscordLinksPage() {
+  const linksQuery = usePendingDiscordLinks()
+  const usersQuery = useUsersWithoutDiscordLink()
+  const linkToUserMutation = useResolvePendingLinkToUser()
+  const dismissMutation = useDismissPendingLink()
+
+  const links = linksQuery.data ?? []
+  const users = usersQuery.data ?? []
+
+  const [selectedUserByLink, setSelectedUserByLink] = useState<Record<string, string>>({})
+  const [creatingForLink, setCreatingForLink] = useState<string | null>(null)
+  const [tempPasswords, setTempPasswords] = useState<Record<string, string>>({})
 
   const handleLinkToExisting = async (linkId: string) => {
     const userId = selectedUserByLink[linkId]
@@ -105,39 +148,18 @@ export default function AdminDiscordLinksPage() {
       toast.error('Pick a user')
       return
     }
-    const result = await resolvePendingDiscordLinkToUser(linkId, userId)
+    const result = await linkToUserMutation.mutateAsync({ linkId, userId })
     if ('error' in result && result.error) {
       toast.error(result.error)
       return
     }
     toast.success('Linked')
-    load()
-  }
-
-  const handleCreateUser = async (linkId: string) => {
-    if (!createForm.username.trim() || !createForm.displayName.trim()) {
-      toast.error('Fill in username and display name')
-      return
-    }
-    const result = await resolvePendingDiscordLinkCreateUser(linkId, createForm)
-    if ('error' in result && result.error) {
-      toast.error(result.error)
-      return
-    }
-    if ('tempPassword' in result && result.tempPassword) {
-      setTempPasswords(prev => ({ ...prev, [linkId]: result.tempPassword }))
-    }
-    toast.success('User created and linked')
-    setCreatingForLink(null)
-    setCreateForm({ username: '', displayName: '', role: 'USER' })
-    load()
   }
 
   const handleDismiss = async (linkId: string) => {
     if (!confirm('Dismiss without resolving?')) return
-    await dismissPendingDiscordLink(linkId)
+    await dismissMutation.mutateAsync(linkId)
     toast.success('Dismissed')
-    load()
   }
 
   return (
@@ -181,14 +203,7 @@ export default function AdminDiscordLinksPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => {
-                  setCreatingForLink(link.id)
-                  setCreateForm({
-                    username: link.discordUsername,
-                    displayName: displayName,
-                    role: 'USER',
-                  })
-                }}
+                onClick={() => setCreatingForLink(link.id)}
               >
                 Create new user
               </Button>
@@ -198,33 +213,16 @@ export default function AdminDiscordLinksPage() {
             </Actions>
 
             {isCreating && (
-              <FormGroup>
-                <Input
-                  value={createForm.username}
-                  onChange={e => setCreateForm(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="username"
-                />
-                <Input
-                  value={createForm.displayName}
-                  onChange={e => setCreateForm(prev => ({ ...prev, displayName: e.target.value }))}
-                  placeholder="Display name"
-                />
-                <Select
-                  value={createForm.role}
-                  onChange={e => setCreateForm(prev => ({ ...prev, role: e.target.value as 'ADMIN' | 'USER' }))}
-                >
-                  <option value="USER">User</option>
-                  <option value="ADMIN">Admin</option>
-                </Select>
-                <Actions>
-                  <Button variant="primary" size="sm" onClick={() => handleCreateUser(link.id)}>
-                    Create & link
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setCreatingForLink(null)}>
-                    Cancel
-                  </Button>
-                </Actions>
-              </FormGroup>
+              <CreateUserSubForm
+                linkId={link.id}
+                defaultUsername={link.discordUsername}
+                defaultDisplayName={displayName}
+                onCancel={() => setCreatingForLink(null)}
+                onCreated={(id, password) => {
+                  setCreatingForLink(null)
+                  if (password) setTempPasswords(prev => ({ ...prev, [id]: password }))
+                }}
+              />
             )}
 
             {tempPassword && (

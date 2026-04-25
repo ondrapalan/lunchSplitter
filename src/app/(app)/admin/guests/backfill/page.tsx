@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import styled from 'styled-components'
 import Link from 'next/link'
 import { toast } from 'react-toastify'
-import { listLegacyGuestNames, listGuests, createGuest, backfillLegacyGuest, type GuestSuggestion } from '~/actions/guests'
-import { getRegisteredUsers } from '~/actions/users'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import {
+  useBackfillLegacyGuest,
+  useCreateGuest,
+  useGuests,
+  useLegacyGuestNames,
+} from '~/lib/queries/guests'
+import { useRegisteredUsers } from '~/lib/queries/users'
 
 const Row = styled.div`
   display: flex;
@@ -36,42 +41,21 @@ const Select = styled.select`
   font-size: ${({ theme }) => theme.fontSizes.sm};
 `
 
-interface LegacyRow {
-  name: string
-  count: number
-  lastSeen: string
-}
-
-interface UserOption {
-  id: string
-  displayName: string
-}
-
 const NEW_GUEST = '__new__'
 
 export default function GuestBackfillPage() {
-  const [legacy, setLegacy] = useState<LegacyRow[]>([])
-  const [guests, setGuests] = useState<GuestSuggestion[]>([])
-  const [users, setUsers] = useState<UserOption[]>([])
   const [selections, setSelections] = useState<Record<string, { guestId: string; hostId: string }>>({})
-  const [loading, setLoading] = useState(true)
 
-  const load = async () => {
-    try {
-      const [l, g, u] = await Promise.all([listLegacyGuestNames(), listGuests(), getRegisteredUsers()])
-      setLegacy(l)
-      setGuests(g)
-      setUsers(u.map(x => ({ id: x.id, displayName: x.displayName })))
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const legacyQuery = useLegacyGuestNames()
+  const guestsQuery = useGuests()
+  const usersQuery = useRegisteredUsers()
+  const createGuestMutation = useCreateGuest()
+  const backfillMutation = useBackfillLegacyGuest()
 
-  useEffect(() => {
-    load()
-  }, [])
+  const legacy = legacyQuery.data ?? []
+  const guests = guestsQuery.data ?? []
+  const users = usersQuery.data ?? []
+  const loading = legacyQuery.isPending || guestsQuery.isPending || usersQuery.isPending
 
   const handleSelection = (name: string, field: 'guestId' | 'hostId', value: string) => {
     setSelections(prev => ({
@@ -89,12 +73,11 @@ export default function GuestBackfillPage() {
     try {
       let guestId = sel.guestId
       if (guestId === NEW_GUEST) {
-        const created = await createGuest({ name, defaultHostUserId: sel.hostId })
+        const created = await createGuestMutation.mutateAsync({ name, defaultHostUserId: sel.hostId })
         guestId = created.id
       }
-      const result = await backfillLegacyGuest({ legacyName: name, guestId, hostUserId: sel.hostId })
+      const result = await backfillMutation.mutateAsync({ legacyName: name, guestId, hostUserId: sel.hostId })
       toast.success(`Updated ${result.updated} rows for "${name}"`)
-      await load()
       setSelections(prev => {
         const next = { ...prev }
         delete next[name]

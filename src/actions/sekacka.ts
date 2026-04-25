@@ -2,6 +2,7 @@
 
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
+import { requireOrderCreatorOrAdmin } from '~/lib/actionAuth'
 import {
   addSekackaParticipant as coreAdd,
   removeSekackaParticipant as coreRemove,
@@ -83,19 +84,13 @@ export async function createSekackaOrder(input: CreateSekackaInput) {
 }
 
 export async function publishSekackaToDiscord(orderId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
   if (order.type !== 'SEKACKA') throw new Error('Not a Sekačka order')
-
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) throw new Error('Unauthorized')
+  await requireOrderCreatorOrAdmin(order)
 
   try {
     const result = await publishSekackaToDiscordCore(orderId)
@@ -109,38 +104,26 @@ export async function publishSekackaToDiscord(orderId: string) {
 }
 
 export async function addSekackaParticipantByUserId(orderId: string, userId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
   if (order.type !== 'SEKACKA') throw new Error('Not a Sekačka order')
-
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) throw new Error('Unauthorized')
+  const session = await requireOrderCreatorOrAdmin(order)
 
   const result = await coreAdd(orderId, userId, { source: 'WEB', actorUserId: session.user.id })
   return result
 }
 
 export async function removeSekackaParticipantByUserId(orderId: string, userId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true },
   })
   if (!order) throw new Error('Order not found')
   if (order.type !== 'SEKACKA') throw new Error('Not a Sekačka order')
-
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) throw new Error('Unauthorized')
+  const session = await requireOrderCreatorOrAdmin(order)
 
   const result = await coreRemove(orderId, userId, { source: 'WEB', actorUserId: session.user.id })
   return result
@@ -183,19 +166,13 @@ export async function getSekackaActivityLog(orderId: string) {
 }
 
 export async function listAppUsersForSekackaPicker(orderId: string) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     select: { createdById: true, type: true, people: { select: { userId: true } } },
   })
   if (!order) throw new Error('Order not found')
   if (order.type !== 'SEKACKA') throw new Error('Not a Sekačka order')
-
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) throw new Error('Unauthorized')
+  await requireOrderCreatorOrAdmin(order)
 
   const existingUserIds = new Set(order.people.map(p => p.userId).filter((id): id is string => !!id))
 

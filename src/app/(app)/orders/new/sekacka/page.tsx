@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useFieldArray, useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 
@@ -9,10 +12,10 @@ import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { Card, CardTitle } from '~/features/ui/components/Card'
-import { getBankAccount } from '~/actions/auth'
+import { useBankAccount } from '~/lib/queries/account'
 import { createSekackaOrder } from '~/actions/sekacka'
 
-const Form = styled.div`
+const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing.md};
@@ -62,12 +65,37 @@ const TotalRow = styled.div`
   font-size: ${({ theme }) => theme.fontSizes.md};
 `
 
-interface DraftItem {
-  name: string
-  price: string
-}
+const ErrorText = styled.p`
+  color: ${({ theme }) => theme.colors.negative};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  margin: 0;
+`
 
-const DEFAULT_ITEMS: DraftItem[] = [
+// Form-side schema: lenient on individual rows so the user can keep blank
+// template rows around. We still require *at least one* row that parses to a
+// positive number so submit isn't a no-op. Strict per-row validation happens
+// on the server inside createSekackaOrder.
+const sekackaFormSchema = z
+  .object({
+    items: z.array(z.object({ name: z.string(), price: z.string() })),
+    bankAccountNumber: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    const cleaned = data.items.filter(
+      it => it.name.trim().length > 0 && Number.isFinite(Number.parseFloat(it.price)) && Number.parseFloat(it.price) > 0,
+    )
+    if (cleaned.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Add at least one item with a positive price',
+        path: ['items'],
+      })
+    }
+  })
+
+type SekackaFormValues = z.infer<typeof sekackaFormSchema>
+
+const DEFAULT_ITEMS: SekackaFormValues['items'] = [
   { name: 'Sekaná', price: '' },
   { name: 'Rohlíky', price: '' },
   { name: 'Hořčice', price: '' },
@@ -75,47 +103,48 @@ const DEFAULT_ITEMS: DraftItem[] = [
 
 export default function NewSekackaPage() {
   const router = useRouter()
-  const [items, setItems] = useState<DraftItem[]>(DEFAULT_ITEMS)
-  const [bankAccount, setBankAccount] = useState('')
-  const [creating, setCreating] = useState(false)
+  const bankAccountQuery = useBankAccount()
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors, isSubmitting },
+  } = useForm<SekackaFormValues>({
+    resolver: zodResolver(sekackaFormSchema),
+    defaultValues: { items: DEFAULT_ITEMS, bankAccountNumber: '' },
+  })
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' })
+  const watchedItems = watch('items')
 
   useEffect(() => {
-    getBankAccount().then(v => { if (v) setBankAccount(v) })
-  }, [])
+    if (bankAccountQuery.data) {
+      setValue('bankAccountNumber', bankAccountQuery.data, { shouldDirty: false })
+    }
+  }, [bankAccountQuery.data, setValue])
 
-  const updateItem = (idx: number, patch: Partial<DraftItem>) => {
-    setItems(prev => prev.map((it, i) => i === idx ? { ...it, ...patch } : it))
-  }
-  const addItem = () => setItems(prev => [...prev, { name: '', price: '' }])
-  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx))
-
-  const total = items.reduce((sum, it) => {
+  const total = watchedItems.reduce((sum, it) => {
     const p = Number.parseFloat(it.price)
     return Number.isFinite(p) ? sum + p : sum
   }, 0)
 
-  const handleCreate = async () => {
-    const cleanItems = items
+  const onSubmit = async (data: SekackaFormValues) => {
+    const cleanItems = data.items
       .map(it => ({ name: it.name.trim(), price: Number.parseFloat(it.price) }))
       .filter(it => it.name.length > 0 && Number.isFinite(it.price) && it.price > 0)
 
-    if (cleanItems.length === 0) {
-      toast.error('Add at least one item with a positive price')
-      return
-    }
-
-    setCreating(true)
     try {
       const order = await createSekackaOrder({
         items: cleanItems,
-        bankAccountNumber: bankAccount.trim() || undefined,
+        bankAccountNumber: data.bankAccountNumber.trim() || undefined,
       })
       toast.success('Sekačka created!')
       router.push(`/orders/${order.id}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create Sekačka')
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -129,13 +158,12 @@ export default function NewSekackaPage() {
 
       <Card style={{ marginTop: 16 }}>
         <CardTitle>Items</CardTitle>
-        <Form>
+        <Form onSubmit={handleSubmit(onSubmit)}>
           <ItemsList>
-            {items.map((item, i) => (
-              <ItemRow key={i}>
+            {fields.map((field, i) => (
+              <ItemRow key={field.id}>
                 <Input
-                  value={item.name}
-                  onChange={e => updateItem(i, { name: e.target.value })}
+                  {...register(`items.${i}.name`)}
                   placeholder="Item (e.g. Sekaná)"
                 />
                 <Input
@@ -143,16 +171,22 @@ export default function NewSekackaPage() {
                   inputMode="decimal"
                   step="1"
                   min="0"
-                  value={item.price}
-                  onChange={e => updateItem(i, { price: e.target.value })}
+                  {...register(`items.${i}.price`)}
                   placeholder="Kč"
                 />
-                <Remove type="button" onClick={() => removeItem(i)} title="Remove item">×</Remove>
+                <Remove type="button" onClick={() => remove(i)} title="Remove item">×</Remove>
               </ItemRow>
             ))}
           </ItemsList>
+          {errors.items && (
+            <ErrorText>
+              {errors.items.message ?? errors.items.root?.message ?? 'Add at least one item'}
+            </ErrorText>
+          )}
 
-          <Button variant="secondary" onClick={addItem}>+ Add item</Button>
+          <Button type="button" variant="secondary" onClick={() => append({ name: '', price: '' })}>
+            + Add item
+          </Button>
 
           <TotalRow>
             <span>Total</span>
@@ -160,13 +194,12 @@ export default function NewSekackaPage() {
           </TotalRow>
 
           <Input
-            value={bankAccount}
-            onChange={e => setBankAccount(e.target.value)}
+            {...register('bankAccountNumber')}
             placeholder="Bank account (e.g. 123456789/0800)"
           />
 
-          <Button variant="primary" onClick={handleCreate} disabled={creating}>
-            {creating ? 'Saving…' : 'Create Sekačka'}
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving…' : 'Create Sekačka'}
           </Button>
         </Form>
       </Card>

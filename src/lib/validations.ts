@@ -79,3 +79,29 @@ export const updateDiscordIdSchema = z.object({
 
 export type UpdateBankAccountInput = z.infer<typeof updateBankAccountSchema>
 export type UpdateDiscordIdInput = z.infer<typeof updateDiscordIdSchema>
+
+// Form schemas for the admin/create pages migrated to RHF + zodResolver
+// in Phase 5. These intentionally allow an empty bankAccountNumber — the
+// backend treats empty as "use the user's saved one".
+
+export const createOrderSchema = z.object({
+  restaurantName: z.string().min(1, 'Restaurant name is required'),
+  bankAccountNumber: z.string().optional().or(z.literal('')),
+})
+export type CreateOrderInput = z.infer<typeof createOrderSchema>
+
+export const createGuestSchema = z.object({
+  name: z.string().min(1, 'Guest name is required'),
+  defaultHostUserId: z.string().min(1, 'Default host is required'),
+})
+export type CreateGuestInput = z.infer<typeof createGuestSchema>
+
+export const resolveDiscordLinkCreateUserSchema = z.object({
+  username: z
+    .string()
+    .min(1, 'Username is required')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Only letters, numbers, and underscores'),
+  displayName: z.string().min(1, 'Display name is required'),
+  role: z.enum(['ADMIN', 'USER']),
+})
+export type ResolveDiscordLinkCreateUserInput = z.infer<typeof resolveDiscordLinkCreateUserSchema>

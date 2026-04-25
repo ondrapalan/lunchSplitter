@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
-import { listItemNameUsage, bulkMarkPackaging, type ItemNameUsage } from '~/actions/items'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { Input } from '~/features/ui/components/Input'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import { useBulkMarkPackaging, useItemNameUsage } from '~/lib/queries/items'
 
 const FilterBar = styled.div`
   display: flex;
@@ -82,26 +82,15 @@ const Description = styled.p`
 `
 
 export default function AdminItemsPage() {
-  const [rows, setRows] = useState<ItemNameUsage[]>([])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [applying, setApplying] = useState(false)
 
-  const reload = async () => {
-    try {
-      const data = await listItemNameUsage()
-      setRows(data)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to load items')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const itemsQuery = useItemNameUsage()
+  const rows = itemsQuery.data ?? []
+  const loading = itemsQuery.isPending
 
-  useEffect(() => {
-    reload()
-  }, [])
+  const bulkMutation = useBulkMarkPackaging()
+  const applying = bulkMutation.isPending
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase()
@@ -121,17 +110,12 @@ export default function AdminItemsPage() {
 
   const applyBulk = async (isPackaging: boolean) => {
     if (selected.size === 0) return
-    setApplying(true)
     try {
-      const names = [...selected]
-      const res = await bulkMarkPackaging(names, isPackaging)
+      const res = await bulkMutation.mutateAsync({ names: [...selected], isPackaging })
       toast.success(`${isPackaging ? 'Marked' : 'Unmarked'} ${res.updated} item row${res.updated === 1 ? '' : 's'}`)
       clearSelection()
-      await reload()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Bulk update failed')
-    } finally {
-      setApplying(false)
     }
   }
 

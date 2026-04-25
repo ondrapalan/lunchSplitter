@@ -43,6 +43,7 @@ import { SekackaOrderDetail } from '~/features/lunch/components/SekackaOrderDeta
 import { wasEdited } from '~/features/lunch/utils/formatters'
 import type { ItemSuggestion } from '~/features/lunch/components/ItemSuggest'
 import type { LunchSession, Item } from '~/features/lunch/types'
+import type { OrderAccess as OrderAccessPolicy } from '~/lib/orderAccess'
 
 const Header = styled.div`
   display: flex;
@@ -80,21 +81,6 @@ const HeaderActions = styled.div`
   }
 `
 
-interface OrderAccess {
-  canView: boolean
-  canEdit: boolean
-  canEditMyItems: boolean
-  canJoin: boolean
-  canLeave: boolean
-  canClose: boolean
-  canReopen: boolean
-  canDelete: boolean
-  isCreator: boolean
-  isParticipant: boolean
-  isAdminView: boolean
-  currentUserPersonId: string | null
-}
-
 interface OrderData {
   restaurantName: string
   session: LunchSession
@@ -107,7 +93,7 @@ interface OrderData {
   bankAccountNumber: string | null
   creatorBankAccount: string | null
   createdById: string
-  access: OrderAccess
+  access: OrderAccessPolicy
 }
 
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {

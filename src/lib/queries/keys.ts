@@ -32,5 +32,15 @@ export const qk = {
   },
   discordLinks: {
     all: ['discordLinks'] as const,
+    pending: () => ['discordLinks', 'pending'] as const,
+    pickableUsers: () => ['discordLinks', 'pickableUsers'] as const,
+  },
+  items: {
+    all: ['items'] as const,
+    nameUsage: () => ['items', 'nameUsage'] as const,
+  },
+  account: {
+    all: ['account'] as const,
+    bankAccount: () => ['account', 'bankAccount'] as const,
   },
 } as const

@@ -1,15 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import styled from 'styled-components'
 import { toast } from 'react-toastify'
 import Link from 'next/link'
-import { listGuestsWithStats, createGuest, updateGuest, deleteGuest } from '~/actions/guests'
-import { getRegisteredUsers } from '~/actions/users'
 import { Input } from '~/features/ui/components/Input'
 import { Button } from '~/features/ui/components/Button'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
+import {
+  useCreateGuest,
+  useDeleteGuest,
+  useGuestsWithStats,
+  useUpdateGuest,
+} from '~/lib/queries/guests'
+import { useRegisteredUsers } from '~/lib/queries/users'
+import { createGuestSchema, type CreateGuestInput } from '~/lib/validations'
 
 const Form = styled.form`
   display: flex;
@@ -29,6 +37,12 @@ const Field = styled.div`
 const Label = styled.label`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.fontSizes.xs};
+`
+
+const ErrorText = styled.p`
+  color: ${({ theme }) => theme.colors.negative};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  margin: 0;
 `
 
 const Select = styled.select`
@@ -123,68 +137,50 @@ const AliasInput = styled.input`
   }
 `
 
-interface GuestRow {
-  id: string
-  name: string
-  aliases: string[]
-  defaultHostUserId: string
-  defaultHostDisplayName: string
-  visitCount: number
-  lastVisit: string | null
-}
-
-interface UserOption {
-  id: string
-  displayName: string
-}
-
 export default function AdminGuestsPage() {
-  const [guests, setGuests] = useState<GuestRow[]>([])
-  const [users, setUsers] = useState<UserOption[]>([])
-  const [newName, setNewName] = useState('')
-  const [newHostId, setNewHostId] = useState('')
-  const [creating, setCreating] = useState(false)
+  const guestsQuery = useGuestsWithStats()
+  const usersQuery = useRegisteredUsers()
+  const createMutation = useCreateGuest()
+  const updateMutation = useUpdateGuest()
+  const deleteMutation = useDeleteGuest()
 
-  const reload = async () => {
-    try {
-      const [g, u] = await Promise.all([listGuestsWithStats(), getRegisteredUsers()])
-      setGuests(g)
-      setUsers(u.map(x => ({ id: x.id, displayName: x.displayName })))
-      if (!newHostId && u.length > 0) setNewHostId(u[0].id)
-    } catch {
-      toast.error('Failed to load guests')
-    }
-  }
+  const guests = guestsQuery.data ?? []
+  const users = (usersQuery.data ?? []).map(u => ({ id: u.id, displayName: u.displayName }))
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<CreateGuestInput>({
+    resolver: zodResolver(createGuestSchema),
+    defaultValues: { name: '', defaultHostUserId: '' },
+  })
+
+  // Pre-select the first user as default host once users load.
   useEffect(() => {
-    reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (users.length > 0) {
+      setValue('defaultHostUserId', users[0].id, { shouldDirty: false, shouldValidate: false })
+    }
+  }, [users, setValue])
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newName.trim() || !newHostId) return
-    setCreating(true)
+  const onCreate = async (data: CreateGuestInput) => {
     try {
-      await createGuest({ name: newName.trim(), defaultHostUserId: newHostId })
+      await createMutation.mutateAsync({
+        name: data.name.trim(),
+        defaultHostUserId: data.defaultHostUserId,
+      })
       toast.success('Guest created')
-      setNewName('')
-      await reload()
+      reset({ name: '', defaultHostUserId: data.defaultHostUserId })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create guest')
-    } finally {
-      setCreating(false)
     }
   }
 
   const handleChangeHost = async (id: string, defaultHostUserId: string) => {
     try {
-      await updateGuest(id, { defaultHostUserId })
-      setGuests(prev => prev.map(g => g.id === id ? {
-        ...g,
-        defaultHostUserId,
-        defaultHostDisplayName: users.find(u => u.id === defaultHostUserId)?.displayName ?? g.defaultHostDisplayName,
-      } : g))
+      await updateMutation.mutateAsync({ id, patch: { defaultHostUserId } })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update host')
     }
@@ -194,8 +190,7 @@ export default function AdminGuestsPage() {
     const trimmed = name.trim()
     if (!trimmed) return
     try {
-      await updateGuest(id, { name: trimmed })
-      setGuests(prev => prev.map(g => g.id === id ? { ...g, name: trimmed } : g))
+      await updateMutation.mutateAsync({ id, patch: { name: trimmed } })
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to rename')
     }
@@ -206,10 +201,8 @@ export default function AdminGuestsPage() {
     if (!trimmed) return
     const guest = guests.find(g => g.id === id)
     if (!guest) return
-    const newAliases = [...guest.aliases, trimmed]
     try {
-      await updateGuest(id, { aliases: newAliases })
-      setGuests(prev => prev.map(g => g.id === id ? { ...g, aliases: newAliases } : g))
+      await updateMutation.mutateAsync({ id, patch: { aliases: [...guest.aliases, trimmed] } })
     } catch {
       toast.error('Failed to add alias')
     }
@@ -218,10 +211,11 @@ export default function AdminGuestsPage() {
   const handleRemoveAlias = async (id: string, index: number) => {
     const guest = guests.find(g => g.id === id)
     if (!guest) return
-    const newAliases = guest.aliases.filter((_, i) => i !== index)
     try {
-      await updateGuest(id, { aliases: newAliases })
-      setGuests(prev => prev.map(g => g.id === id ? { ...g, aliases: newAliases } : g))
+      await updateMutation.mutateAsync({
+        id,
+        patch: { aliases: guest.aliases.filter((_, i) => i !== index) },
+      })
     } catch {
       toast.error('Failed to remove alias')
     }
@@ -230,9 +224,8 @@ export default function AdminGuestsPage() {
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete guest "${name}"?`)) return
     try {
-      await deleteGuest(id)
+      await deleteMutation.mutateAsync(id)
       toast.success('Guest deleted')
-      await reload()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete')
     }
@@ -244,20 +237,22 @@ export default function AdminGuestsPage() {
 
       <Card>
         <CardTitle>Create Guest</CardTitle>
-        <Form onSubmit={handleCreate}>
+        <Form onSubmit={handleSubmit(onCreate)}>
           <Field>
             <Label>Name</Label>
-            <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Guest name" />
+            <Input {...register('name')} placeholder="Guest name" />
+            {errors.name && <ErrorText>{errors.name.message}</ErrorText>}
           </Field>
           <Field>
             <Label>Default host</Label>
-            <Select value={newHostId} onChange={e => setNewHostId(e.target.value)}>
+            <Select {...register('defaultHostUserId')}>
               {users.length === 0 && <option value="">No users</option>}
               {users.map(u => <option key={u.id} value={u.id}>{u.displayName}</option>)}
             </Select>
+            {errors.defaultHostUserId && <ErrorText>{errors.defaultHostUserId.message}</ErrorText>}
           </Field>
-          <Button type="submit" variant="primary" disabled={creating || !newName.trim() || !newHostId}>
-            {creating ? 'Creating...' : 'Create Guest'}
+          <Button type="submit" variant="primary" disabled={isSubmitting || users.length === 0}>
+            {isSubmitting ? 'Creating...' : 'Create Guest'}
           </Button>
         </Form>
       </Card>
