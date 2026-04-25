@@ -41,4 +41,8 @@ Thumbs.db
 .superpowers/
 docs/superpowers/
 
+# Playwright
+.playwright
+.playwright-cli
+
 *.tsbuildinfo
