@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   closeOrder,
+  closeOrderWithDraft,
   createOrder,
   deleteOrder,
   getItemsByRestaurant,
@@ -15,7 +16,6 @@ import {
   listOrders,
   reopenOrder,
   saveMyItems,
-  saveOrder,
 } from '~/actions/orders'
 import { qk } from '~/lib/queries/keys'
 
@@ -47,6 +47,7 @@ export function useOrder(orderId: string) {
     queryKey: qk.orders.byId(orderId),
     queryFn: () => getOrder(orderId),
     enabled: !!orderId,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -87,14 +88,6 @@ export function useCreateOrder() {
   })
 }
 
-export function useSaveOrder() {
-  const invalidate = useInvalidateOrders()
-  return useMutation({
-    mutationFn: (input: Parameters<typeof saveOrder>) => saveOrder(...input),
-    onSuccess: (_d, [orderId]) => invalidate(orderId),
-  })
-}
-
 export function useDeleteOrder() {
   const invalidate = useInvalidateOrders()
   return useMutation({
@@ -109,6 +102,14 @@ export function useCloseOrder() {
     mutationFn: (input: { orderId: string; sendDiscord?: boolean }) =>
       closeOrder(input.orderId, { sendDiscord: input.sendDiscord }),
     onSuccess: (_d, { orderId }) => invalidate(orderId),
+  })
+}
+
+export function useCloseOrderWithDraft() {
+  const invalidate = useInvalidateOrders()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof closeOrderWithDraft>) => closeOrderWithDraft(...input),
+    onSuccess: (_d, [orderId]) => invalidate(orderId),
   })
 }
 

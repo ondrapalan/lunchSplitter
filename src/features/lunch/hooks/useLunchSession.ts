@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import type { LunchSession, Person, Item, FeeAdjustment } from '../types'
 
 function generateId(): string {
@@ -17,8 +17,30 @@ function createInitialSession(): LunchSession {
   }
 }
 
+// Compares the parts of LunchSession that live in the client-side draft
+// (fees + global discount). People are auto-saved per-action so their state
+// is not part of the dirty calculation.
+function draftFingerprint(s: LunchSession): string {
+  return JSON.stringify({
+    globalDiscountPercent: s.globalDiscountPercent,
+    feeAdjustments: s.feeAdjustments.map(f => ({ id: f.id, name: f.name, amount: f.amount })),
+  })
+}
+
 export function useLunchSession(initialSession?: LunchSession) {
   const [session, setSession] = useState<LunchSession>(() => initialSession ?? createInitialSession())
+  const [snapshotFingerprint, setSnapshotFingerprint] = useState<string>(
+    () => draftFingerprint(initialSession ?? createInitialSession()),
+  )
+
+  const isDirty = useMemo(
+    () => draftFingerprint(session) !== snapshotFingerprint,
+    [session, snapshotFingerprint],
+  )
+
+  const markClean = useCallback((nextSession?: LunchSession) => {
+    setSnapshotFingerprint(draftFingerprint(nextSession ?? session))
+  }, [session])
 
   const setGlobalDiscount = useCallback((percent: number) => {
     setSession(prev => ({ ...prev, globalDiscountPercent: percent }))
@@ -170,6 +192,8 @@ export function useLunchSession(initialSession?: LunchSession) {
 
   return {
     session,
+    isDirty,
+    markClean,
     setGlobalDiscount,
     addFeeAdjustment,
     updateFeeAdjustment,

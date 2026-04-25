@@ -1,6 +1,11 @@
+'use client'
+
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useCallback } from 'react'
 import styled, { css } from 'styled-components'
 import { media } from '~/features/ui/theme'
+import { useNavigationGuard } from '~/features/lunch/components/NavigationGuard'
 
 const navItemCss = css<{ $active: boolean }>`
   background: ${({ $active, theme }) => ($active ? theme.colors.primary : 'transparent')};
@@ -28,11 +33,36 @@ const navItemCss = css<{ $active: boolean }>`
   }
 `
 
-// Renders an <a href>, so Ctrl/Cmd+click and middle-click open in a new tab
-// while plain clicks fall through to Next.js client-side navigation.
-export const NavLink = styled(Link)<{ $active: boolean }>`
+const StyledNavLink = styled(Link)<{ $active: boolean }>`
   ${navItemCss}
 `
+
+// Renders an <a href>, so Ctrl/Cmd+click and middle-click open in a new tab
+// while plain clicks fall through to Next.js client-side navigation. Plain
+// clicks consult NavigationGuardProvider so unsaved drafts can intercept.
+type NavLinkProps = React.ComponentProps<typeof StyledNavLink>
+
+export function NavLink({ onClick, href, ...rest }: NavLinkProps) {
+  const { requestLeave } = useNavigationGuard()
+  const router = useRouter()
+
+  const handleClick = useCallback(
+    async (e: React.MouseEvent<HTMLAnchorElement>) => {
+      onClick?.(e)
+      if (e.defaultPrevented) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+
+      e.preventDefault()
+      const ok = await requestLeave()
+      if (ok) {
+        router.push(typeof href === 'string' ? href : href.toString())
+      }
+    },
+    [href, onClick, requestLeave, router],
+  )
+
+  return <StyledNavLink href={href} {...rest} onClick={handleClick} />
+}
 
 // Same look, but a real <button> for non-navigation actions
 // (theme toggle, logout, dropdown trigger).

@@ -11,6 +11,7 @@ import { useCalculation } from '~/features/lunch/hooks/useCalculation'
 import { OrderSettings } from '~/features/lunch/components/OrderSettings'
 import { PeopleSection } from '~/features/lunch/components/PeopleSection'
 import { Summary } from '~/features/lunch/components/Summary'
+import { useGuardDirty } from '~/features/lunch/components/NavigationGuard'
 
 import { Button } from '~/features/ui/components/Button'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
@@ -18,14 +19,20 @@ import { SkeletonCard, SkeletonTitle } from '~/features/ui/components/Skeleton'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import { AdminBadge } from '~/features/ui/components/AdminBadge'
 import {
-  useCloseOrder,
+  DialogActions,
+  DialogBackdrop,
+  DialogBody,
+  DialogPanel,
+  DialogTitle,
+} from '~/features/ui/components/Dialog'
+import {
+  useCloseOrderWithDraft,
   useDeleteOrder,
   useItemsByRestaurant,
   useJoinOrder,
   useLeaveOrder,
   useOrder,
   useReopenOrder,
-  useSaveOrder,
 } from '~/lib/queries/orders'
 import { useRegisteredUsers } from '~/lib/queries/users'
 import { useGuests } from '~/lib/queries/guests'
@@ -48,58 +55,6 @@ const Header = styled.div`
     align-items: flex-start;
     gap: ${({ theme }) => theme.spacing.sm};
   }
-`
-
-const SaveBar = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: ${({ theme }) => theme.spacing.md};
-  margin-top: ${({ theme }) => theme.spacing.lg};
-  padding: ${({ theme }) => theme.spacing.md};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
-`
-
-const DialogBackdrop = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: ${({ theme }) => theme.spacing.md};
-`
-
-const DialogPanel = styled.div`
-  background: ${({ theme }) => theme.colors.surface};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
-  padding: ${({ theme }) => theme.spacing.lg};
-  max-width: 440px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.md};
-`
-
-const DialogTitle = styled.h3`
-  margin: 0;
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.lg};
-`
-
-const DialogBody = styled.p`
-  margin: 0;
-  color: ${({ theme }) => theme.colors.textMuted};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  line-height: 1.5;
-`
-
-const DialogActions = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${({ theme }) => theme.spacing.sm};
-  justify-content: flex-end;
 `
 
 const SaveStatus = styled.span`
@@ -158,7 +113,6 @@ interface OrderData {
 export default function OrderDetailPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const router = useRouter()
-  const [isEditing, setIsEditing] = useState(false)
   const [isEditingMyItems, setIsEditingMyItems] = useState(false)
   const [contentKey, setContentKey] = useState(0)
 
@@ -187,14 +141,6 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
   useEffect(() => {
     if (orderQuery.error) toast.error('Failed to load order')
   }, [orderQuery.error])
-
-  const autoEditedRef = useRef(false)
-  useEffect(() => {
-    if (orderData && !autoEditedRef.current && orderData.session.people.length === 0 && orderData.access.isCreator) {
-      autoEditedRef.current = true
-      setIsEditing(true)
-    }
-  }, [orderData])
 
   if (!orderData) {
     return (
@@ -240,17 +186,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ orderId:
       registeredUsers={registeredUsers}
       guestSuggestions={guestSuggestions}
       historicalItemSuggestions={historicalItems}
-      isEditing={isEditing}
       isEditingMyItems={isEditingMyItems}
-      onEdit={() => setIsEditing(true)}
       onEditMyItems={() => setIsEditingMyItems(true)}
-      onSaved={async () => {
-        setIsEditing(false)
-        setIsEditingMyItems(false)
-        await load()
-        setContentKey(k => k + 1)
-      }}
       onStatusChange={async () => {
+        setIsEditingMyItems(false)
         await load()
         setContentKey(k => k + 1)
       }}
@@ -269,11 +208,8 @@ function OrderContent({
   registeredUsers,
   guestSuggestions,
   historicalItemSuggestions,
-  isEditing,
   isEditingMyItems,
-  onEdit,
   onEditMyItems,
-  onSaved,
   onStatusChange,
   onJoined,
 }: {
@@ -282,18 +218,14 @@ function OrderContent({
   registeredUsers: UserSuggestion[]
   guestSuggestions: GuestSuggestion[]
   historicalItemSuggestions: ItemSuggestion[]
-  isEditing: boolean
   isEditingMyItems: boolean
-  onEdit: () => void
   onEditMyItems: () => void
-  onSaved: () => Promise<void>
   onStatusChange: () => Promise<void>
   onJoined: () => Promise<void>
 }) {
   const { restaurantName, session: initialSession, createdAt, updatedAt, creatorName, status, bankAccountNumber: initialBankAccount, createdById, access } = orderData
   const router = useRouter()
   const [bankAccountNumber, setBankAccountNumber] = useState(initialBankAccount ?? '')
-  const [isSaving, setIsSaving] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
   const [isReopening, setIsReopening] = useState(false)
   const [isJoining, setIsJoining] = useState(false)
@@ -301,6 +233,10 @@ function OrderContent({
   const [isLeaving, setIsLeaving] = useState(false)
   const [closeDialogOpen, setCloseDialogOpen] = useState(false)
   const [paymentConfirmations, setPaymentConfirmations] = useState<Record<string, { confirmed: boolean; confirmedAt: string | null }>>({})
+
+  // Status drives editability. The creator gets in-place editing on every
+  // OPEN order; closed orders render read-only with a Reopen button.
+  const isCreatorEditing = status === 'OPEN' && access.isCreator
 
   // Load payment confirmations for closed orders + poll every 30s
   useEffect(() => {
@@ -335,6 +271,8 @@ function OrderContent({
 
   const {
     session,
+    isDirty: sessionDirty,
+    markClean,
     setGlobalDiscount,
     addFeeAdjustment,
     updateFeeAdjustment,
@@ -351,9 +289,15 @@ function OrderContent({
 
   const autoSave = useAutoSave({
     orderId,
-    enabled: isEditing || isEditingMyItems,
+    enabled: status === 'OPEN' && (access.isCreator || isEditingMyItems),
     onUpdatedAt: (val) => { latestUpdatedAt.current = val },
   })
+
+  // Push the combined dirty signal into NavigationGuardProvider so the layout
+  // nav, browser back, and tab close all prompt before discarding the draft.
+  const bankDirty = (bankAccountNumber || '') !== (initialBankAccount ?? '')
+  const totalDirty = sessionDirty || bankDirty || autoSave.hasPendingItemSaves
+  useGuardDirty(`order:${orderId}`, totalDirty)
 
   const handleAutoSaveAddItem = useCallback((personId: string, name: string, price: number, options?: { isPackaging?: boolean }) => {
     const itemId = crypto.randomUUID()
@@ -405,18 +349,29 @@ function OrderContent({
 
   const { summaries, netFees, feePerPerson, grandTotal } = useCalculation(session)
 
-  const closeMutation = useCloseOrder()
+  const closeMutation = useCloseOrderWithDraft()
   const reopenMutation = useReopenOrder()
   const joinMutation = useJoinOrder()
   const leaveMutation = useLeaveOrder()
   const deleteMutation = useDeleteOrder()
-  const saveMutation = useSaveOrder()
 
   const handleClose = async (sendDiscord: boolean) => {
     setCloseDialogOpen(false)
     setIsClosing(true)
     try {
-      const result = await closeMutation.mutateAsync({ orderId, sendDiscord })
+      // Flush any debounced item saves so they land before we commit + lock.
+      await autoSave.flushAll()
+      const result = await closeMutation.mutateAsync([
+        orderId,
+        {
+          globalDiscountPercent: session.globalDiscountPercent,
+          feeAdjustments: session.feeAdjustments.map(f => ({ id: f.id, name: f.name, amount: f.amount })),
+          bankAccountNumber: bankAccountNumber || null,
+        },
+        { sendDiscord, expectedUpdatedAt: latestUpdatedAt.current },
+      ])
+      // Clear dirty so NavigationGuard doesn't prompt on the post-close refetch.
+      markClean(session)
       toast.success(sendDiscord ? 'Order closed' : 'Order closed (no DMs sent)')
       if (result.discord) {
         const { sent, skipped, failed } = result.discord
@@ -431,8 +386,8 @@ function OrderContent({
         }
       }
       await onStatusChange()
-    } catch {
-      toast.error('Failed to close order')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to close order')
     } finally {
       setIsClosing(false)
     }
@@ -503,10 +458,9 @@ function OrderContent({
   const wasEditedAfterCreation = wasEdited(createdAt, updatedAt)
   const isClosed = status === 'CLOSED'
 
-  const showCreatorEditButton = access.canEdit && !isEditing
   const showJoinButton = access.canJoin
   const showLeaveButton = access.canLeave && !isEditingMyItems
-  const showCloseButton = access.canClose && !isEditing
+  const showCloseButton = access.canClose
   const showReopenButton = access.canReopen && isClosed
   const showDeleteButton = access.canDelete
   const showEditMyItemsForPersonId = (access.canEditMyItems && !isEditingMyItems)
@@ -533,13 +487,10 @@ function OrderContent({
         </div>
         <HeaderActions>
           {showCloseButton && (
-            <Button variant="secondary" loading={isClosing} onClick={() => setCloseDialogOpen(true)}>Close Order</Button>
+            <Button variant="primary" loading={isClosing} onClick={() => setCloseDialogOpen(true)}>Close Order</Button>
           )}
           {showReopenButton && (
             <Button variant="secondary" loading={isReopening} onClick={handleReopen}>Reopen Order</Button>
-          )}
-          {showCreatorEditButton && (
-            <Button variant="primary" onClick={onEdit}>Edit order details</Button>
           )}
           {showJoinButton && (
             <Button variant="primary" loading={isJoining} onClick={handleJoin}>Join This Order</Button>
@@ -550,7 +501,7 @@ function OrderContent({
           {showDeleteButton && (
             <Button variant="danger" loading={isDeleting} onClick={handleDelete}>Delete Order</Button>
           )}
-          {(isEditing || isEditingMyItems) && autoSave.saveStatus !== 'idle' && (
+          {status === 'OPEN' && autoSave.saveStatus !== 'idle' && (
             <SaveStatus>
               {autoSave.saveStatus === 'saving' && 'Saving...'}
               {autoSave.saveStatus === 'saved' && 'All changes saved'}
@@ -566,7 +517,7 @@ function OrderContent({
         netFees={netFees}
         feePerPerson={feePerPerson}
         peopleCount={session.people.length}
-        editable={isEditing}
+        editable={isCreatorEditing}
         bankAccountNumber={bankAccountNumber}
         onBankAccountChange={setBankAccountNumber}
         onSetGlobalDiscount={setGlobalDiscount}
@@ -582,26 +533,26 @@ function OrderContent({
         registeredUsers={registeredUsers}
         guestSuggestions={guestSuggestions}
         historicalItemSuggestions={historicalItemSuggestions}
-        canAddPerson={isEditing}
-        canEditItems={isEditing}
-        canEditNames={isEditing}
-        canRemovePeople={isEditing}
+        canAddPerson={isCreatorEditing}
+        canEditItems={isCreatorEditing}
+        canEditNames={isCreatorEditing}
+        canRemovePeople={isCreatorEditing}
         hideShareControls={isEditingMyItems}
         editablePersonId={isEditingMyItems ? access.currentUserPersonId : null}
         showEditMyItemsForPersonId={showEditMyItemsForPersonId}
         onEditMyItems={onEditMyItems}
-        onAddPerson={isEditing ? handleAutoSaveAddPerson : addPerson}
-        onAddGuest={isEditing ? handleAutoSaveAddGuest : undefined}
-        onUpdatePersonHost={isEditing ? handleAutoSaveUpdatePersonHost : updatePersonHost}
-        onRemovePerson={isEditing ? handleAutoSaveRemovePerson : removePerson}
-        onUpdatePersonName={isEditing ? handleAutoSaveUpdatePersonName : updatePersonName}
-        onAddItem={isEditing || isEditingMyItems
+        onAddPerson={isCreatorEditing ? handleAutoSaveAddPerson : addPerson}
+        onAddGuest={isCreatorEditing ? handleAutoSaveAddGuest : undefined}
+        onUpdatePersonHost={isCreatorEditing ? handleAutoSaveUpdatePersonHost : updatePersonHost}
+        onRemovePerson={isCreatorEditing ? handleAutoSaveRemovePerson : removePerson}
+        onUpdatePersonName={isCreatorEditing ? handleAutoSaveUpdatePersonName : updatePersonName}
+        onAddItem={isCreatorEditing || isEditingMyItems
           ? handleAutoSaveAddItem
           : (personId, name, price, options) => addItem(personId, name, price, undefined, options)
         }
-        onUpdateItem={isEditing || isEditingMyItems ? handleAutoSaveUpdateItem : updateItem}
-        onRemoveItem={isEditing || isEditingMyItems ? handleAutoSaveRemoveItem : removeItem}
-        onFlushItem={(isEditing || isEditingMyItems)
+        onUpdateItem={isCreatorEditing || isEditingMyItems ? handleAutoSaveUpdateItem : updateItem}
+        onRemoveItem={isCreatorEditing || isEditingMyItems ? handleAutoSaveRemoveItem : removeItem}
+        onFlushItem={(isCreatorEditing || isEditingMyItems)
           ? (_personId: string, itemId: string) => autoSave.flushUpdateItem(itemId)
           : undefined
         }
@@ -612,39 +563,20 @@ function OrderContent({
         orderId={orderId}
         restaurantName={restaurantName}
         isCreator={access.isCreator || access.isAdminView}
+        createdById={createdById}
         paymentConfirmations={paymentConfirmations}
         onTogglePayment={(access.isCreator || access.isAdminView) ? handleTogglePayment : undefined}
       />
 
       <Summary summaries={summaries} grandTotal={grandTotal} />
 
-      {(isEditing || isEditingMyItems) && (
-        <SaveBar>
-          <Button variant="primary" loading={isSaving} onClick={async () => {
-            setIsSaving(true)
-            try {
-              await autoSave.flushAll()
-              if (isEditing) {
-                await saveMutation.mutateAsync([orderId, session, latestUpdatedAt.current, bankAccountNumber || null])
-              }
-              await onSaved()
-            } catch (err) {
-              toast.error(err instanceof Error ? err.message : 'Failed to save order settings')
-            } finally {
-              setIsSaving(false)
-            }
-          }}>
-            Done
-          </Button>
-        </SaveBar>
-      )}
-
       {closeDialogOpen && (
         <DialogBackdrop onClick={() => !isClosing && setCloseDialogOpen(false)}>
           <DialogPanel onClick={e => e.stopPropagation()}>
             <DialogTitle>Close this order?</DialogTitle>
             <DialogBody>
-              Closing the order locks it from further edits. You can also send each
+              Closing the order locks it from further edits and commits any
+              fee, discount, or bank-account changes. You can also send each
               participant a Discord DM with their QR code — skip this if you&apos;ve
               already sent them (for example after reopening to edit).
             </DialogBody>

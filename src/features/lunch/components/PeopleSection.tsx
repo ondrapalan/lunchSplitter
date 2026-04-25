@@ -10,6 +10,8 @@ import type { ItemSuggestion } from './ItemSuggest'
 import type { GuestSuggestion } from '~/actions/guests'
 import { isGuest } from '../utils/calculations'
 
+export type PersonKind = 'creator' | 'self-joined' | 'guest' | 'creator-added'
+
 interface PeopleSectionProps {
   people: Person[]
   summaries: PersonSummary[]
@@ -47,6 +49,7 @@ interface PeopleSectionProps {
   orderId?: string
   restaurantName?: string
   isCreator?: boolean
+  createdById?: string | null
   paymentConfirmations?: Record<string, { confirmed: boolean; confirmedAt: string | null }>
   onTogglePayment?: (personId: string) => void
 }
@@ -82,6 +85,7 @@ export function PeopleSection({
   orderId,
   restaurantName,
   isCreator,
+  createdById,
   paymentConfirmations,
   onTogglePayment,
 }: PeopleSectionProps) {
@@ -158,6 +162,11 @@ export function PeopleSection({
           chargeableAmount = ownWithFees + guestsTotal
         }
 
+        let personKind: PersonKind = 'creator-added'
+        if (personIsGuest) personKind = 'guest'
+        else if (createdById && person.userId === createdById) personKind = 'creator'
+        else if (person.userId) personKind = 'self-joined'
+
         return (
           <PersonCard
             key={person.id}
@@ -166,6 +175,7 @@ export function PeopleSection({
             summary={summaries.find(s => s.personId === person.id)}
             globalDiscountPercent={globalDiscountPercent}
             itemSuggestions={itemSuggestions}
+            personKind={personKind}
             canEditItems={isEditablePerson}
             canEditName={editablePersonId ? false : canEditNames}
             canRemove={editablePersonId ? false : canRemovePeople}

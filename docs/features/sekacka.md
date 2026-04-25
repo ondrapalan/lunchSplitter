@@ -32,7 +32,7 @@ Code lives in `src/lib/sekackaCore.ts`. The critical functions:
 
 There's **no special-case code path** for Sekačka in the math. When a participant joins, `addSekackaParticipant` adds their ID to every existing item's `sharedWith`, which makes the standard `calculatePersonSummaries` split each item across all participants equally. That's why every item is always owned by the creator — it's the simplest row that can carry the shared-with fan-out.
 
-The consequence: if the creator adds a new item **after** someone joined, they must save it — `saveOrder` will then rewrite everything and include the new participants in the item's shared list.
+The consequence: if the creator adds a new item **after** someone joined, the per-item add (`addItemToOrder`) seeds it with the current participants, and the standard `updateItemInOrder` keeps `sharedWith` aligned as participants come and go.
 
 ## Discord join/leave flow
 

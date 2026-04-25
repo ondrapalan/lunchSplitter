@@ -31,7 +31,7 @@ A row with `guestId` set is a "guest row" — it appears in the order's people l
 Two paths:
 
 ### Inline during order editing
-The creator picks "Add guest" on the order detail page. If they type a new name, the client submits `newGuest: { name, defaultHostUserId }` inside `saveOrder`, which — server-side — creates the `Guest` row in the same transaction and then inserts the `OrderPerson` referencing it. See the `resolvedPeople` loop in `src/actions/orders.ts → saveOrder`.
+The creator picks "Add guest" on the order detail page. If they type a new name, the client calls `addGuestToOrder` (`src/actions/orderItems.ts`) with `newGuest: { name, defaultHostUserId }`. Server-side that action creates the `Guest` row and then inserts the `OrderPerson` referencing it.
 
 ### Admin page
 `/admin/guests` → `createGuest({ name, defaultHostUserId, aliases? })` in `src/actions/guests.ts`. Admin can also edit name/host/aliases and delete (only if the guest has zero order appearances).
@@ -40,7 +40,7 @@ The creator picks "Add guest" on the order detail page. If they type a new name,
 
 - `Guest.defaultHostUserId` is a **default**, not a constraint. The actual host per order is `OrderPerson.hostUserId`, so the same guest can have different hosts in different orders.
 - The creator of an order picks the host via the guest-picker UI when they add the guest (defaults to the guest's default host).
-- A guest must always have a host — `saveOrder` throws if `hostUserId` is missing on a guest row.
+- A guest must always have a host — `addGuestToOrder` throws if `hostUserId` is missing.
 
 ## Aliases
 

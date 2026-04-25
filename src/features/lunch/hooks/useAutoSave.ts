@@ -11,6 +11,20 @@ import {
   updatePersonHostInOrder,
 } from '~/actions/orderItems'
 
+const CONFLICT_MESSAGE = 'Order was modified by someone else'
+
+function showSaveError(err: unknown) {
+  const message = err instanceof Error ? err.message : 'Failed to save'
+  if (message.includes(CONFLICT_MESSAGE)) {
+    toast.warn('Someone else updated this order. Click to reload.', {
+      onClick: () => window.location.reload(),
+      autoClose: false,
+    })
+  } else {
+    toast.error(message)
+  }
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface ItemChanges {
@@ -51,15 +65,11 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     }
   }, [saveStatus])
 
-  // beforeunload guard
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (pendingChanges.current.size > 0 || activeSaves.current > 0) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
+  // beforeunload is handled by NavigationGuard (which also covers in-app
+  // navigation). We just expose hasPendingItemSaves for the guard to read.
+  const [hasPendingItemSaves, setHasPendingItemSaves] = useState(false)
+  const refreshPendingFlag = useCallback(() => {
+    setHasPendingItemSaves(pendingChanges.current.size > 0 || activeSaves.current > 0)
   }, [])
 
   // Cleanup all timers on unmount
@@ -73,6 +83,7 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     if (!enabled) return
     activeSaves.current++
     setSaveStatus('saving')
+    refreshPendingFlag()
     try {
       const result = await fn()
       if (onUpdatedAt && result && typeof result === 'object' && 'updatedAt' in result) {
@@ -85,9 +96,11 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
     } catch (err) {
       activeSaves.current--
       setSaveStatus('error')
-      toast.error(err instanceof Error ? err.message : 'Failed to save')
+      showSaveError(err)
+    } finally {
+      refreshPendingFlag()
     }
-  }, [enabled, onUpdatedAt])
+  }, [enabled, onUpdatedAt, refreshPendingFlag])
 
   const saveAddItem = useCallback((personId: string, item: { id: string; name: string; price: number; discountPercent: number | null; isPackaging?: boolean }) => {
     execSave(() => addItemToOrder(orderId, personId, item))
@@ -134,13 +147,14 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
       changes: { ...(prev?.changes ?? {}), ...changes },
     }
     pendingChanges.current.set(key, merged)
+    refreshPendingFlag()
 
     const timer = setTimeout(() => {
       executePendingUpdate(key)
     }, 5000)
 
     debounceTimers.current.set(key, timer)
-  }, [enabled, executePendingUpdate])
+  }, [enabled, executePendingUpdate, refreshPendingFlag])
 
   const flushUpdateItem = useCallback((itemId: string) => {
     const key = `update-item-${itemId}`
@@ -189,6 +203,7 @@ export function useAutoSave({ orderId, enabled, onUpdatedAt }: UseAutoSaveOption
 
   return {
     saveStatus,
+    hasPendingItemSaves,
     saveAddItem,
     saveRemoveItem,
     debouncedUpdateItem,

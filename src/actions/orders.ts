@@ -4,8 +4,8 @@ import { revalidateTag } from 'next/cache'
 import { auth } from '~/lib/auth'
 import { prisma } from '~/lib/prisma'
 import { runHousekeeping } from '~/lib/housekeeping'
-import { prismaOrderToLunchSession, lunchSessionToPrismaInput } from '~/lib/mappers'
-import type { LunchSession, Item } from '~/features/lunch/types'
+import { prismaOrderToLunchSession } from '~/lib/mappers'
+import type { Item } from '~/features/lunch/types'
 import { getOrderAccess } from '~/lib/orderAccess'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { sendOrderQrCodes } from '~/actions/discord'
@@ -69,6 +69,8 @@ export async function getRestaurantNames() {
   return getRestaurantNamesCached()
 }
 
+const DEFAULT_FEE_NAMES = ['Delivery', 'Delivery coupon', 'Service'] as const
+
 export async function createOrder(restaurantName: string, bankAccountNumber?: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -94,89 +96,19 @@ export async function createOrder(restaurantName: string, bankAccountNumber?: st
       restaurantId: restaurant.id,
       createdById: session.user.id,
       bankAccountNumber: bankAccount ?? null,
+      feeAdjustments: {
+        create: DEFAULT_FEE_NAMES.map((name, sortOrder) => ({
+          name,
+          amount: 0,
+          sortOrder,
+        })),
+      },
     },
   })
 
   revalidateTag(ORDER_TAGS.open)
   revalidateTag(ORDER_TAGS.restaurantNames)
   return { id: order.id }
-}
-
-export async function saveOrder(orderId: string, lunchSession: LunchSession, expectedUpdatedAt?: string, bankAccountNumber?: string | null) {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { createdById: true, status: true, updatedAt: true },
-  })
-  if (!order) throw new Error('Order not found')
-  const isCreator = order.createdById === session.user.id
-  const isAdmin = session.user.role === 'ADMIN'
-  if (!isCreator && !isAdmin) {
-    throw new Error('Unauthorized')
-  }
-  if (order.status === 'CLOSED') {
-    throw new Error('Cannot modify a closed order')
-  }
-  if (expectedUpdatedAt && order.updatedAt.toISOString() !== expectedUpdatedAt) {
-    throw new Error('Order was modified by someone else. Please refresh and try again.')
-  }
-
-  // Validate person invariants and resolve any new guest records.
-  const resolvedPeople: LunchSession['people'] = []
-  for (const p of lunchSession.people) {
-    const hasUser = !!p.userId
-    const hasGuest = !!p.guestId || !!p.newGuest
-    if (hasUser && hasGuest) {
-      throw new Error(`Person "${p.name}" has both a user and a guest assignment.`)
-    }
-    if (hasGuest && !p.hostUserId) {
-      throw new Error(`Guest "${p.name}" must have a host.`)
-    }
-    if (p.newGuest) {
-      const created = await prisma.guest.create({
-        data: {
-          name: p.newGuest.name.trim() || p.name,
-          defaultHostUserId: p.newGuest.defaultHostUserId,
-        },
-        select: { id: true },
-      })
-      resolvedPeople.push({
-        ...p,
-        guestId: created.id,
-        newGuest: null,
-      })
-    } else {
-      resolvedPeople.push(p)
-    }
-  }
-
-  const input = lunchSessionToPrismaInput({ ...lunchSession, people: resolvedPeople })
-
-  // Delete all children, then recreate from current client state.
-  // OrderPerson -> OrderItem -> (SharedItemLink, CustomShare) all cascade on delete,
-  // so we only need to drop OrderPerson + FeeAdjustment explicitly.
-  await prisma.$transaction(async (tx) => {
-    // Re-check status inside transaction to prevent race with closeOrder
-    const fresh = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
-    if (fresh?.status === 'CLOSED') throw new Error('Cannot modify a closed order')
-
-    await tx.orderPerson.deleteMany({ where: { orderId } })
-    await tx.feeAdjustment.deleteMany({ where: { orderId } })
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        globalDiscountPercent: input.globalDiscountPercent,
-        feeAdjustments: input.feeAdjustments,
-        people: input.people,
-        ...(bankAccountNumber !== undefined ? { bankAccountNumber } : {}),
-      },
-    })
-  }, { timeout: 20_000 })
-
-  invalidateOrder(orderId)
-  return { success: true }
 }
 
 export async function deleteOrder(orderId: string) {
@@ -422,6 +354,83 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
   return { success: true, discord: discordResult }
 }
 
+interface CloseOrderDraft {
+  globalDiscountPercent: number
+  feeAdjustments: { id: string; name: string; amount: number }[]
+  bankAccountNumber: string | null
+}
+
+export async function closeOrderWithDraft(
+  orderId: string,
+  draft: CloseOrderDraft,
+  options?: { sendDiscord?: boolean; expectedUpdatedAt?: string },
+) {
+  const session = await auth()
+  if (!session?.user) throw new Error('Unauthorized')
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { createdById: true, type: true, status: true, updatedAt: true },
+  })
+  if (!order) throw new Error('Order not found')
+  const isCreator = order.createdById === session.user.id
+  const isAdmin = session.user.role === 'ADMIN'
+  if (!isCreator && !isAdmin) {
+    throw new Error('Unauthorized')
+  }
+  if (order.status === 'CLOSED') {
+    throw new Error('Order is already closed')
+  }
+  if (options?.expectedUpdatedAt && order.updatedAt.toISOString() !== options.expectedUpdatedAt) {
+    throw new Error('Order was modified by someone else. Please refresh and try again.')
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const fresh = await tx.order.findUnique({ where: { id: orderId }, select: { status: true } })
+    if (fresh?.status === 'CLOSED') throw new Error('Order is already closed')
+
+    await tx.feeAdjustment.deleteMany({ where: { orderId } })
+    await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: 'CLOSED',
+        globalDiscountPercent: draft.globalDiscountPercent,
+        bankAccountNumber: draft.bankAccountNumber,
+        feeAdjustments: {
+          create: draft.feeAdjustments.map((f, sortOrder) => ({
+            id: f.id,
+            name: f.name,
+            amount: f.amount,
+            sortOrder,
+          })),
+        },
+      },
+    })
+    await tx.orderActivityLog.create({
+      data: {
+        orderId,
+        action: 'CLOSED',
+        actorUserId: session.user.id,
+        source: 'WEB',
+      },
+    })
+  }, { timeout: 20_000 })
+
+  const sendDiscord = options?.sendDiscord ?? true
+  const discordResult = sendDiscord
+    ? await sendOrderQrCodes(orderId).catch(() => null)
+    : null
+
+  if (order.type === 'SEKACKA') {
+    await refreshSekackaDiscordMessage(orderId).catch(err => {
+      console.error('Failed to refresh closed Sekačka message:', err)
+    })
+  }
+
+  invalidateOrder(orderId)
+  return { success: true, discord: discordResult }
+}
+
 export async function reopenOrder(orderId: string) {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
@@ -589,7 +598,7 @@ export async function saveMyItems(
   if (!order) throw new Error('Order not found')
   if (order.status !== 'OPEN') throw new Error('Order is closed')
   if (order.createdById === session.user.id) {
-    throw new Error('Creator should use saveOrder instead')
+    throw new Error('Creator should not use saveMyItems; edits go through the per-item actions')
   }
 
   const person = order.people.find(p => p.id === personId)

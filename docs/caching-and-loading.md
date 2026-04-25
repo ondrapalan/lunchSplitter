@@ -57,9 +57,9 @@ export async function listGuests() {
 
 | Tag | Invalidated by |
 |---|---|
-| `orders:open` | createOrder, saveOrder, joinOrder/leaveOrder, closeOrder |
-| `orders:list` | saveOrder, closeOrder, deleteOrder |
-| `orders:closed` | closeOrder, reopenOrder, deleteOrder, saveOrder |
+| `orders:open` | createOrder, per-item/per-person mutations, joinOrder/leaveOrder, closeOrder/closeOrderWithDraft |
+| `orders:list` | closeOrder, closeOrderWithDraft, deleteOrder |
+| `orders:closed` | closeOrder, closeOrderWithDraft, reopenOrder, deleteOrder |
 | `orders:admin` | any order mutation |
 | `order:<id>` | any mutation on that order |
 | `items:restaurant:<name>`, `items:all` | saveMyItems |

@@ -9,6 +9,7 @@ import { media } from '~/features/ui/theme'
 import { NavLink, NavButton, NavLabel, NavIcon } from '~/features/ui/components/NavLink'
 import { AdminNavMenu } from '~/features/ui/components/AdminNavMenu'
 import { getPendingDiscordLinkCount } from '~/actions/pendingDiscordLinks'
+import { NavigationGuardProvider, useNavigationGuard } from '~/features/lunch/components/NavigationGuard'
 
 const Nav = styled.nav`
   display: flex;
@@ -61,9 +62,18 @@ const Footer = styled.footer`
 `
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NavigationGuardProvider>
+      <AppShell>{children}</AppShell>
+    </NavigationGuardProvider>
+  )
+}
+
+function AppShell({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
+  const { requestLeave } = useNavigationGuard()
 
   const { mode, toggleTheme } = useThemeMode()
   const themeTitle = mode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'
@@ -75,6 +85,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [session?.user?.role, pathname])
 
   const handleLogout = async () => {
+    if (!(await requestLeave())) return
     await signOut({ redirect: false })
     router.push('/login')
   }

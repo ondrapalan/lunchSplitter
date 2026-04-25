@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loginSchema, setupPasswordSchema, createUserSchema, saveOrderSchema } from './validations'
+import { loginSchema, setupPasswordSchema, createUserSchema } from './validations'
 
 describe('loginSchema', () => {
   it('accepts valid credentials', () => {
@@ -82,14 +82,3 @@ describe('createUserSchema', () => {
   })
 })
 
-describe('saveOrderSchema', () => {
-  it('accepts valid restaurant name', () => {
-    const result = saveOrderSchema.safeParse({ restaurantName: 'Pizza Place' })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects empty restaurant name', () => {
-    const result = saveOrderSchema.safeParse({ restaurantName: '' })
-    expect(result.success).toBe(false)
-  })
-})

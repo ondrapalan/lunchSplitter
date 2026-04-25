@@ -43,6 +43,18 @@ const RegisteredBadge = styled.span`
   font-weight: 400;
 `
 
+const SelfJoinedBadge = styled.span`
+  color: ${({ theme }) => theme.colors.accent};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 500;
+  margin-left: ${({ theme }) => theme.spacing.xs};
+  padding: 1px 6px;
+  border: 1px solid ${({ theme }) => theme.colors.accent};
+  border-radius: ${({ theme }) => theme.borderRadius.sm};
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`
+
 const GuestBadge = styled.span`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.fontSizes.xs};
@@ -124,12 +136,15 @@ const CardMainContent = styled.div`
   min-width: 0;
 `
 
+type PersonKind = 'creator' | 'self-joined' | 'guest' | 'creator-added'
+
 interface PersonCardProps {
   person: Person
   allPeople: Person[]
   summary: PersonSummary | undefined
   globalDiscountPercent: number
   itemSuggestions: ItemSuggestion[]
+  personKind?: PersonKind
   canEditItems?: boolean
   canEditName?: boolean
   canRemove?: boolean
@@ -167,6 +182,7 @@ export function PersonCard({
   summary,
   globalDiscountPercent,
   itemSuggestions,
+  personKind,
   canEditItems = false,
   canEditName = false,
   canRemove = false,
@@ -283,6 +299,9 @@ export function PersonCard({
           >
             {person.name}
             {person.userId && <RegisteredBadge> (user)</RegisteredBadge>}
+            {personKind === 'self-joined' && (
+              <SelfJoinedBadge title="This participant joined the order themselves">joined</SelfJoinedBadge>
+            )}
             {isGuestPerson && <GuestBadge> (guest — hosted by {hostedByName})</GuestBadge>}
             {isGuestPerson && summary && <GuestAmount>{formatCurrency(summary.withFees)}</GuestAmount>}
             {paymentConfirmed && <PaidBadge> (paid)</PaidBadge>}

@@ -48,10 +48,6 @@ export const changePasswordSchema = z.object({
   path: ['confirmPassword'],
 })
 
-export const saveOrderSchema = z.object({
-  restaurantName: z.string().min(1, 'Restaurant name is required'),
-})
-
 export type LoginInput = z.infer<typeof loginSchema>
 export type SetupPasswordInput = z.infer<typeof setupPasswordSchema>
 export type CreateUserInput = z.infer<typeof createUserSchema>
@@ -81,6 +77,5 @@ export const updateDiscordIdSchema = z.object({
     .regex(/^\d{17,20}$/, 'Discord User ID must be 17-20 digits'),
 })
 
-export type SaveOrderInput = z.infer<typeof saveOrderSchema>
 export type UpdateBankAccountInput = z.infer<typeof updateBankAccountSchema>
 export type UpdateDiscordIdInput = z.infer<typeof updateDiscordIdSchema>

@@ -50,18 +50,23 @@ Never re-derive these in components — import and call `getOrderAccess`.
 
 Two edit modes live side-by-side:
 
-1. **Full edit (creator/admin)** — toggle via "Edit order details". Can change bank account, add/remove people, add/remove items, set shares, set discount, add fees, set custom shares. Enables the auto-save hook.
+1. **Full edit (creator/admin)** — implicit while `status = OPEN`. Can change bank account, add/remove people, add/remove items, set shares, set discount, add fees, set custom shares. Items + person mutations auto-save per-action; fees, discount, and bank account live as a client-side draft until close.
 2. **My-items edit (participant)** — toggle via "Edit my items". Can only add/edit/remove items on their own `OrderPerson`; cannot touch shares or custom splits (server enforces this in `saveMyItems`).
 
-### Auto-save
+### Auto-save and the unsaved-draft guard
 
-Enabled while either mode is on. See `src/features/lunch/hooks/useAutoSave.ts`. Debounces per-item updates, batches adds/removes, and flushes on `Done`. Tracks `order.updatedAt` for optimistic-lock checks — both `saveOrder` and `saveMyItems` reject when the server has a newer version, and the user is told to refresh.
+See `src/features/lunch/hooks/useAutoSave.ts`. Items debounce (5s) per-update; adds/removes hit the server immediately. Tracks `order.updatedAt` for optimistic-lock checks — both `closeOrderWithDraft` and `saveMyItems` reject when the server has a newer version, surfacing a click-to-reload toast.
+
+Fees, the global discount, and the bank account number are *not* auto-saved. They sit in the client's `useLunchSession` state and only land in the DB when the creator clicks "Close Order" (which calls `closeOrderWithDraft`). `NavigationGuardProvider` (`src/features/lunch/components/NavigationGuard.tsx`) registers a `beforeunload` listener and intercepts `popstate` + nav-link clicks while the draft is dirty, prompting "Discard unsaved changes?" before navigation.
 
 ### Closing
 
-`closeOrder(orderId, { sendDiscord })`:
-1. Transaction: set `status = CLOSED` + write an `OrderActivityLog` entry (`action: CLOSED`).
-2. If `sendDiscord !== false`, call `sendOrderQrCodes(orderId)` → see [Discord integration](./discord-integration.md).
+`closeOrderWithDraft(orderId, draft, options)` (creator path):
+1. Optimistic-lock check against `expectedUpdatedAt`.
+2. Transaction: delete + recreate `FeeAdjustment` rows from the draft, write `globalDiscountPercent` + `bankAccountNumber`, set `status = CLOSED`, append an `OrderActivityLog` entry.
+3. If `options.sendDiscord !== false`, call `sendOrderQrCodes(orderId)` → see [Discord integration](./discord-integration.md).
+
+`closeOrder(orderId, { sendDiscord })` is the simpler variant still used by the orders list and Sekačka detail; it only flips status + logs and does not commit a draft.
 3. If the order is Sekačka, call `refreshSekackaDiscordMessage` → see [Sekačka](./sekacka.md).
 4. `revalidateTag` the order + list tags.
 
