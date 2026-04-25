@@ -8,6 +8,7 @@ import { ToastContainer } from 'react-toastify'
 import { GlobalStyles } from '~/GlobalStyles'
 import { ThemeModeProvider, useThemeMode } from '~/features/ui/theme/ThemeContext'
 import { ConfirmDialogProvider } from '~/features/ui/components/ConfirmDialog'
+import { VersionBadge } from '~/features/ui/components/VersionBadge'
 
 function ThemedApp({ children }: { children: React.ReactNode }) {
   const { theme, mode } = useThemeMode()
@@ -17,6 +18,7 @@ function ThemedApp({ children }: { children: React.ReactNode }) {
       <GlobalStyles />
       <ToastContainer position="bottom-right" theme={mode} />
       <ConfirmDialogProvider>{children}</ConfirmDialogProvider>
+      <VersionBadge />
     </ThemeProvider>
   )
 }
