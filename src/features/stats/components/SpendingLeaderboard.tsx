@@ -8,6 +8,7 @@ import { useStatsBundle } from '~/lib/queries/stats'
 import { formatCurrency } from '~/features/lunch/utils/formatters'
 import type { StatPeriod } from '../types'
 import { media } from '~/features/ui/theme'
+import { medalColorForRank } from '~/features/stats/medalColors'
 
 const PeriodBar = styled.div`
   display: flex;
@@ -47,11 +48,7 @@ const TdRight = styled(Td)`
 
 const Rank = styled.span<{ $rank: number }>`
   font-weight: ${({ $rank }) => ($rank <= 3 ? 600 : 400)};
-  color: ${({ $rank, theme }) =>
-    $rank === 1 ? '#D4A017' :
-    $rank === 2 ? '#8A8A8A' :
-    $rank === 3 ? '#CD7F32' :
-    theme.colors.text};
+  color: ${({ $rank, theme }) => medalColorForRank($rank) ?? theme.colors.text};
 `
 
 const Medal = styled.span`

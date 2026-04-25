@@ -1,5 +1,14 @@
 'use client'
 
+import { darkTheme } from '~/features/ui/theme'
+
+// global-error renders OUTSIDE the React tree (no ThemeProvider available),
+// so we can't use styled-components here. We CAN still pull the literal hex
+// values from the dark theme so they don't drift away from the rest of the
+// app on theme tweaks. Always renders in dark colors — a half-loaded
+// global error is the wrong moment to negotiate light/dark.
+const c = darkTheme.colors
+
 export default function GlobalError({
   error,
   reset,
@@ -14,8 +23,8 @@ export default function GlobalError({
           margin: 0,
           fontFamily:
             "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-          background: '#171412',
-          color: '#EDE8E3',
+          background: c.background,
+          color: c.text,
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
@@ -26,8 +35,8 @@ export default function GlobalError({
         <div
           style={{
             maxWidth: '480px',
-            background: '#1C1916',
-            border: '1px solid #362F2B',
+            background: c.cardBackground,
+            border: `1px solid ${c.border}`,
             borderRadius: '8px',
             padding: '24px',
           }}
@@ -42,7 +51,7 @@ export default function GlobalError({
           >
             Something went wrong
           </h1>
-          <p style={{ margin: '0 0 8px', color: '#8D847A' }}>
+          <p style={{ margin: '0 0 8px', color: c.textMuted }}>
             {process.env.NODE_ENV === 'development' && error.message
               ? error.message
               : 'An unexpected error occurred.'}
@@ -52,7 +61,7 @@ export default function GlobalError({
               <p
                 style={{
                   margin: '0 0 4px',
-                  color: '#5E564E',
+                  color: c.textDim,
                   fontSize: '0.875rem',
                 }}
               >
@@ -64,8 +73,8 @@ export default function GlobalError({
                   fontFamily:
                     'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                   fontSize: '0.875rem',
-                  background: '#211E1B',
-                  border: '1px solid #362F2B',
+                  background: c.surface,
+                  border: `1px solid ${c.border}`,
                   borderRadius: '4px',
                   padding: '4px 8px',
                   marginBottom: '16px',
@@ -80,7 +89,7 @@ export default function GlobalError({
             type="button"
             onClick={reset}
             style={{
-              background: '#1C5DB7',
+              background: c.primary,
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '4px',
