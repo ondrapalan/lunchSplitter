@@ -556,7 +556,6 @@ function OrderContent({
         orderId={orderId}
         restaurantName={restaurantName}
         isCreator={access.isCreator || access.isAdminView}
-        createdById={createdById}
         paymentConfirmations={paymentConfirmations}
         onTogglePayment={(access.isCreator || access.isAdminView) ? handleTogglePayment : undefined}
       />
