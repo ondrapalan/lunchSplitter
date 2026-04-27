@@ -4,14 +4,16 @@ The app integrates with Discord for three things: **announcing Sekačka orders w
 
 ## Configuration
 
-Three env vars gate the whole integration:
+Env vars used by the integration:
 
-- `DISCORD_BOT_TOKEN`
-- `DISCORD_APPLICATION_ID`
-- `DISCORD_PUBLIC_KEY` — used to verify Ed25519 signatures on incoming interactions
-- `DISCORD_OBEDY_CHANNEL_ID` — the channel where Sekačka orders are published
+- `DISCORD_BOT_TOKEN` — required for any outbound send. `isDiscordConfigured()` is gated solely on this.
+- `DISCORD_APPLICATION_ID` — used by the operator setup flow.
+- `DISCORD_PUBLIC_KEY` — verifies Ed25519 signatures on incoming interactions; only inbound code reads it.
+- `DISCORD_OBEDY_CHANNEL_ID` — the channel where Sekačka orders are published.
+- `DISCORD_DRY_RUN=1` — short-circuits all outbound HTTP, logging payloads instead. Use during local dev for safety.
+- `DISCORD_DEBUG_USER_ID` — when set, every outbound DM and channel send is rerouted to a DM with this user, prefixed with a `[DEBUG → <label>]` header naming the original target. Lets you exercise the live API on localhost without DMing real colleagues. Requires `DISCORD_DRY_RUN` empty and a real `DISCORD_BOT_TOKEN`. The redirect helpers live in `src/lib/discord.ts` (`resolveDebugTarget`, `sendGuildChannelMessage`, `isDiscordDebugMode`).
 
-`isDiscordConfigured()` returns `false` if any of these are missing; all outbound helpers no-op so the app still works without Discord set up. See [`discord-setup-guide-cz.md`](../discord-setup-guide-cz.md) for the operator's setup walkthrough (in Czech).
+If `DISCORD_BOT_TOKEN` is missing, all outbound helpers no-op so the app still works without Discord set up. See [`discord-setup-guide-cz.md`](../discord-setup-guide-cz.md) for the operator's setup walkthrough (in Czech).
 
 ## Linking a user to a Discord ID
 
@@ -29,7 +31,7 @@ Both validate the format and reject duplicates (two users can't share a Discord 
 `closeOrder` calls `sendOrderQrCodes(orderId)` unless the creator opted out with the "Close silently" button.
 
 For each participant:
-1. **Skip** the creator (they collect), guests (covered by host), users with no Discord link, and anyone whose `withFees ≤ 0`.
+1. **Skip** the creator (they collect), guests (covered by host), users with no Discord link, and anyone whose `withFees ≤ 0`. In debug mode (`DISCORD_DEBUG_USER_ID` set) the no-Discord-link skip is bypassed — every non-creator, non-guest participant gets a DM redirected to the debug user, so unlinked test users can be exercised end-to-end.
 2. Generate the QR payment data (see [Payments](./payments.md)).
 3. `sendPaymentDm(discordId, { restaurantName, amount, qrPngBuffer, orderDate })` — posts an embed with the QR image and a **"Confirm payment"** button.
 4. **Upsert a `PaymentConfirmation`** for the `OrderPerson` with `confirmedVia: 'pending'` and store the `discordMessageId`.
