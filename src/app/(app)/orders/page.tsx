@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styled from 'styled-components'
@@ -10,7 +11,6 @@ import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { StatusBadge } from '~/features/ui/components/StatusBadge'
 import {
   useAdminOrders,
-  useCloseOrder,
   useDeleteOrder,
   useJoinOrder,
   useMyOrders,
@@ -49,6 +49,7 @@ const OrderList = styled.div`
 `
 
 const OrderRow = styled.div`
+  position: relative;
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
@@ -56,12 +57,21 @@ const OrderRow = styled.div`
   background: ${({ theme }) => theme.colors.surface};
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.md};
-  cursor: pointer;
   transition: border-color 0.15s ease;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
   }
+`
+
+const RowLink = styled(Link)`
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  cursor: pointer;
+  /* Keyboard focus ring sits inside the row */
+  outline-offset: -2px;
 `
 
 const OrderInfo = styled.div`
@@ -93,6 +103,8 @@ const NameText = styled.span`
 `
 
 const Actions = styled.div`
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
   align-items: center;
@@ -139,7 +151,6 @@ export default function OrdersPage() {
   const adminQuery = useAdminOrders(isAdmin)
 
   const deleteMutation = useDeleteOrder()
-  const closeMutation = useCloseOrder()
   const reopenMutation = useReopenOrder()
   const joinMutation = useJoinOrder()
   const confirm = useConfirm()
@@ -163,16 +174,6 @@ export default function OrdersPage() {
       toast.success('Order deleted')
     } catch {
       toast.error('Failed to delete order')
-    }
-  }
-
-  const handleClose = async (e: React.MouseEvent, orderId: string) => {
-    e.stopPropagation()
-    try {
-      await closeMutation.mutateAsync({ orderId })
-      toast.success('Order closed')
-    } catch {
-      toast.error('Failed to close order')
     }
   }
 
@@ -228,7 +229,8 @@ export default function OrdersPage() {
           <SectionTitle>Active Orders</SectionTitle>
           <OrderList>
             {openOrders.map(order => (
-              <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
+              <OrderRow key={order.id}>
+                <RowLink href={`/orders/${order.id}`} aria-label={`Open order at ${order.restaurantName}`} />
                 <OrderInfo>
                   <RestaurantName>
                     <NameText>{order.restaurantName}</NameText>
@@ -240,11 +242,6 @@ export default function OrdersPage() {
                   </OrderMeta>
                 </OrderInfo>
                 <Actions>
-                  {order.isCreator && (
-                    <Button variant="secondary" size="sm" onClick={e => handleClose(e, order.id)}>
-                      Close
-                    </Button>
-                  )}
                   {!order.isCreator && !order.isParticipant && (
                     <Button variant="primary" size="sm" onClick={e => handleJoin(e, order.id)}>
                       Join
@@ -262,7 +259,8 @@ export default function OrdersPage() {
           <SectionTitle>My Orders</SectionTitle>
           <OrderList>
             {closedOrders.map(order => (
-              <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
+              <OrderRow key={order.id}>
+                <RowLink href={`/orders/${order.id}`} aria-label={`Open order at ${order.restaurantName}`} />
                 <OrderInfo>
                   <RestaurantName>
                     <NameText>{order.restaurantName}</NameText>
@@ -307,7 +305,8 @@ export default function OrdersPage() {
           </SectionTitle>
           <OrderList>
             {adminOrders.map(order => (
-              <OrderRow key={order.id} onClick={() => router.push(`/orders/${order.id}`)}>
+              <OrderRow key={order.id}>
+                <RowLink href={`/orders/${order.id}`} aria-label={`Open order at ${order.restaurantName}`} />
                 <OrderInfo>
                   <RestaurantName>
                     <NameText>{order.restaurantName}</NameText>

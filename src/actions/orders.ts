@@ -333,20 +333,30 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
   if (!order) throw new Error('Order not found')
   const session = await requireOrderCreatorOrAdmin(order)
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: orderId },
+  let alreadyClosed = false
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.order.updateMany({
+      where: { id: orderId, status: 'OPEN' },
       data: { status: 'CLOSED' },
-    }),
-    prisma.orderActivityLog.create({
+    })
+    if (updated.count === 0) {
+      alreadyClosed = true
+      return
+    }
+    await tx.orderActivityLog.create({
       data: {
         orderId,
         action: 'CLOSED',
         actorUserId: session.user.id,
         source: 'WEB',
       },
-    }),
-  ])
+    })
+  })
+
+  if (alreadyClosed) {
+    invalidateOrder(orderId)
+    return { success: true, discord: null }
+  }
 
   const sendDiscord = options?.sendDiscord ?? true
   const discordResult = sendDiscord
