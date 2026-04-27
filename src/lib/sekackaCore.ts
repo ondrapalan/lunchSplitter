@@ -1,6 +1,6 @@
 import 'server-only'
 import { prisma } from '~/lib/prisma'
-import { sendChannelMessage, editChannelMessage, sendPendingLinkDm, isDiscordConfigured } from '~/lib/discord'
+import { sendGuildChannelMessage, editChannelMessage, sendPendingLinkDm, isDiscordConfigured } from '~/lib/discord'
 import { buildSekackaMessage } from '~/features/lunch/utils/sekackaDiscordMessage'
 import type { ActivitySource, OrderActivityAction } from '@prisma/client'
 
@@ -94,13 +94,13 @@ export async function publishSekackaToDiscordCore(orderId: string): Promise<{ ch
     status: order.status as 'OPEN' | 'CLOSED',
   })
 
-  const message = await sendChannelMessage(channelId, payload)
+  const message = await sendGuildChannelMessage(channelId, payload, 'Sekačka announcement')
 
   await prisma.$transaction([
     prisma.order.update({
       where: { id: orderId },
       data: {
-        discordAnnounceChannelId: channelId,
+        discordAnnounceChannelId: message.channelId,
         discordAnnounceMessageId: message.id,
       },
     }),
@@ -114,7 +114,7 @@ export async function publishSekackaToDiscordCore(orderId: string): Promise<{ ch
     }),
   ])
 
-  return { channelId, messageId: message.id }
+  return { channelId: message.channelId, messageId: message.id }
 }
 
 async function nextSortOrder(orderId: string): Promise<number> {

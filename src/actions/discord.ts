@@ -5,7 +5,7 @@ import { prisma } from '~/lib/prisma'
 import { prismaOrderToLunchSession } from '~/lib/mappers'
 import { calculatePersonSummaries } from '~/features/lunch/utils/calculations'
 import { buildSpdString, czechAccountToIban, generateVariableSymbol } from '~/features/lunch/utils/qrPlatba'
-import { sendPaymentDm, isDiscordConfigured } from '~/lib/discord'
+import { sendPaymentDm, isDiscordConfigured, isDiscordDebugMode } from '~/lib/discord'
 import { orderIncludeWithDiscordId } from '~/lib/orderIncludes'
 import QRCode from 'qrcode'
 
@@ -91,6 +91,7 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
 
   const result: NotificationResult = { sent: [], skipped: [], failed: [] }
   const orderDate = order.createdAt.toLocaleDateString('cs-CZ')
+  const debugMode = isDiscordDebugMode()
 
   for (const person of order.people) {
     const personName = person.user?.displayName ?? person.name
@@ -101,8 +102,10 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
     // Guests never receive a DM — their host covers them.
     if (person.guestId !== null) continue
 
-    // Skip people without Discord linked
-    if (!person.user?.discordId) {
+    // Skip people without Discord linked — except in debug mode, where every
+    // DM is redirected to DISCORD_DEBUG_USER_ID anyway, so the absence of a
+    // real discordId doesn't matter.
+    if (!person.user?.discordId && !debugMode) {
       result.skipped.push(personName)
       continue
     }
@@ -132,7 +135,12 @@ export async function sendOrderQrCodes(orderId: string): Promise<NotificationRes
         color: { dark: '#000000', light: '#ffffff' },
       })
 
-      const { messageId } = await sendPaymentDm(person.user.discordId, {
+      // In debug mode, sendPaymentDm redirects to DISCORD_DEBUG_USER_ID and
+      // uses this string only as a label in the debug header, so a synthetic
+      // identifier is fine when the participant has no real Discord ID.
+      const recipientDiscordId = person.user?.discordId ?? `unlinked:${personName}`
+
+      const { messageId } = await sendPaymentDm(recipientDiscordId, {
         restaurantName: order.restaurant.name,
         amount: amountDue,
         orderPersonId: person.id,

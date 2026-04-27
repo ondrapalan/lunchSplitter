@@ -4,6 +4,19 @@ function isDryRun(): boolean {
   return process.env.DISCORD_DRY_RUN === '1'
 }
 
+function getDebugUserId(): string | undefined {
+  const id = process.env.DISCORD_DEBUG_USER_ID
+  return id && id.length > 0 ? id : undefined
+}
+
+/**
+ * True when DISCORD_DEBUG_USER_ID is set. Callers can use this to bypass
+ * "is the recipient linked?" guards during local debug testing.
+ */
+export function isDiscordDebugMode(): boolean {
+  return getDebugUserId() !== undefined
+}
+
 function getHeaders() {
   const token = process.env.DISCORD_BOT_TOKEN
   if (!token) throw new Error('DISCORD_BOT_TOKEN not configured')
@@ -58,13 +71,75 @@ async function discordFetch(path: string, options: RequestInit = {}) {
 
 /**
  * Create a DM channel with a user and return the channel ID.
+ * Bypasses debug-redirect logic — callers that want redirect should use
+ * resolveDebugTarget() instead.
  */
-async function createDmChannel(discordUserId: string): Promise<string> {
+async function createDmChannelRaw(discordUserId: string): Promise<string> {
   const channel = await discordFetch('/users/@me/channels', {
     method: 'POST',
     body: JSON.stringify({ recipient_id: discordUserId }),
   }) as { id: string }
   return channel.id
+}
+
+interface DebugTarget {
+  channelId: string
+  debugHeader?: string
+}
+
+/**
+ * Resolve the channel a message should ultimately be sent to.
+ *
+ * In debug mode (DISCORD_DEBUG_USER_ID set), every send is rerouted to a DM
+ * with the debug user, and a header line identifies the original target so
+ * multiple redirected streams remain distinguishable in one inbox.
+ */
+async function resolveDebugTarget(
+  intent:
+    | { kind: 'dm'; userId: string; label: string }
+    | { kind: 'channel'; channelId: string; label: string },
+): Promise<DebugTarget> {
+  const debugUserId = getDebugUserId()
+  if (!debugUserId) {
+    if (intent.kind === 'dm') {
+      return { channelId: await createDmChannelRaw(intent.userId) }
+    }
+    return { channelId: intent.channelId }
+  }
+  const dmChannelId = await createDmChannelRaw(debugUserId)
+  const originalTarget =
+    intent.kind === 'dm' ? `user ${intent.userId}` : `channel ${intent.channelId}`
+  return {
+    channelId: dmChannelId,
+    debugHeader: `🐛 **[DEBUG → ${intent.label}]** original target: ${originalTarget}`,
+  }
+}
+
+function mergeDebugHeader(
+  message: SendMessageOptions,
+  debugHeader: string | undefined,
+): SendMessageOptions {
+  if (!debugHeader) return message
+  const existing = message.content
+  const merged = existing ? `${debugHeader}\n${existing}` : debugHeader
+  return { ...message, content: merged }
+}
+
+/**
+ * Send a message to a guild channel (e.g. #obědy) with debug-redirect support.
+ * In debug mode the message is rerouted to a DM with the debug user and tagged
+ * with a header identifying the original channel.
+ */
+export async function sendGuildChannelMessage(
+  channelId: string,
+  message: SendMessageOptions,
+  label: string,
+  files?: { name: string; data: Buffer }[],
+): Promise<{ id: string; channelId: string }> {
+  const target = await resolveDebugTarget({ kind: 'channel', channelId, label })
+  const finalMessage = mergeDebugHeader(message, target.debugHeader)
+  const result = await sendChannelMessage(target.channelId, finalMessage, files)
+  return { id: result.id, channelId: target.channelId }
 }
 
 /**
@@ -137,37 +212,44 @@ export async function sendPaymentDm(
     orderDate: string
   },
 ): Promise<{ channelId: string; messageId: string }> {
-  const channelId = await createDmChannel(discordUserId)
+  const target = await resolveDebugTarget({
+    kind: 'dm',
+    userId: discordUserId,
+    label: `payment DM (${opts.restaurantName})`,
+  })
 
   const message = await sendChannelMessage(
-    channelId,
-    {
-      embeds: [
-        {
-          title: `Payment for ${opts.restaurantName}`,
-          description: `You owe **${opts.amount.toFixed(2)} CZK** for lunch on ${opts.orderDate}.`,
-          color: 0x1C5DB7, // Primary blue from theme
-          image: { url: 'attachment://qr-payment.png' },
-        },
-      ],
-      components: [
-        {
-          type: 1,
-          components: [
-            {
-              type: 2,
-              style: 3, // Success (green)
-              label: 'Confirm Payment',
-              custom_id: `confirm-payment:${opts.orderPersonId}`,
-            },
-          ],
-        },
-      ],
-    },
+    target.channelId,
+    mergeDebugHeader(
+      {
+        embeds: [
+          {
+            title: `Payment for ${opts.restaurantName}`,
+            description: `You owe **${opts.amount.toFixed(2)} CZK** for lunch on ${opts.orderDate}.`,
+            color: 0x1C5DB7, // Primary blue from theme
+            image: { url: 'attachment://qr-payment.png' },
+          },
+        ],
+        components: [
+          {
+            type: 1,
+            components: [
+              {
+                type: 2,
+                style: 3, // Success (green)
+                label: 'Confirm Payment',
+                custom_id: `confirm-payment:${opts.orderPersonId}`,
+              },
+            ],
+          },
+        ],
+      },
+      target.debugHeader,
+    ),
     [{ name: 'qr-payment.png', data: opts.qrPngBuffer }],
   )
 
-  return { channelId, messageId: message.id }
+  return { channelId: target.channelId, messageId: message.id }
 }
 
 /**
@@ -184,9 +266,13 @@ export async function sendPendingLinkDm(
     adminPageUrl: string
   },
 ): Promise<string> {
-  const channelId = await createDmChannel(adminDiscordId)
+  const target = await resolveDebugTarget({
+    kind: 'dm',
+    userId: adminDiscordId,
+    label: 'pending Discord link DM',
+  })
 
-  const message = await sendChannelMessage(channelId, {
+  const message = await sendChannelMessage(target.channelId, mergeDebugHeader({
     embeds: [
       {
         title: 'Unlinked Discord user',
@@ -197,7 +283,7 @@ export async function sendPendingLinkDm(
         color: 0xC47415,
       },
     ],
-  })
+  }, target.debugHeader))
 
   return message.id
 }
@@ -213,9 +299,13 @@ export async function sendAccessRequestDm(
     displayName: string
   },
 ): Promise<string> {
-  const channelId = await createDmChannel(adminDiscordId)
+  const target = await resolveDebugTarget({
+    kind: 'dm',
+    userId: adminDiscordId,
+    label: 'access request DM',
+  })
 
-  const message = await sendChannelMessage(channelId, {
+  const message = await sendChannelMessage(target.channelId, mergeDebugHeader({
     embeds: [
       {
         title: 'New Access Request',
@@ -242,18 +332,17 @@ export async function sendAccessRequestDm(
         ],
       },
     ],
-  })
+  }, target.debugHeader))
 
   return message.id
 }
 
 /**
- * Check if Discord bot is configured.
+ * Check if the Discord bot can send outbound messages. Only the bot token is
+ * required for sends; APPLICATION_ID and PUBLIC_KEY are used solely for
+ * verifying inbound interactions (button click webhooks) elsewhere, so they
+ * are not gated here.
  */
 export function isDiscordConfigured(): boolean {
-  return !!(
-    process.env.DISCORD_BOT_TOKEN &&
-    process.env.DISCORD_APPLICATION_ID &&
-    process.env.DISCORD_PUBLIC_KEY
-  )
+  return !!process.env.DISCORD_BOT_TOKEN
 }

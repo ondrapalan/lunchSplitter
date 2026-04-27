@@ -46,6 +46,7 @@ Safe local testing setup that avoids live Neon data and real Discord sends:
 - `npm run sandbox:up` / `sandbox:down` — start/stop the Postgres container without touching Next.
 - `npm run sandbox:guard` — DATABASE_URL safety check (called internally by `dev` and `dev:clean`).
 - Set `DISCORD_DRY_RUN=1` in `.env.local` — `src/lib/discord.ts` short-circuits all outbound API calls and logs payloads instead. Belt-and-suspenders in addition to leaving `DISCORD_BOT_TOKEN` blank.
+- Set `DISCORD_DEBUG_USER_ID=<your-discord-id>` in `.env.local` to redirect every outbound Discord message (DMs + Sekačka channel + edits) to a DM with you. Each message is tagged with a `[DEBUG → <label>]` header naming the original target. Requires `DISCORD_DRY_RUN=` empty and a real `DISCORD_BOT_TOKEN`. Use this when you need to *see* live Discord output during local testing.
 
 **Important:**
 - This project uses `prisma db push`, NOT `prisma migrate` — there is no `prisma/migrations/` folder. Never suggest `prisma migrate deploy`.
