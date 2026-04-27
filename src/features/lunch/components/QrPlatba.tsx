@@ -64,15 +64,18 @@ export function QrPlatba({ spdString, amount, showCopyButton = false, size = 100
     const canvas = canvasRef.current
     if (!canvas) return
 
+    // Safari preserves the user-gesture context only when clipboard.write is
+    // called synchronously and the ClipboardItem receives a Promise<Blob>.
+    // Awaiting canvas.toBlob first would break the gesture and the write rejects.
+    const blobPromise = new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(b => {
+        if (b) resolve(b)
+        else reject(new Error('Failed to create image'))
+      }, 'image/png')
+    })
     try {
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(b => {
-          if (b) resolve(b)
-          else reject(new Error('Failed to create image'))
-        }, 'image/png')
-      })
       await navigator.clipboard.write([
-        new ClipboardItem({ 'image/png': blob }),
+        new ClipboardItem({ 'image/png': blobPromise }),
       ])
       toast.success('QR code copied')
     } catch {
