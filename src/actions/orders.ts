@@ -141,7 +141,7 @@ export async function getOrder(orderId: string) {
       people: {
         orderBy: { sortOrder: 'asc' },
         include: {
-          user: { select: { displayName: true } },
+          user: { select: { displayName: true, discordId: true } },
           guest: { select: { name: true } },
           items: {
             orderBy: { sortOrder: 'asc' },
@@ -210,7 +210,7 @@ const listOrdersForUserCached = cached(
         people: {
           orderBy: { sortOrder: 'asc' },
           include: {
-            user: { select: { displayName: true } },
+            user: { select: { displayName: true, discordId: true } },
             guest: { select: { name: true } },
             paymentConfirmation: { select: { confirmedVia: true } },
             items: {

@@ -54,7 +54,7 @@ describe('prismaOrderToLunchSession', () => {
           userId: 'user-alice',
           guestId: null,
           hostUserId: null,
-          user: { displayName: 'Alice Updated' },
+          user: { displayName: 'Alice Updated', discordId: '123456789' },
           guest: null,
           items: [
             {
@@ -94,6 +94,8 @@ describe('prismaOrderToLunchSession', () => {
     expect(session.people).toHaveLength(2)
     expect(session.people[0].name).toBe('Alice Updated')
     expect(session.people[0].userId).toBe('user-alice')
+    expect(session.people[0].hasDiscord).toBe(true)
+    expect(session.people[1].hasDiscord).toBe(false)
     expect(session.people[0].items[0].sharedWith).toEqual(['person-2'])
     expect(session.people[0].items[0].customShares).toEqual({ 'person-2': 80 })
     expect(session.people[1].name).toBe('Bob')

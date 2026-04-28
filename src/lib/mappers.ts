@@ -10,7 +10,7 @@ type PrismaOrderWithRelations = Prisma.OrderGetPayload<{
     people: {
       orderBy: { sortOrder: 'asc' }
       include: {
-        user: { select: { displayName: true } }
+        user: { select: { displayName: true, discordId: true } }
         guest: { select: { name: true } }
         items: {
           orderBy: { sortOrder: 'asc' }
@@ -41,6 +41,7 @@ export function prismaOrderToLunchSession(order: PrismaOrderWithRelations): Lunc
       userId: p.userId ?? null,
       guestId: p.guestId ?? null,
       hostUserId: p.hostUserId ?? null,
+      hasDiscord: !!p.user?.discordId,
       items: p.items.map(i => {
         const sharedWith = i.sharedWith.map(link => link.personId)
         const customShareEntries = i.customShares.map(cs => [cs.personId, cs.amount] as const)

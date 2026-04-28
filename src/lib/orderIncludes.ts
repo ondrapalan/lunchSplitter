@@ -1,8 +1,6 @@
-// Shared Prisma include trees for fetching the full order graph (restaurant +
-// fee adjustments + people + items + shares). Two variants exist because the
-// Discord notification path needs `discordId` on each linked user, while the
-// stats path doesn't. Don't inline these — the shape was already drifting
-// between callers before this was extracted.
+// Shared Prisma include tree for fetching the full order graph (restaurant +
+// fee adjustments + people + items + shares). discordId is selected on every
+// linked user so the mapper can derive `hasDiscord` for any caller.
 
 export const baseOrderInclude = {
   restaurant: true,
@@ -10,7 +8,7 @@ export const baseOrderInclude = {
   people: {
     orderBy: { sortOrder: 'asc' as const },
     include: {
-      user: { select: { displayName: true } },
+      user: { select: { displayName: true, discordId: true } },
       guest: { select: { name: true } },
       items: {
         orderBy: { sortOrder: 'asc' as const },
@@ -23,13 +21,4 @@ export const baseOrderInclude = {
   },
 }
 
-export const orderIncludeWithDiscordId = {
-  ...baseOrderInclude,
-  people: {
-    ...baseOrderInclude.people,
-    include: {
-      ...baseOrderInclude.people.include,
-      user: { select: { displayName: true, discordId: true } },
-    },
-  },
-}
+export const orderIncludeWithDiscordId = baseOrderInclude

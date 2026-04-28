@@ -32,7 +32,7 @@ async function loadSekackaForEmbed(orderId: string) {
       people: {
         orderBy: { sortOrder: 'asc' },
         include: {
-          user: { select: { displayName: true } },
+          user: { select: { displayName: true, discordId: true } },
           guest: { select: { name: true } },
           items: { orderBy: { sortOrder: 'asc' } },
         },

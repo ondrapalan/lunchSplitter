@@ -20,6 +20,7 @@ export interface Person {
   userId?: string | null
   guestId?: string | null
   hostUserId?: string | null
+  hasDiscord?: boolean
   newGuest?: { name: string; defaultHostUserId: string } | null
   items: Item[]
 }
