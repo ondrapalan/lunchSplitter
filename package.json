@@ -1,7 +1,7 @@
 {
   "name": "lunch-splitter",
   "private": true,
-  "version": "1.0.0.20260427.2",
+  "version": "1.0.0.20260428.1",
   "scripts": {
     "dev": "npm run sandbox:guard && npm run sandbox:up && dotenv -e .env.local -e .env -- npx prisma db push --skip-generate && dotenv -e .env.local -e .env -- npx prisma db seed && dotenv -e .env.local -e .env -- next dev -p 3100",
     "dev:clean": "npm run sandbox:guard && docker compose down -v && docker compose up -d --wait && dotenv -e .env.local -e .env -- npx prisma db push --skip-generate && dotenv -e .env.local -e .env -- npx tsx prisma/seed.dev.ts && dotenv -e .env.local -e .env -- next dev -p 3100",
