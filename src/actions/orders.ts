@@ -373,11 +373,16 @@ export async function closeOrder(orderId: string, options?: { sendDiscord?: bool
   return { success: true, discord: discordResult }
 }
 
+// Fee IDs come from two sources: existing rows (Prisma cuid) and new rows added
+// in the browser (`crypto.randomUUID`). Accept both rather than coupling client
+// id generation to cuid.
+const feeIdSchema = z.union([z.string().cuid(), z.string().uuid()])
+
 const closeOrderDraftSchema = z.object({
   globalDiscountPercent: z.number().finite().min(0).max(100),
   feeAdjustments: z.array(
     z.object({
-      id: z.string().cuid(),
+      id: feeIdSchema,
       name: z.string().min(1).max(100),
       amount: z.number().finite(),
     }),
@@ -394,7 +399,7 @@ export async function closeOrderWithDraft(
 ) {
   const parsed = closeOrderDraftSchema.safeParse(draft)
   if (!parsed.success) {
-    throw new Error('Invalid order draft input')
+    throw new Error(`Invalid order draft input: ${JSON.stringify(parsed.error.flatten())}`)
   }
   const validDraft = parsed.data
 
