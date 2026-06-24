@@ -50,7 +50,7 @@ Always all-time.
 Period-aware. Sum of `withFeesFood` per user (excluding guest rows — those belong to the host's total), so packaging is excluded from the ranking and the sort. The full packaging-inclusive total (`withFees`, exposed as `totalSpent`) is shown in muted parentheses when it differs. A participant whose only spend in the period was packaging drops out.
 
 ### Order Frequency (`OrderFrequency`)
-Same aggregation as the leaderboard, re-sorted by `orderCount`. Rendered as a bar chart.
+Same aggregation as the leaderboard, re-sorted by `orderCount`. Because it shares that aggregation, it counts food-orders only — a participation whose entire spend in the period was packaging is not counted. Rendered as a bar chart.
 
 ### Fun Stats (`FunStats`)
 All-time. A mix of "achievements" — each is only shown if it has enough data:
