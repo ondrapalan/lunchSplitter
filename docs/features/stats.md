@@ -39,14 +39,15 @@ Always all-time.
 
 | Field | Formula |
 |---|---|
-| `weekSpent`/`monthSpent`/`yearSpent`/`allTimeSpent` | Sum of `withFees` for the current user's `OrderPerson`, plus any guest's `withFees` the user hosted in that order. |
+| `weekSpent`/`monthSpent`/`yearSpent`/`allTimeSpent` | Sum of `withFeesFood` (packaging excluded) for the current user's `OrderPerson`, plus any guest's `withFeesFood` the user hosted in that order. |
 | `totalOrders` | Count of closed orders the user participated in. |
-| `avgPerOrder` | `allTimeSpent / totalOrders`. |
+| `avgPerOrder` | `allTimeSpent / totalOrders` (food-only). |
 | `ordersPerMonth` | `totalOrders / monthsSince(firstOrder)`. |
-| `projectedYearly` | `yearSpent / daysSinceJan1 * 365` — straight-line extrapolation. |
+| `projectedYearly` | `yearSpent / daysSinceJan1 * 365` — straight-line extrapolation, packaging excluded. |
+| `projectedYearlyTotal` | Same projection including packaging — shown in parentheses next to `projectedYearly`. |
 
 ### Spending Leaderboard (`SpendingLeaderboard`)
-Period-aware. Sum of `withFees` per user (excluding guest rows — those belong to the host's total). Sorted descending by `totalSpent`. Packaging items are included since they're still a chargeable cost.
+Period-aware. Sum of `withFeesFood` per user (excluding guest rows — those belong to the host's total), so packaging is excluded from the ranking and the sort. The full packaging-inclusive total (`withFees`, exposed as `totalSpent`) is shown in muted parentheses when it differs. A participant whose only spend in the period was packaging drops out.
 
 ### Order Frequency (`OrderFrequency`)
 Same aggregation as the leaderboard, re-sorted by `orderCount`. Rendered as a bar chart.
@@ -59,7 +60,7 @@ All-time. A mix of "achievements" — each is only shown if it has enough data:
 | The Regular | Same `(item, restaurant)` most often | ≥ 3 |
 | The Explorer | Most unique items across orders | ≥ 5 total items |
 | The Sharer | Most `sharedWith` links on own items | ≥ 2 |
-| Biggest Single Order | Highest single `withFees` | — |
+| Biggest Single Order | Highest single `withFeesFood` (packaging excluded) | — |
 | Lunch Regular | Most order participations | ≥ 2 |
 | The Bargain Hunter | Lowest average item price | ≥ 3 items |
 | The Gourmet | Highest average item price | ≥ 3 items (skipped if same person as Bargain Hunter) |
