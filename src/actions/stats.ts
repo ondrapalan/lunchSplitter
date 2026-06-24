@@ -317,10 +317,10 @@ async function _funStats(): Promise<FunStat[]> {
     for (const person of order.people) {
       if (isGuestRow(person)) continue
       const summary = summaries.find(s => s.personId === person.id)
-      if (summary && (!biggestOrder || summary.withFees > biggestOrder.amount)) {
+      if (summary && (!biggestOrder || summary.withFeesFood > biggestOrder.amount)) {
         biggestOrder = {
           name: person.user?.displayName ?? person.name,
-          amount: summary.withFees,
+          amount: summary.withFeesFood,
           restaurantName: order.restaurant.name,
         }
       }
