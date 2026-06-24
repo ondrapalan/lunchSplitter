@@ -5,7 +5,7 @@ import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { Button } from '~/features/ui/components/Button'
 import { useStatsBundle } from '~/lib/queries/stats'
-import { formatCurrency } from '~/features/lunch/utils/formatters'
+import { formatCurrency, currencyDiffers } from '~/features/lunch/utils/formatters'
 import type { StatPeriod } from '../types'
 import { media } from '~/features/ui/theme'
 import { medalColorForRank } from '~/features/stats/medalColors'
@@ -58,6 +58,12 @@ const Medal = styled.span`
 const SpentAmount = styled.span`
   color: ${({ theme }) => theme.colors.positive};
   font-weight: 600;
+`
+
+const FullAmount = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-weight: 400;
+  margin-left: ${({ theme }) => theme.spacing.xs};
 `
 
 const EmptyRow = styled.td`
@@ -126,7 +132,12 @@ export function SpendingLeaderboard() {
                     </Rank>
                   </Td>
                   <Td>{entry.name}</Td>
-                  <TdRight><SpentAmount>{formatCurrency(entry.totalSpent)}</SpentAmount></TdRight>
+                  <TdRight>
+                    <SpentAmount>{formatCurrency(entry.foodSpent)}</SpentAmount>
+                    {currencyDiffers(entry.foodSpent, entry.totalSpent) && (
+                      <FullAmount>({formatCurrency(entry.totalSpent)})</FullAmount>
+                    )}
+                  </TdRight>
                   <TdRight><HideMobile>{entry.orderCount}</HideMobile></TdRight>
                 </tr>
               )

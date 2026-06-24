@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrency, formatFeeAmount, generateCopySummary, wasEdited } from './formatters'
+import { formatCurrency, formatFeeAmount, generateCopySummary, wasEdited, currencyDiffers } from './formatters'
 import type { LunchSession, PersonSummary } from '../types'
 
 describe('formatCurrency', () => {
@@ -31,6 +31,20 @@ describe('wasEdited', () => {
 
   it('returns false when timestamps are identical', () => {
     expect(wasEdited('2026-01-01T12:00:00Z', '2026-01-01T12:00:00Z')).toBe(false)
+  })
+})
+
+describe('currencyDiffers', () => {
+  it('is false for equal amounts', () => {
+    expect(currencyDiffers(150, 150)).toBe(false)
+  })
+
+  it('is false when amounts differ below display precision', () => {
+    expect(currencyDiffers(150.001, 150.002)).toBe(false)
+  })
+
+  it('is true when amounts differ at display precision', () => {
+    expect(currencyDiffers(150, 160)).toBe(true)
   })
 })
 

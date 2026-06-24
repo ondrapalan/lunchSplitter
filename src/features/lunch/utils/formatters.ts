@@ -9,6 +9,10 @@ export function formatCurrency(value: number): string {
   return value.toFixed(2)
 }
 
+export function currencyDiffers(a: number, b: number): boolean {
+  return a.toFixed(2) !== b.toFixed(2)
+}
+
 export function formatFeeAmount(amount: number): string {
   return amount >= 0 ? `+${amount}` : `${amount}`
 }
