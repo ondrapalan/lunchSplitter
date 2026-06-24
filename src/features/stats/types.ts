@@ -16,6 +16,7 @@ export interface PersonalStats {
   avgPerOrder: number
   ordersPerMonth: number
   projectedYearly: number
+  projectedYearlyTotal: number // full projection incl. packaging (parenthetical)
   totalOrders: number
 }
 

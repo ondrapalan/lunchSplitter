@@ -128,6 +128,7 @@ async function _personalStats(userId: string): Promise<PersonalStats> {
   let weekSpent = 0
   let monthSpent = 0
   let yearSpent = 0
+  let yearSpentTotal = 0
   let totalOrders = 0
 
   const weekStart = getPeriodStart('week')!
@@ -144,17 +145,24 @@ async function _personalStats(userId: string): Promise<PersonalStats> {
     if (!mySummary || mySummary.withFees <= 0) continue
 
     // Include amounts from any guests I hosted in this order — I actually paid for them.
-    const hostedTotal = order.people
-      .filter(p => isGuestRow(p) && p.hostUserId === userId)
-      .reduce((sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
-    const chargeable = mySummary.withFees + hostedTotal
+    const hostedGuests = order.people.filter(p => isGuestRow(p) && p.hostUserId === userId)
+    const hostedFood = hostedGuests.reduce(
+      (sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFeesFood ?? 0), 0)
+    const hostedFull = hostedGuests.reduce(
+      (sum, g) => sum + (summaries.find(s => s.personId === g.id)?.withFees ?? 0), 0)
+
+    const chargeableFood = mySummary.withFeesFood + hostedFood
+    const chargeableFull = mySummary.withFees + hostedFull
 
     totalOrders += 1
-    allTimeSpent += chargeable
+    allTimeSpent += chargeableFood
 
-    if (order.createdAt >= weekStart) weekSpent += chargeable
-    if (order.createdAt >= monthStart) monthSpent += chargeable
-    if (order.createdAt >= yearStart) yearSpent += chargeable
+    if (order.createdAt >= weekStart) weekSpent += chargeableFood
+    if (order.createdAt >= monthStart) monthSpent += chargeableFood
+    if (order.createdAt >= yearStart) {
+      yearSpent += chargeableFood
+      yearSpentTotal += chargeableFull
+    }
   }
 
   const avgPerOrder = totalOrders > 0 ? allTimeSpent / totalOrders : 0
@@ -171,10 +179,11 @@ async function _personalStats(userId: string): Promise<PersonalStats> {
     ordersPerMonth = totalOrders / monthsSinceFirst
   }
 
-  // Project yearly spending: average monthly spending extrapolated
+  // Project yearly spending: straight-line extrapolation from year-to-date
   const now = new Date()
   const dayOfYear = Math.floor((now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24)) + 1
   const projectedYearly = dayOfYear > 0 ? (yearSpent / dayOfYear) * 365 : 0
+  const projectedYearlyTotal = dayOfYear > 0 ? (yearSpentTotal / dayOfYear) * 365 : 0
 
   return {
     weekSpent,
@@ -184,6 +193,7 @@ async function _personalStats(userId: string): Promise<PersonalStats> {
     avgPerOrder,
     ordersPerMonth,
     projectedYearly,
+    projectedYearlyTotal,
     totalOrders,
   }
 }
