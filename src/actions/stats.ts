@@ -61,6 +61,7 @@ type PersonSpending = {
   name: string
   userId: string | null
   totalSpent: number
+  foodSpent: number
   orderCount: number
 }
 
@@ -74,27 +75,27 @@ function aggregateSpending(orders: Awaited<ReturnType<typeof fetchClosedOrders>>
     for (const person of order.people) {
       if (isGuestRow(person)) continue
       const summary = summaries.find(s => s.personId === person.id)
-      if (!summary || summary.withFees <= 0) continue
-
-      const chargeable = summary.withFees
+      if (!summary || summary.withFeesFood <= 0) continue
 
       const key = person.userId ?? `legacy:${person.name}`
       const existing = map.get(key)
       if (existing) {
-        existing.totalSpent += chargeable
+        existing.totalSpent += summary.withFees
+        existing.foodSpent += summary.withFeesFood
         existing.orderCount += 1
       } else {
         map.set(key, {
           name: person.user?.displayName ?? person.name,
           userId: person.userId,
-          totalSpent: chargeable,
+          totalSpent: summary.withFees,
+          foodSpent: summary.withFeesFood,
           orderCount: 1,
         })
       }
     }
   }
 
-  return Array.from(map.values()).sort((a, b) => b.totalSpent - a.totalSpent)
+  return Array.from(map.values()).sort((a, b) => b.foodSpent - a.foodSpent)
 }
 
 // Internal aggregators skip auth so getStatsBundle can resolve the session

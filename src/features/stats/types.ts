@@ -3,7 +3,8 @@ export type StatPeriod = 'week' | 'month' | 'year' | 'all'
 export interface SpendingEntry {
   name: string
   userId: string | null
-  totalSpent: number
+  totalSpent: number // full, packaging included
+  foodSpent: number // packaging excluded — leaderboard primary + sort key
   orderCount: number
 }
 
