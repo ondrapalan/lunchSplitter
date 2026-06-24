@@ -3,7 +3,7 @@
 import styled from 'styled-components'
 import { Card, CardTitle } from '~/features/ui/components/Card'
 import { useStatsBundle } from '~/lib/queries/stats'
-import { formatCurrency } from '~/features/lunch/utils/formatters'
+import { formatCurrency, currencyDiffers } from '~/features/lunch/utils/formatters'
 import { media } from '~/features/ui/theme'
 
 const Grid = styled.div`
@@ -55,6 +55,13 @@ const ProjectionValue = styled.div`
   font-weight: 600;
   color: ${({ theme }) => theme.colors.accent};
   margin-top: ${({ theme }) => theme.spacing.xs};
+`
+
+const FullProjection = styled.span`
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-weight: 400;
+  font-size: ${({ theme }) => theme.fontSizes.md};
+  margin-left: ${({ theme }) => theme.spacing.xs};
 `
 
 const ProjectionDetail = styled.div`
@@ -113,7 +120,12 @@ export function PersonalPrediction() {
       </Grid>
       <Projection>
         <ProjectionLabel>Projected Yearly Spending</ProjectionLabel>
-        <ProjectionValue>{formatCurrency(stats.projectedYearly)}</ProjectionValue>
+        <ProjectionValue>
+          {formatCurrency(stats.projectedYearly)}
+          {currencyDiffers(stats.projectedYearly, stats.projectedYearlyTotal) && (
+            <FullProjection>({formatCurrency(stats.projectedYearlyTotal)})</FullProjection>
+          )}
+        </ProjectionValue>
         <ProjectionDetail>
           Based on {formatCurrency(stats.avgPerOrder)} avg per order &middot; ~{stats.ordersPerMonth.toFixed(1)} orders/month &middot; {stats.totalOrders} total orders
         </ProjectionDetail>
