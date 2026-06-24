@@ -37,4 +37,5 @@ export interface PersonSummary {
   subtotal: number // raw prices, their share
   afterDiscount: number // after applying discounts
   withFees: number // final amount including fee share
+  withFeesFood: number // final amount including fee share, excluding isPackaging items
 }

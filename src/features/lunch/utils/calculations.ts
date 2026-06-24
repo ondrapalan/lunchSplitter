@@ -25,6 +25,7 @@ export function calculatePersonSummaries(session: LunchSession): PersonSummary[]
   return people.map((person) => {
     let subtotal = 0
     let afterDiscount = 0
+    let afterDiscountFood = 0
 
     // Own items
     for (const item of person.items) {
@@ -32,14 +33,17 @@ export function calculatePersonSummaries(session: LunchSession): PersonSummary[]
       const sharerCount = getSharerCount(item)
       const rawShare = item.price / sharerCount
 
+      let discounted: number
       if (item.customShares?.[person.id] !== undefined) {
         const customAmount = item.customShares[person.id]
         subtotal += customAmount
-        afterDiscount += customAmount * (1 - discount / 100)
+        discounted = customAmount * (1 - discount / 100)
       } else {
         subtotal += rawShare
-        afterDiscount += rawShare * (1 - discount / 100)
+        discounted = rawShare * (1 - discount / 100)
       }
+      afterDiscount += discounted
+      if (!item.isPackaging) afterDiscountFood += discounted
     }
 
     // Items shared from other people
@@ -51,15 +55,18 @@ export function calculatePersonSummaries(session: LunchSession): PersonSummary[]
         const discount = getEffectiveDiscount(item.discountPercent, globalDiscountPercent)
         const sharerCount = getSharerCount(item)
 
+        let discounted: number
         if (item.customShares?.[person.id] !== undefined) {
           const customAmount = item.customShares[person.id]
           subtotal += customAmount
-          afterDiscount += customAmount * (1 - discount / 100)
+          discounted = customAmount * (1 - discount / 100)
         } else {
           const rawShare = item.price / sharerCount
           subtotal += rawShare
-          afterDiscount += rawShare * (1 - discount / 100)
+          discounted = rawShare * (1 - discount / 100)
         }
+        afterDiscount += discounted
+        if (!item.isPackaging) afterDiscountFood += discounted
       }
     }
 
@@ -69,6 +76,7 @@ export function calculatePersonSummaries(session: LunchSession): PersonSummary[]
       subtotal,
       afterDiscount,
       withFees: afterDiscount + feePerPerson,
+      withFeesFood: afterDiscountFood + feePerPerson,
     }
   })
 }

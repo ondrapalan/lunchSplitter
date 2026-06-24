@@ -216,6 +216,99 @@ describe('calculatePersonSummaries', () => {
       expect(summary.withFees).toBeCloseTo(20)
     }
   })
+
+  it('excludes packaging items from withFeesFood but keeps them in withFees', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        {
+          id: 'a', name: 'Alice', items: [
+            { id: 'i1', name: 'Burger', price: 150, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+            { id: 'i2', name: 'Box', price: 10, discountPercent: null, isPackaging: true, sharedWith: [], customShares: null },
+          ],
+        },
+      ],
+    }
+    const alice = calculatePersonSummaries(session).find(s => s.personId === 'a')!
+    expect(alice.withFees).toBeCloseTo(160)
+    expect(alice.withFeesFood).toBeCloseTo(150)
+  })
+
+  it('keeps fees in withFeesFood even when the only items are packaging', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [{ id: 'f1', name: 'Delivery', amount: 40 }],
+      people: [
+        { id: 'a', name: 'Alice', items: [
+          { id: 'i1', name: 'Desk', price: 15000, discountPercent: null, isPackaging: true, sharedWith: [], customShares: null },
+        ] },
+        { id: 'b', name: 'Bob', items: [] },
+      ],
+    }
+    const alice = calculatePersonSummaries(session).find(s => s.personId === 'a')!
+    // fee per person = 40 / 2 = 20; the desk (packaging) is excluded from food
+    expect(alice.withFees).toBeCloseTo(15020)
+    expect(alice.withFeesFood).toBeCloseTo(20)
+  })
+
+  it('applies discounts to food items in withFeesFood', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 40,
+      feeAdjustments: [],
+      people: [
+        { id: 'a', name: 'Alice', items: [
+          { id: 'i1', name: 'Meal', price: 100, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+          { id: 'i2', name: 'Box', price: 20, discountPercent: null, isPackaging: true, sharedWith: [], customShares: null },
+        ] },
+      ],
+    }
+    const alice = calculatePersonSummaries(session).find(s => s.personId === 'a')!
+    // food: 100 * 0.6 = 60; full: 60 + 20 * 0.6 = 72
+    expect(alice.withFeesFood).toBeCloseTo(60)
+    expect(alice.withFees).toBeCloseTo(72)
+  })
+
+  it('excludes a shared packaging item for sharers in withFeesFood', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        { id: 'a', name: 'Alice', items: [
+          { id: 'i1', name: 'Shared Box', price: 30, discountPercent: null, isPackaging: true, sharedWith: ['b'], customShares: null },
+          { id: 'i2', name: 'Salad', price: 100, discountPercent: null, isPackaging: false, sharedWith: [], customShares: null },
+        ] },
+        { id: 'b', name: 'Bob', items: [] },
+      ],
+    }
+    const summaries = calculatePersonSummaries(session)
+    const bob = summaries.find(s => s.personId === 'b')!
+    // Bob shares half the box (15): in withFees, excluded from withFeesFood
+    expect(bob.withFees).toBeCloseTo(15)
+    expect(bob.withFeesFood).toBeCloseTo(0)
+    const alice = summaries.find(s => s.personId === 'a')!
+    // Alice: own box share 15 (packaging) + salad 100 (food)
+    expect(alice.withFees).toBeCloseTo(115)
+    expect(alice.withFeesFood).toBeCloseTo(100)
+  })
+
+  it('excludes a custom-share packaging item from withFeesFood', () => {
+    const session: LunchSession = {
+      globalDiscountPercent: 0,
+      feeAdjustments: [],
+      people: [
+        { id: 'a', name: 'Alice', items: [
+          { id: 'i1', name: 'Desk', price: 400, discountPercent: null, isPackaging: true, sharedWith: ['b'], customShares: { a: 250, b: 150 } },
+        ] },
+        { id: 'b', name: 'Bob', items: [] },
+      ],
+    }
+    const summaries = calculatePersonSummaries(session)
+    expect(summaries.find(s => s.personId === 'a')!.withFees).toBeCloseTo(250)
+    expect(summaries.find(s => s.personId === 'a')!.withFeesFood).toBeCloseTo(0)
+    expect(summaries.find(s => s.personId === 'b')!.withFees).toBeCloseTo(150)
+    expect(summaries.find(s => s.personId === 'b')!.withFeesFood).toBeCloseTo(0)
+  })
 })
 
 describe('calculateChargeableAmount', () => {

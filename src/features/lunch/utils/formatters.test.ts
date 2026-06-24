@@ -53,7 +53,7 @@ describe('generateCopySummary', () => {
     }
 
     const summaries: PersonSummary[] = [
-      { personId: 'domca', name: 'Domca', subtotal: 164, afterDiscount: 98.4, withFees: 107.2 },
+      { personId: 'domca', name: 'Domca', subtotal: 164, afterDiscount: 98.4, withFees: 107.2, withFeesFood: 107.2 },
     ]
 
     const text = generateCopySummary(session, summaries)
