@@ -29,7 +29,7 @@ describe('ItemSuggest', () => {
     expect(renderItemSuggest()).not.toHaveFocus()
   })
 
-  it('shows no suggestion dropdown when autofocused with an empty value', () => {
+  it('renders no dropdown for an empty value', () => {
     renderItemSuggest(true)
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })

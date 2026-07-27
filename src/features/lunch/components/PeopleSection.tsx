@@ -128,10 +128,12 @@ export function PeopleSection({
   }, [people])
 
   const [focusItemsForPersonId, setFocusItemsForPersonId] = useState<string | null>(null)
-  const [lastCanEditItems, setLastCanEditItems] = useState(canEditItems)
 
-  if (lastCanEditItems !== canEditItems) {
-    setLastCanEditItems(canEditItems)
+  const focusedPersonCanEditItems = editablePersonId
+    ? focusItemsForPersonId === editablePersonId
+    : canEditItems
+
+  if (focusItemsForPersonId !== null && !focusedPersonCanEditItems) {
     setFocusItemsForPersonId(null)
   }
 
@@ -208,8 +210,16 @@ export function PeopleSection({
 
       {canAddPerson && (
         <PersonSuggest
-          onAddPerson={(name, userId) => setFocusItemsForPersonId(onAddPerson(name, userId))}
-          onAddGuest={onAddGuest ? options => setFocusItemsForPersonId(onAddGuest(options)) : undefined}
+          onAddPerson={(name, userId) => {
+            const personId = onAddPerson(name, userId)
+            setFocusItemsForPersonId(personId)
+          }}
+          onAddGuest={onAddGuest
+            ? options => {
+                const personId = onAddGuest(options)
+                setFocusItemsForPersonId(personId)
+              }
+            : undefined}
           users={registeredUsers}
           guests={guestSuggestions}
           excludeUserIds={excludeUserIds}
