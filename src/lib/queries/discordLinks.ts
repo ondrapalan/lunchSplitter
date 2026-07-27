@@ -8,6 +8,7 @@ import {
   resolvePendingDiscordLinkCreateUser,
   resolvePendingDiscordLinkToUser,
 } from '~/actions/pendingDiscordLinks'
+import { listUnlinkedGuildMembers } from '~/actions/discordMembers'
 import { qk } from '~/lib/queries/keys'
 
 export function usePendingDiscordLinks() {
@@ -22,6 +23,14 @@ export function useUsersWithoutDiscordLink() {
   return useQuery({
     queryKey: qk.discordLinks.pickableUsers(),
     queryFn: () => getUsersWithoutDiscordLink(),
+    staleTime: 60_000,
+  })
+}
+
+export function useUnlinkedDiscordMembers() {
+  return useQuery({
+    queryKey: qk.discordLinks.members(),
+    queryFn: () => listUnlinkedGuildMembers(),
     staleTime: 60_000,
   })
 }

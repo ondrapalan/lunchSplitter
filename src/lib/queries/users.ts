@@ -52,10 +52,13 @@ export function useUpdateUserAliases() {
 }
 
 export function useSetUserDiscordId() {
-  const invalidate = useInvalidateUsers()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: { userId: string; discordId: string | null }) =>
       setUserDiscordId(input.userId, input.discordId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.users.all })
+      qc.invalidateQueries({ queryKey: qk.discordLinks.all })
+    },
   })
 }
