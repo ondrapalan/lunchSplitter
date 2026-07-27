@@ -150,6 +150,7 @@ interface PersonCardProps {
   onUpdateItem: (itemId: string, updates: Partial<Omit<Item, 'id'>>) => void
   onRemoveItem: (itemId: string) => void
   onFlushItem?: (itemId: string) => void
+  autoFocusItemInput?: boolean
   // QR Platba props
   bankAccountNumber?: string | null
   creatorPersonId?: string | null
@@ -187,6 +188,7 @@ export function PersonCard({
   onUpdateItem,
   onRemoveItem,
   onFlushItem,
+  autoFocusItemInput = false,
   bankAccountNumber,
   creatorPersonId,
   currentUserPersonId,
@@ -353,6 +355,7 @@ export function PersonCard({
                 suggestions={itemSuggestions}
                 onKeyDown={handleKeyDown}
                 placeholder="Item name"
+                autoFocus={autoFocusItemInput}
               />
               <NumberInput
                 value={newItemPrice}

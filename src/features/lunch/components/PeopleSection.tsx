@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { SectionTitle } from '~/features/ui/components/SectionTitle'
 import { PersonCard } from './PersonCard'
 import { PersonSuggest } from './PersonSuggest'
@@ -25,13 +25,13 @@ interface PeopleSectionProps {
   editablePersonId?: string | null
   showEditMyItemsForPersonId?: string | null
   onEditMyItems?: () => void
-  onAddPerson: (name: string, userId?: string) => void
+  onAddPerson: (name: string, userId?: string) => string
   onAddGuest?: (options: {
     name: string
     hostUserId: string
     guestId?: string
     newGuest?: { name: string; defaultHostUserId: string }
-  }) => void
+  }) => string
   onUpdatePersonHost?: (personId: string, hostUserId: string) => void
   onRemovePerson: (personId: string) => void
   onUpdatePersonName: (personId: string, name: string) => void
@@ -127,6 +127,8 @@ export function PeopleSection({
     return map
   }, [people])
 
+  const [focusItemsForPersonId, setFocusItemsForPersonId] = useState<string | null>(null)
+
   return (
     <div>
       <SectionTitle>People & Orders</SectionTitle>
@@ -178,6 +180,7 @@ export function PeopleSection({
             onUpdateItem={(itemId, updates) => onUpdateItem(person.id, itemId, updates)}
             onRemoveItem={itemId => onRemoveItem(person.id, itemId)}
             onFlushItem={onFlushItem ? (itemId: string) => onFlushItem(person.id, itemId) : undefined}
+            autoFocusItemInput={person.id === focusItemsForPersonId}
             bankAccountNumber={bankAccountNumber}
             creatorPersonId={creatorPersonId}
             currentUserPersonId={currentUserPersonId}
@@ -199,8 +202,8 @@ export function PeopleSection({
 
       {canAddPerson && (
         <PersonSuggest
-          onAddPerson={onAddPerson}
-          onAddGuest={onAddGuest}
+          onAddPerson={(name, userId) => setFocusItemsForPersonId(onAddPerson(name, userId))}
+          onAddGuest={onAddGuest ? options => setFocusItemsForPersonId(onAddGuest(options)) : undefined}
           users={registeredUsers}
           guests={guestSuggestions}
           excludeUserIds={excludeUserIds}
