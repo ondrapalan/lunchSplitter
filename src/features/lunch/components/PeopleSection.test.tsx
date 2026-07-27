@@ -26,6 +26,7 @@ function Harness() {
     { id: 'person-1', name: 'Ondra', userId: 'user-1', items: [] },
   ])
   const [renderToken, setRenderToken] = useState(0)
+  const [canEditItems, setCanEditItems] = useState(true)
 
   const addPerson = (name: string, userId?: string) => {
     const id = `person-${name}`
@@ -52,6 +53,7 @@ function Harness() {
   return (
     <ThemeProvider theme={darkTheme}>
       <button onClick={() => setRenderToken(token => token + 1)}>rerender {renderToken}</button>
+      <button onClick={() => setCanEditItems(prev => !prev)}>toggle canEditItems</button>
       <PeopleSection
         people={people}
         summaries={[]}
@@ -59,7 +61,7 @@ function Harness() {
         registeredUsers={USERS}
         guestSuggestions={GUESTS}
         canAddPerson
-        canEditItems
+        canEditItems={canEditItems}
         onAddPerson={addPerson}
         onAddGuest={addGuest}
         onRemovePerson={() => {}}
@@ -129,5 +131,19 @@ describe('PeopleSection', () => {
 
     expect(itemInputs()[1]).not.toHaveFocus()
     expect(itemInputs()[0]).not.toHaveFocus()
+  })
+
+  it('does not steal focus back after an item input remounts', () => {
+    render(<Harness />)
+    pickFromPicker('Petr')
+    expect(itemInputs()[1]).toHaveFocus()
+
+    const toggle = screen.getByText('toggle canEditItems')
+    fireEvent.click(toggle)
+    fireEvent.click(toggle)
+
+    for (const input of itemInputs()) {
+      expect(input).not.toHaveFocus()
+    }
   })
 })

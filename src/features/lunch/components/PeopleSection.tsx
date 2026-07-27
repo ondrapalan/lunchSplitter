@@ -128,6 +128,12 @@ export function PeopleSection({
   }, [people])
 
   const [focusItemsForPersonId, setFocusItemsForPersonId] = useState<string | null>(null)
+  const [lastCanEditItems, setLastCanEditItems] = useState(canEditItems)
+
+  if (lastCanEditItems !== canEditItems) {
+    setLastCanEditItems(canEditItems)
+    setFocusItemsForPersonId(null)
+  }
 
   return (
     <div>
