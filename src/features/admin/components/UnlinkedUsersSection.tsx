@@ -73,8 +73,12 @@ export function UnlinkedUsersSection() {
   }
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(rosterText(members))
-    toast.success('Copied to clipboard')
+    try {
+      await navigator.clipboard.writeText(rosterText(members))
+      toast.success('Copied to clipboard')
+    } catch {
+      toast.error('Clipboard access was denied — select the list and copy manually')
+    }
   }
 
   return (
