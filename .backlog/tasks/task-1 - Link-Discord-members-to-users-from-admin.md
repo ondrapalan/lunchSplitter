@@ -1,10 +1,11 @@
 ---
 id: TASK-1
 title: Link Discord members to users from admin
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-07-27 11:21'
-updated_date: '2026-07-27 11:28'
+updated_date: '2026-07-27 11:35'
 labels: []
 dependencies: []
 documentation:
@@ -27,3 +28,17 @@ Admins can read the company Discord server member list through the bot and pair 
 - [ ] #5 Not-yet-linked members are also shown in a collapsed list with their Discord IDs and a copy-as-text button, and that list shrinks as pairs are made
 - [ ] #6 Unit tests cover member fetch pagination and bot filtering, plus the dropdown label and sort helper
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Read path in src/lib/discord.ts: discordGet (no dry-run branch), DiscordReadError with status, zod-validated listGuildMembers with after-pagination and bot filtering, listBotGuilds; unit tests; DISCORD_GUILD_ID in .env.example.
+2. src/lib/discordMemberDisplay.ts: normalizeName, memberLabel (nick / global name / @username, deduped), sortMembersForDisplay (Czech collation); unit tests. No automatic matching by design.
+3. src/actions/discordMembers.ts: listUnlinkedGuildMembers behind requireAdmin, filters out IDs already on a user, maps 403 to a SERVER MEMBERS INTENT instruction and a missing DISCORD_GUILD_ID to the bot's guild list; query key + useUnlinkedDiscordMembers hook; useSetUserDiscordId also invalidates discordLinks.
+4. Split /admin/discord-links into UnlinkedUsersSection (new) and PendingLinksSection (moved) under src/features/admin/components with shared styled pieces; collapsed roster with copy-as-text; page becomes a composition.
+5. Update docs.
+
+Deviation from the spec, noted deliberately: the action returns only the members. getUsersWithoutDiscordLink already returns the unlinked users, so a combined overview payload would duplicate that query and create a second source of truth.
+
+Full plan: docs/superpowers/plans/2026-07-27-discord-member-linking.md
+<!-- SECTION:PLAN:END -->
