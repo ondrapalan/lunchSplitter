@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 const DISCORD_API = 'https://discord.com/api/v10'
 
 function isDryRun(): boolean {
@@ -67,6 +69,81 @@ async function discordFetch(path: string, options: RequestInit = {}) {
     throw new Error(`Discord API error ${res.status}: ${body}`)
   }
   return res.json()
+}
+
+export interface DiscordGuildMember {
+  discordId: string
+  username: string
+  globalName: string | null
+  nick: string | null
+}
+
+export class DiscordReadError extends Error {
+  readonly status: number
+
+  constructor(status: number, body: string) {
+    super(`Discord API error ${status}: ${body}`)
+    this.name = 'DiscordReadError'
+    this.status = status
+  }
+}
+
+const guildMembersSchema = z.array(z.object({
+  nick: z.string().nullish(),
+  user: z.object({
+    id: z.string(),
+    username: z.string(),
+    global_name: z.string().nullish(),
+    bot: z.boolean().optional(),
+  }),
+}))
+
+const botGuildsSchema = z.array(z.object({ id: z.string(), name: z.string() }))
+
+/**
+ * Reads deliberately skip the dry-run guard: DISCORD_DRY_RUN exists to stop the
+ * bot from *sending* anything, and a GET changes nothing on Discord's side.
+ */
+async function discordGet(path: string): Promise<unknown> {
+  const res = await fetch(`${DISCORD_API}${path}`, { headers: getHeaders() })
+  if (!res.ok) {
+    throw new DiscordReadError(res.status, await res.text())
+  }
+  return res.json()
+}
+
+const MEMBER_PAGE_SIZE = 1000
+
+/**
+ * List every human member of a guild. Requires the GUILD_MEMBERS privileged
+ * intent to be enabled in the Developer Portal — without it Discord answers 403.
+ */
+export async function listGuildMembers(guildId: string): Promise<DiscordGuildMember[]> {
+  const members: DiscordGuildMember[] = []
+  let after = '0'
+
+  for (;;) {
+    const page = guildMembersSchema.parse(
+      await discordGet(`/guilds/${guildId}/members?limit=${MEMBER_PAGE_SIZE}&after=${after}`),
+    )
+
+    for (const entry of page) {
+      if (entry.user.bot) continue
+      members.push({
+        discordId: entry.user.id,
+        username: entry.user.username,
+        globalName: entry.user.global_name ?? null,
+        nick: entry.nick ?? null,
+      })
+    }
+
+    if (page.length < MEMBER_PAGE_SIZE) return members
+    after = page[page.length - 1].user.id
+  }
+}
+
+export async function listBotGuilds(): Promise<{ id: string; name: string }[]> {
+  return botGuildsSchema.parse(await discordGet('/users/@me/guilds'))
 }
 
 /**
