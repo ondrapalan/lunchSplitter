@@ -47,9 +47,23 @@ After the migration, those rows behave exactly like regular guest rows — stats
 
 `src/app/(app)/admin/items/page.tsx`. Read-only view of all order items across the system — useful for auditing price drift across restaurants or finding duplicate item names for alias cleanup.
 
-### `/admin/discord-links` — Unresolved Discord users
+### `/admin/discord-links` — Discord linking
 
-`src/app/(app)/admin/discord-links/page.tsx`. Shows every `PendingDiscordLink` with `resolvedAt IS NULL` — Discord users who've interacted with the bot (usually via a Sekačka Join button) but have no matching `User.discordId`.
+`src/app/(app)/admin/discord-links/page.tsx` is a thin composition of two sections that live in `src/features/admin/components/`.
+
+#### Missing Discord link (proactive)
+
+[`UnlinkedUsersSection`](../../src/features/admin/components/UnlinkedUsersSection.tsx) lists every user with `discordId IS NULL` and, for each, a dropdown of guild members nobody is linked to yet. Picking one and hitting **Link** calls the existing `setUserDiscordId`. This exists because self-service linking (colleagues copying their own Discord ID into Settings) left several people unlinked indefinitely.
+
+The member list comes from [`listUnlinkedGuildMembers()`](../../src/actions/discordMembers.ts), which reads the guild through the bot and subtracts every `discordId` already stored on a user. The same list doubles as the collapsed "On Discord, not linked yet" roster with a copy-as-text button, so it shrinks as pairs are made.
+
+**There is deliberately no automatic name matching.** Real server nicknames (`Domča` for a *Dominik*, `Bary` for *cyomi*, `Jiří H. N.` with no surname) make exact matching useless, and anything looser risks pairing the wrong two people — which would send one colleague's payment QR to another's DM. Instead the dropdown label shows every name a person might be known by (nickname · global name · @username), built by [`memberLabel`](../../src/lib/discordMemberDisplay.ts) and ordered with Czech collation.
+
+Requires `DISCORD_GUILD_ID` and the **GUILD_MEMBERS privileged intent**; see [Discord integration](./discord-integration.md). A missing variable, a disabled intent, or an unconfigured bot each render an actionable message in place of the list rather than hiding the section.
+
+#### Unlinked Discord accounts (reactive)
+
+[`PendingLinksSection`](../../src/features/admin/components/PendingLinksSection.tsx) shows every `PendingDiscordLink` with `resolvedAt IS NULL` — Discord users who've interacted with the bot (usually via a Sekačka Join button) but have no matching `User.discordId`.
 
 **Actions** (all in `src/actions/discord.ts`):
 

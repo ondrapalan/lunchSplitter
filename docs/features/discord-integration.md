@@ -10,6 +10,7 @@ Env vars used by the integration:
 - `DISCORD_APPLICATION_ID` — used by the operator setup flow.
 - `DISCORD_PUBLIC_KEY` — verifies Ed25519 signatures on incoming interactions; only inbound code reads it.
 - `DISCORD_OBEDY_CHANNEL_ID` — the channel where Sekačka orders are published.
+- `DISCORD_GUILD_ID` — the server whose member list the admin linking page reads. Not a secret. Left empty, the page reports which guild IDs the bot is in, so the value can be copied from there.
 - `DISCORD_DRY_RUN=1` — short-circuits all outbound HTTP, logging payloads instead. Use during local dev for safety.
 - `DISCORD_DEBUG_USER_ID` — when set, every outbound DM and channel send is rerouted to a DM with this user, prefixed with a `[DEBUG → <label>]` header naming the original target. Lets you exercise the live API on localhost without DMing real colleagues. Requires `DISCORD_DRY_RUN` empty and a real `DISCORD_BOT_TOKEN`. The redirect helpers live in `src/lib/discord.ts` (`resolveDebugTarget`, `sendGuildChannelMessage`, `isDiscordDebugMode`).
 
@@ -75,15 +76,27 @@ When a stranger interacts with the bot:
    - `resolvePendingDiscordLinkCreateUser(linkId, { username, displayName, role })` — create a fresh user and bind in one step. Returns the temp password.
    - `dismissPendingDiscordLink(linkId)` — delete without resolving (for spam / accidental clicks).
 
+## Reading the guild member list
+
+`listGuildMembers(guildId)` in `src/lib/discord.ts` pages `GET /guilds/{id}/members` (1000 per page, `after` cursor), validates each page with zod, and drops bots. It powers the proactive half of [`/admin/discord-links`](./admin.md#admin-discord-links--discord-linking).
+
+Two things differ from the outbound helpers:
+
+- **Reads skip the dry-run guard.** `DISCORD_DRY_RUN` exists to stop the bot from *sending*; a GET changes nothing, and honoring it would make the feature impossible to exercise locally. Without a token, `getHeaders()` throws exactly as it does for writes.
+- **Failures carry a status.** `discordGet` throws `DiscordReadError` with the HTTP status so callers can translate rather than leak a raw message — a 403 means the GUILD_MEMBERS intent is off, which the admin page says in plain words.
+
+The **GUILD_MEMBERS privileged intent** must be enabled in the Developer Portal under *Bot → Privileged Gateway Intents*. It is purely an application-owner setting: no guild permission is involved, the bot permission grid in the portal is only an invite-URL generator, and the Discord server administrator does not have to do anything. Discord requires review only past 10,000 users.
+
 ## Files
 
 | Concern | File |
 |---|---|
 | Outbound actions (link, DM, confirm) | `src/actions/discord.ts` |
+| Guild member reads | `src/actions/discordMembers.ts` |
 | Inbound webhook (button handlers) | `src/app/api/discord/interactions/route.ts` |
-| REST helpers (send DM, edit message) | `src/lib/discord*.ts` |
+| REST helpers (send DM, edit message, list members) | `src/lib/discord*.ts` |
 | Sekačka-specific message build + refresh | `src/lib/sekackaCore.ts` |
-| Admin resolution UI | `src/app/(app)/admin/discord-links/page.tsx` |
+| Admin linking UI | `src/features/admin/components/` |
 
 ## Related docs
 

@@ -2,6 +2,8 @@
 
 Díky propojení vám po uzavření objednávky přijde QR kód k zaplacení přímo do DM na Discordu. Stačí 2 kroky.
 
+> **Nechce se vám to?** Napište adminovi — ten vás umí propojit sám v administraci, aniž byste cokoli opisovali. Stačí, že jste na firemním Discordu.
+
 ---
 
 ## Krok 1: Zjistěte své Discord User ID
