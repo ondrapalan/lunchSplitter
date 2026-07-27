@@ -76,6 +76,7 @@ export function useLunchSession(initialSession?: LunchSession) {
       ...prev,
       people: [...prev.people, person],
     }))
+    return person.id
   }, [])
 
   const addGuest = useCallback((options: {
@@ -98,6 +99,7 @@ export function useLunchSession(initialSession?: LunchSession) {
       ...prev,
       people: [...prev.people, person],
     }))
+    return person.id
   }, [])
 
   const updatePersonHost = useCallback((personId: string, hostUserId: string) => {

@@ -306,6 +306,7 @@ function OrderContent({
     const personId = crypto.randomUUID()
     addPerson(name, userId, personId)
     autoSave.saveAddPerson(personId, name, userId)
+    return personId
   }, [addPerson, autoSave])
 
   const handleAutoSaveRemovePerson = useCallback((personId: string) => {
@@ -327,6 +328,7 @@ function OrderContent({
     const personId = crypto.randomUUID()
     addGuest({ ...options, id: personId })
     autoSave.saveAddGuest(personId, options)
+    return personId
   }, [addGuest, autoSave])
 
   const handleAutoSaveUpdatePersonHost = useCallback((personId: string, hostUserId: string) => {

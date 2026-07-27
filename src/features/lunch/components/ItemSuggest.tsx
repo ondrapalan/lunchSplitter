@@ -56,9 +56,10 @@ interface ItemSuggestProps {
   suggestions: ItemSuggestion[]
   onKeyDown?: (e: React.KeyboardEvent) => void
   placeholder?: string
+  autoFocus?: boolean
 }
 
-export function ItemSuggest({ value, onChange, onSelect, suggestions, onKeyDown, placeholder }: ItemSuggestProps) {
+export function ItemSuggest({ value, onChange, onSelect, suggestions, onKeyDown, placeholder, autoFocus }: ItemSuggestProps) {
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -128,6 +129,7 @@ export function ItemSuggest({ value, onChange, onSelect, suggestions, onKeyDown,
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         autoComplete="off"
+        autoFocus={autoFocus}
       />
       {open && unique.length > 0 && (
         <Dropdown>
