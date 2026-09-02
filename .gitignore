@@ -46,3 +46,6 @@ docs/superpowers/
 .playwright-cli
 
 *.tsbuildinfo
+.vercel
+.env*
+!.env.example
